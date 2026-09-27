@@ -156,6 +156,7 @@
       <span class="hint-pill"><b>1-6</b> WAFFEN</span>
       <span class="hint-pill"><b>WASD</b> BEWEGEN</span>
       <span class="hint-pill"><b>B/T/M/U</b> SHOP (VORBEREITUNG)</span>
+      <span class="hint-pill"><b>G</b> WAFFE KAUFEN (VORBEREITUNG)</span>
     </div>
 
     <div id="status-bar">
@@ -1227,6 +1228,10 @@
     let waveSpawnClock = 0;
     let scrap = 0;
     let magUpgradeCost = Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, 40]));
+    // Weapons not already unlocked at start or via a wave-clear drop can
+    // still be bought straight from scrap — priced roughly by DPS so the
+    // stronger guns cost more than a couple of wave clears' worth.
+    const WEAPON_BUY_COST = { smg: 50, revolver: 65, assault_rifle: 85, lmg: 110 };
     function addScrap(amount) {
       scrap += amount;
       document.getElementById('scrap-val').innerText = scrap;
@@ -1435,6 +1440,26 @@
         document.getElementById('msg-box').innerText = `${WEAPON_DEFS[w].name} MAGAZIN +1`;
       }
     }
+    // Buys the next locked weapon in WEAPON_ORDER — same unlock effects as
+    // picking up its wave-clear crate (full mag, reserve grant, auto-equip)
+    // so scrap becomes a second path to the full arsenal, not just a
+    // shortcut around it.
+    function buyWeapon() {
+      if (!inPrep) return;
+      const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+      if (!nextId) { playSound('empty'); document.getElementById('msg-box').innerText = 'ALLE WAFFEN FREIGESCHALTET'; return; }
+      const cost = WEAPON_BUY_COST[nextId];
+      if (spend(cost)) {
+        const def = WEAPON_DEFS[nextId];
+        def.unlocked = true;
+        player.magazine[nextId] = MAG_SIZE[nextId];
+        player.reloading[nextId] = false;
+        const gained = grantAmmo(def.reserveGrant);
+        selectWeapon(nextId);
+        playSound('levelup');
+        document.getElementById('msg-box').innerText = `${def.name} GEKAUFT // MAGAZIN VOLL // +${gained} RESERVE`;
+      }
+    }
 
     window.addEventListener('keydown', (e) => {
       keys[e.code] = true;
@@ -1444,6 +1469,7 @@
       if (e.code === 'KeyT' && !e.repeat) buyRepairTerminal();
       if (e.code === 'KeyM' && !e.repeat) buyAmmo();
       if (e.code === 'KeyU' && !e.repeat) buyMagUpgrade();
+      if (e.code === 'KeyG' && !e.repeat) buyWeapon();
       if (e.code === 'KeyR' && !e.repeat && document.pointerLockElement === document.body && !gameEnded) reload();
       if (e.code === 'Enter' && !e.repeat) {
         if (document.pointerLockElement !== document.body && !isTouchDevice() && !gameEnded) lockPointer();
@@ -1533,8 +1559,8 @@
      document.getElementById('touch-interact').addEventListener('pointerdown', e => {
        e.preventDefault();
        if (!inPrep) return;
-       [buyRepairBarricades, buyRepairTerminal, buyAmmo, buyMagUpgrade][touchShopIndex]();
-       touchShopIndex = (touchShopIndex + 1) % 4;
+       [buyRepairBarricades, buyRepairTerminal, buyAmmo, buyMagUpgrade, buyWeapon][touchShopIndex]();
+       touchShopIndex = (touchShopIndex + 1) % 5;
      });
 
     function damagePlayer(amount) {
@@ -1584,7 +1610,13 @@
       refreshPickups();
       playSound('levelup');
       const newWeapon = WEAPON_DROP_ORDER[clearedWave - 1];
-      if (newWeapon) {
+      if (newWeapon && WEAPON_DEFS[newWeapon].unlocked) {
+        // Already bought from the shop with scrap — an uncollectable crate
+        // would just sit there forever, so pay out its buy cost instead.
+        addScrap(WEAPON_BUY_COST[newWeapon]);
+        document.getElementById('msg-box').innerText =
+          `WELLE ${clearedWave} ABGEWEHRT — ${WEAPON_DEFS[newWeapon].name} BEREITS GEKAUFT // +${WEAPON_BUY_COST[newWeapon]} SCHROTT`;
+      } else if (newWeapon) {
         spawnWeaponDrop(newWeapon, clearedWave);
         document.getElementById('msg-box').innerText =
           `WELLE ${clearedWave} ABGEWEHRT — ${WEAPON_DEFS[newWeapon].name} ABWURF NAHE TERMINAL`;
