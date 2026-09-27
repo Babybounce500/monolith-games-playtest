@@ -12,18 +12,17 @@
 
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
 
-    #start-screen, #gameover-screen, #victory-screen, #lock-screen {
+    #gameover-screen, #victory-screen, #lock-screen {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.88); z-index: 30; display: flex;
       flex-direction: column; justify-content: center; align-items: center;
       cursor: pointer; pointer-events: auto; text-align: center;
+      display: none;
     }
-    #gameover-screen, #victory-screen, #lock-screen { display: none; }
-    #start-screen h1, #gameover-screen h1, #victory-screen h1 { font-size: 46px; letter-spacing: 3px; text-shadow: 4px 4px 0 #000, 0 0 20px currentColor; }
-    #start-screen h1 { color: #ff8800; }
+    #gameover-screen h1, #victory-screen h1 { font-size: 46px; letter-spacing: 3px; text-shadow: 4px 4px 0 #000, 0 0 20px currentColor; }
     #gameover-screen h1 { color: #ff2200; }
     #victory-screen h1 { color: #22ff88; }
-    #start-screen p, #gameover-screen p, #victory-screen p, #lock-screen p { font-size: 16px; color: #ffcc00; margin-top: 12px; max-width: 600px; }
+    #gameover-screen p, #victory-screen p, #lock-screen p { font-size: 16px; color: #ffcc00; margin-top: 12px; max-width: 600px; }
     #lock-screen h2 { color: #ffcc00; font-size: 28px; }
 
     #weapon { position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%) scale(1.6); transform-origin: bottom center; pointer-events: none; z-index: 15; }
@@ -113,19 +112,6 @@
 </head>
 <body>
 
-  <div id="start-screen">
-    <h1>ALIEN BREACH</h1>
-    <p>Ein Chokepoint. Drei Korridore. Zehn Wellen. Verteidige das Terminal, nicht nur dich selbst — geht es kaputt, ist die Runde vorbei, egal wie viel Leben du noch hast.
-    Zwischen den Wellen: Schrott aus Kills gegen Reparatur, Munition und Waffen-Upgrades tauschen.</p>
-    <p style="font-size: 12px; color: #999; margin-top: 10px;">1-6 Waffen wechseln &middot; B Barrikaden reparieren &middot; T Terminal reparieren &middot; M Munition &middot; U Magazin-Upgrade (nur in der Vorbereitungsphase)</p>
-    <p style="font-size: 13px; color: #aaa; margin-top: 14px;">[KLICKEN ZUM STARTEN]</p>
-    <label class="sensitivity-control">MAUS <input class="mouse-sensitivity" type="range" min="0.0015" max="0.008" step="0.0001" value="0.0042"><span class="sensitivity-value">0.0042</span></label>
-    <p style="font-size: 10px; color: #666; margin-top: 26px; max-width: 520px;">
-      Weapon, enemy, and station-surface art is custom-generated and bundled locally ·
-      door and pickup icons CC0 from OpenGameArt.
-    </p>
-  </div>
-
   <div id="gameover-screen">
     <h1>STELLUNG GEFALLEN</h1>
     <p id="gameover-stats"></p>
@@ -139,8 +125,8 @@
   </div>
 
   <div id="lock-screen">
-    <h2>PAUSIERT // KLICKEN ZUM WEITERSPIELEN</h2>
-    <p>Pointer Lock wurde verlassen (z. B. durch ESC). Ein Klick reicht, um zurückzukehren.</p>
+    <h2 id="lock-title">ALIEN BREACH // KLICKEN ZUM SPIELEN</h2>
+    <p id="lock-desc">Ein Klick aktiviert die Maussteuerung. Escape pausiert jederzeit — ein weiterer Klick geht direkt weiter.</p>
     <label class="sensitivity-control">MAUS <input class="mouse-sensitivity" type="range" min="0.0015" max="0.008" step="0.0001" value="0.0042"><span class="sensitivity-value">0.0042</span></label>
   </div>
 
@@ -1271,16 +1257,15 @@
       }
     }
 
-    document.getElementById('start-screen').addEventListener('click', event => {
-      if (event.target.closest('.sensitivity-control')) return;
-      document.getElementById('start-screen').style.display = 'none';
-      lockPointer();
-      playSound('door');
-    });
     document.getElementById('lock-screen').addEventListener('click', event => {
       if (event.target.closest('.sensitivity-control')) return;
-      if (!gameEnded) lockPointer();
+      if (!gameEnded) { lockPointer(); playSound('door'); }
     });
+    // No separate start screen: on a mouse/keyboard device the lock-screen
+    // itself is the single "click to play" gate (Pointer Lock requires a
+    // real user gesture, so this can't be skipped entirely). Touch devices
+    // drive movement/look without pointer lock, so they skip it outright.
+    if (!isTouchDevice()) document.getElementById('lock-screen').style.display = 'flex';
     document.querySelectorAll('.mouse-sensitivity').forEach(input => {
       input.value = player.sensitivity.toFixed(4);
       input.nextElementSibling.textContent = Number(input.value).toFixed(4);
@@ -1300,8 +1285,13 @@
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === document.body;
        document.getElementById('lock-screen').style.display = (!locked && !isTouchDevice() && !gameEnded) ? 'flex' : 'none';
-      if (!locked) clearFireInputs();
-      else lockEngagedAt = performance.now();
+      if (!locked) {
+        clearFireInputs();
+        document.getElementById('lock-title').textContent = 'PAUSIERT // KLICKEN ZUM WEITERSPIELEN';
+        document.getElementById('lock-desc').textContent = 'Pointer Lock wurde verlassen (z. B. durch ESC). Ein Klick reicht, um zurückzukehren.';
+      } else {
+        lockEngagedAt = performance.now();
+      }
     });
 
      document.addEventListener('mousemove', (e) => {
@@ -1473,9 +1463,9 @@
          return;
        }
        // Pointer lock can engage fast enough that the very click which
-       // requested it (start-screen / lock-screen) is also seen here as a
-       // live mousedown — without this guard that same click fires a shot
-       // instead of just starting the match.
+       // requested it (on the lock-screen) is also seen here as a live
+       // mousedown — without this guard that same click fires a shot
+       // instead of just starting/resuming the match.
        if (performance.now() - lockEngagedAt < 250) return;
        if (e.button === 0) setFireInput('mouse', true);
       else if (e.button === 2) reload();
