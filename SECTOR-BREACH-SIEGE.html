@@ -1296,10 +1296,12 @@
     document.getElementById('restart-btn').addEventListener('click', () => location.reload());
     document.getElementById('restart-btn-2').addEventListener('click', () => location.reload());
 
+    let lockEngagedAt = 0;
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === document.body;
        document.getElementById('lock-screen').style.display = (!locked && !isTouchDevice() && !gameEnded) ? 'flex' : 'none';
       if (!locked) clearFireInputs();
+      else lockEngagedAt = performance.now();
     });
 
      document.addEventListener('mousemove', (e) => {
@@ -1470,6 +1472,11 @@
          if (e.button === 0 && !isTouchDevice()) lockPointer();
          return;
        }
+       // Pointer lock can engage fast enough that the very click which
+       // requested it (start-screen / lock-screen) is also seen here as a
+       // live mousedown — without this guard that same click fires a shot
+       // instead of just starting the match.
+       if (performance.now() - lockEngagedAt < 250) return;
        if (e.button === 0) setFireInput('mouse', true);
       else if (e.button === 2) reload();
     });
