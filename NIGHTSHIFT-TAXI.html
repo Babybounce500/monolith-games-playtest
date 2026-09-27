@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>NIGHTSHIFT TAXI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; font-family: Georgia, 'Times New Roman', serif; }
+  #three-container { position: absolute; inset: 0; z-index: 0; }
+  #ui-layer { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+
+  #hud-top { position: absolute; top: 16px; left: 16px; right: 190px; display: flex; gap: 10px; z-index: 6; }
+  .hud-box { background: rgba(0,0,0,.62); border: 2px solid #d9a441; padding: 6px 14px; text-align: center; min-width: 90px; }
+  .hud-label { font-size: 10px; color: #a88a5c; letter-spacing: .1em; }
+  .hud-value { font-size: 20px; color: #ffdca0; text-shadow: 0 0 6px rgba(255,196,120,.5); }
+
+  #radar-wrap { position: absolute; top: 16px; right: 16px; width: 168px; height: 168px; border: 2px solid #d9a441; background: rgba(0,0,0,.68); z-index: 6; }
+  #radar-label { position: absolute; top: 16px; right: 16px; width: 168px; text-align: center; transform: translateY(-22px); font: 700 10px monospace; color: #d9a441; letter-spacing: .12em; z-index: 6; }
+
+  #fare-banner { position: absolute; top: 78px; left: 0; right: 190px; text-align: center; z-index: 6; color: #ffdca0; font-style: italic; font-size: 14px; opacity: 0; transition: opacity .5s; text-shadow: 0 2px 8px rgba(0,0,0,.9); padding: 0 20px; }
+  #fare-banner.show { opacity: .92; }
+
+  /* In-cab dialogue panel — same visual language as Last Bus Home's
+     cabin panel, since a passenger conversation is the same kind of
+     beat, just triggered by driving instead of a fixed stop list. */
+  #cab-panel { position: absolute; z-index: 8; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 640px; padding: 0 18px 22px; pointer-events: auto; display: none; }
+  #cab-inner { background: linear-gradient(180deg, rgba(26,21,16,.9) 0%, rgba(16,13,10,.95) 100%); border-radius: 14px 14px 0 0; padding: 16px 20px 20px; box-shadow: 0 -6px 30px rgba(0,0,0,.5); }
+  #cab-name { color: #e8d9c0; font-size: 14px; font-weight: 700; letter-spacing: .05em; margin-bottom: 8px; }
+  #cab-text { color: #d9cdb8; font-size: 16px; line-height: 1.55; min-height: 50px; }
+  #cab-continue-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+  #cab-continue { background: none; border: 1px solid rgba(232,217,192,.35); color: #e8d9c0; padding: 8px 18px; font: inherit; font-size: 13px; letter-spacing: .08em; border-radius: 20px; cursor: pointer; }
+  #cab-continue:hover { background: rgba(255,196,120,.1); }
+
+  #cover-screen, #end-screen {
+    position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(5,6,12,.92); text-align: center; padding: 30px; gap: 14px; pointer-events: auto;
+  }
+  #cover-screen.hidden, #end-screen.hidden { display: none; }
+  #cover-screen h1, #end-screen h1 { color: #ffdca0; font-size: 34px; letter-spacing: .06em; font-weight: 400; }
+  #cover-screen p, #end-screen p { color: #a88a5c; max-width: 480px; font-size: 15px; line-height: 1.7; }
+  .big-btn { margin-top: 6px; background: none; border: 1px solid #d9a441; color: #ffdca0; padding: 12px 30px; font: inherit; font-size: 14px; letter-spacing: .12em; border-radius: 24px; cursor: pointer; text-transform: uppercase; }
+  .big-btn:hover { background: rgba(255,196,120,.1); }
+
+  #control-hints { position: absolute; bottom: 12px; left: 16px; z-index: 6; display: flex; gap: 6px; }
+  .hint-pill { background: rgba(0,0,0,.6); border: 1px solid #d9a441; border-radius: 12px; padding: 3px 10px; font: 700 10px monospace; letter-spacing: .5px; color: #d9a441; }
+  .hint-pill b { color: #ffdca0; }
+</style>
+</head>
+<body>
+<div id="three-container"></div>
+
+<div id="ui-layer">
+  <div id="hud-top">
+    <div class="hud-box"><div class="hud-label">VERDIENST</div><div class="hud-value" id="earnings-val">0 €</div></div>
+    <div class="hud-box"><div class="hud-label">FAHRTEN</div><div class="hud-value" id="fares-val">0/8</div></div>
+    <div class="hud-box"><div class="hud-label">STATUS</div><div class="hud-value" style="font-size:14px" id="status-val">SUCHE FAHRGAST</div></div>
+  </div>
+  <div id="fare-banner"></div>
+  <div id="control-hints">
+    <span class="hint-pill"><b>WASD</b> FAHREN</span>
+    <span class="hint-pill"><b>MAUS</b> UMSEHEN</span>
+  </div>
+</div>
+
+<div id="radar-label">RADAR</div>
+<div id="radar-wrap"><canvas id="radar" width="164" height="164"></canvas></div>
+
+<div id="cab-panel">
+  <div id="cab-inner">
+    <div id="cab-name"></div>
+    <div id="cab-text"></div>
+    <div id="cab-continue-row"><button id="cab-continue">weiter →</button></div>
+  </div>
+</div>
+
+<div id="cover-screen">
+  <h1>NIGHTSHIFT TAXI</h1>
+  <p>Kein GPS. Nur du, der Nebel, und die Adressen, die deine Fahrgäste dir geben — wenn man sie so nennen kann. Acht Fahrten bis Schichtende. Nicht jeder, der einsteigt, steigt auch wieder aus.</p>
+  <button class="big-btn" id="start-btn">Schicht beginnen</button>
+</div>
+
+<div id="end-screen" class="hidden">
+  <h1>SCHICHTENDE</h1>
+  <p id="end-summary"></p>
+  <button class="big-btn" id="restart-btn">Nochmal fahren</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // =========================================================
+  // SCENE / CITY — reuses this project's established vehicle-game
+  // pattern (Three.js, third-person chase cam, simple arcade
+  // accel/brake/steer physics on a flat plane instead of the merge
+  // worlds' heightmap terrain, since a city needs flat streets).
+  // =========================================================
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0c14);
+  scene.fog = new THREE.Fog(0x0a0c14, 18, 110);
+
+  const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 400);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  document.getElementById('three-container').appendChild(renderer.domElement);
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  scene.add(new THREE.HemisphereLight(0x334455, 0x0a0a10, 0.8));
+  const moon = new THREE.DirectionalLight(0x8899cc, 0.35);
+  moon.position.set(30, 60, -20);
+  scene.add(moon);
+
+  const CITY_HALF = 90;
+  const BLOCK = 18; // grid cell size (building + street)
+  const STREET_HALF = 4; // half-width of the drivable street gap
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(CITY_HALF * 2.4, CITY_HALF * 2.4),
+    new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.85 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  // City grid: a building on every block cell except a sparse random
+  // scatter of empty lots (parking-lot-style gaps for visual variety).
+  // Buildings are visual only (no hard collision) — same convention
+  // as decorative props in this project's other vehicle games.
+  const buildingMats = [0x1c2230, 0x241c22, 0x201f2a, 0x1a2422].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
+  const windowMat = new THREE.MeshBasicMaterial({ color: 0xffcf80 });
+  const buildings = [];
+  for (let gx = -4; gx <= 4; gx++) {
+    for (let gz = -4; gz <= 4; gz++) {
+      if (Math.random() < 0.12) continue; // occasional empty lot
+      const cx = gx * BLOCK, cz = gz * BLOCK;
+      const w = BLOCK - STREET_HALF * 2 - 1, d = BLOCK - STREET_HALF * 2 - 1;
+      const h = 6 + Math.random() * 26;
+      const mat = buildingMats[Math.floor(Math.random() * buildingMats.length)];
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      b.position.set(cx, h / 2, cz);
+      scene.add(b);
+      buildings.push({ x: cx, z: cz, w, d });
+      // Scattered lit windows — small emissive planes on the building face.
+      const windowCount = Math.floor(h / 3);
+      for (let i = 0; i < windowCount; i++) {
+        if (Math.random() < 0.55) continue;
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.2), windowMat);
+        const side = Math.floor(Math.random() * 4);
+        const yy = 2 + i * 3 + Math.random() * 1.5;
+        if (side === 0) { win.position.set(cx, yy, cz + d / 2 + 0.05); }
+        else if (side === 1) { win.position.set(cx, yy, cz - d / 2 - 0.05); win.rotation.y = Math.PI; }
+        else if (side === 2) { win.position.set(cx + w / 2 + 0.05, yy, cz); win.rotation.y = -Math.PI / 2; }
+        else { win.position.set(cx - w / 2 - 0.05, yy, cz); win.rotation.y = Math.PI / 2; }
+        scene.add(win);
+      }
+    }
+  }
+
+  // Streetlights along the grid lines for neon mood + navigation cues.
+  const lampPoleMat = new THREE.MeshStandardMaterial({ color: 0x222226 });
+  const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
+  for (let gx = -4; gx <= 4; gx++) {
+    for (let gz = -4; gz <= 4; gz++) {
+      if (Math.random() < 0.5) continue;
+      const cx = gx * BLOCK + BLOCK / 2, cz = gz * BLOCK;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4, 6), lampPoleMat);
+      pole.position.set(cx, 2, cz);
+      scene.add(pole);
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampGlowMat);
+      glow.position.set(cx, 4, cz);
+      scene.add(glow);
+      const pl = new THREE.PointLight(0xffcf90, 0.6, 12);
+      pl.position.set(cx, 4, cz);
+      scene.add(pl);
+    }
+  }
+
+  // A handful of ambient traffic cars wandering fixed lanes — visual
+  // life only, no collision, no interaction.
+  const trafficMat = [0x883333, 0x336688, 0x666633].map(c => new THREE.MeshStandardMaterial({ color: c }));
+  const traffic = [];
+  for (let i = 0; i < 7; i++) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 3.2), trafficMat[i % trafficMat.length]);
+    const axis = Math.random() < 0.5 ? 'x' : 'z';
+    const lane = (Math.floor(Math.random() * 9) - 4) * BLOCK;
+    const pos = (Math.random() - 0.5) * CITY_HALF * 2;
+    if (axis === 'x') mesh.position.set(pos, 0.5, lane);
+    else { mesh.position.set(lane, 0.5, pos); mesh.rotation.y = Math.PI / 2; }
+    scene.add(mesh);
+    traffic.push({ mesh, axis, lane, speed: 4 + Math.random() * 4, dir: Math.random() < 0.5 ? 1 : -1 });
+  }
+  function updateTraffic(dt) {
+    traffic.forEach(t => {
+      if (t.axis === 'x') {
+        t.mesh.position.x += t.dir * t.speed * dt;
+        if (Math.abs(t.mesh.position.x) > CITY_HALF * 1.1) t.mesh.position.x = -Math.sign(t.mesh.position.x) * CITY_HALF * 1.1;
+      } else {
+        t.mesh.position.z += t.dir * t.speed * dt;
+        if (Math.abs(t.mesh.position.z) > CITY_HALF * 1.1) t.mesh.position.z = -Math.sign(t.mesh.position.z) * CITY_HALF * 1.1;
+      }
+    });
+  }
+
+  // =========================================================
+  // TAXI — same arcade accel/brake/steer physics shape as the
+  // merge-world vehicles (SECTOR-BREACH-derived lineage), on a flat
+  // plane instead of a heightmap.
+  // =========================================================
+  const cabGroup = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 3.6), new THREE.MeshStandardMaterial({ color: 0xf2c230 }));
+  body.position.y = 0.75;
+  cabGroup.add(body);
+  const roofSign = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.9), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x664400 }));
+  roofSign.position.set(0, 1.42, -0.2);
+  cabGroup.add(roofSign);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.6, 1.8), new THREE.MeshStandardMaterial({ color: 0x9fd6ff, transparent: true, opacity: 0.55 }));
+  cabin.position.set(0, 1.25, -0.1);
+  cabGroup.add(cabin);
+  const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.3, 10);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  [[-0.85, 0.4, 1.2], [0.85, 0.4, 1.2], [-0.85, 0.4, -1.2], [0.85, 0.4, -1.2]].forEach(p => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(p[0], p[1], p[2]);
+    cabGroup.add(wheel);
+  });
+  const headlightL = new THREE.SpotLight(0xfff3d0, 1.1, 30, 0.5, 0.4);
+  headlightL.position.set(-0.6, 0.8, 1.9);
+  cabGroup.add(headlightL);
+  cabGroup.add(headlightL.target);
+  headlightL.target.position.set(-0.6, 0.5, 6);
+  const headlightR = headlightL.clone();
+  headlightR.position.set(0.6, 0.8, 1.9);
+  cabGroup.add(headlightR);
+  cabGroup.add(headlightR.target);
+  headlightR.target.position.set(0.6, 0.5, 6);
+  scene.add(cabGroup);
+
+  const taxi = { x: 0, z: 0, heading: 0, speed: 0, maxSpeed: 16 };
+
+  const keys = {};
+  window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseY = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+
+  function updateTaxi(dt) {
+    let accel = 0;
+    if (keys['KeyW']) accel = 11;
+    else if (keys['KeyS']) accel = -8;
+    taxi.speed += accel * dt;
+    if (!keys['KeyW'] && !keys['KeyS']) {
+      const decel = Math.sign(taxi.speed) * 7 * dt;
+      taxi.speed = Math.abs(decel) > Math.abs(taxi.speed) ? 0 : taxi.speed - decel;
+    }
+    taxi.speed = Math.max(-taxi.maxSpeed * 0.5, Math.min(taxi.maxSpeed, taxi.speed));
+    const steerInput = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+    const turnRate = 1.9 * Math.min(1, Math.abs(taxi.speed) / 5 + 0.2);
+    taxi.heading += steerInput * turnRate * dt * (taxi.speed < 0 ? -1 : 1);
+    taxi.x += Math.sin(taxi.heading) * taxi.speed * dt;
+    taxi.z += Math.cos(taxi.heading) * taxi.speed * dt;
+    taxi.x = Math.max(-CITY_HALF, Math.min(CITY_HALF, taxi.x));
+    taxi.z = Math.max(-CITY_HALF, Math.min(CITY_HALF, taxi.z));
+
+    cabGroup.position.set(taxi.x, 0, taxi.z);
+    cabGroup.rotation.y = taxi.heading;
+
+    const camDist = 7.5, camHeight = 3.4;
+    const camX = taxi.x - Math.sin(taxi.heading) * camDist;
+    const camZ = taxi.z - Math.cos(taxi.heading) * camDist;
+    camera.position.lerp(new THREE.Vector3(camX, camHeight, camZ), Math.min(1, dt * 6));
+    const lookTarget = new THREE.Vector3(taxi.x, 1, taxi.z);
+    camera.lookAt(lookTarget);
+    camera.rotateY(-mouseX * 0.1);
+    camera.rotateX(-mouseY * 0.05);
+  }
+
+  // =========================================================
+  // PASSENGERS — a curated pool, same writing-quality bar as Last
+  // Bus Home's stop content. ~1 in 4 is a "phantom fare": the pickup
+  // and cryptic line play normally, but there's no real payoff at
+  // the destination — no fare, an unsettling line instead.
+  // =========================================================
+  const PASSENGERS = [
+    { name: 'Der Nachtwächter', ghost: false,
+      board: '„Fahr zur Ecke, wo die Ampel seit Jahren kaputt ist“, sagt er, ohne dich anzusehen. „Sie wissen schon, welche.“',
+      arrive: 'Er nickt knapp, drückt dir ein paar Scheine in die Hand. „Genau die.“ Dann ist er in der Dunkelheit verschwunden.' },
+    { name: 'Die Frau im roten Mantel', ghost: false,
+      board: '„Bringen Sie mich dahin, wo man das Meer noch riechen kann“, sagt sie leise. „Auch wenn hier keins mehr ist.“',
+      arrive: 'Sie steigt aus, atmet tief die neblige Luft ein, als wäre es tatsächlich Salzwasser. „Danke“, sagt sie, und bezahlt großzügig.' },
+    { name: 'Der Betrunkene', ghost: false,
+      board: '„Zu... äh... zu meiner Ex. Nein, warte.“ Er kichert. „Zur Bar. Zur Bar bitte, Fahrer.“',
+      arrive: 'Er stolpert raus, wirft dir mehr Geld hin als nötig. „Behalten Sie den Rest, Sie haben mir das Leben gerettet heute Nacht.“' },
+    { name: 'Das Kind', ghost: true,
+      board: 'Ein Kind, viel zu spät allein unterwegs, steigt wortlos ein. „Bring mich nach Hause“, flüstert es. „Da, wo das Licht im Fenster nie ausgeht.“',
+      arrive: 'Du hältst an der angegebenen Adresse und drehst dich um. Der Rücksitz ist leer. War er das die ganze Fahrt über? Ein kalter Luftzug ist alles, was bleibt.' },
+    { name: 'Der Geschäftsmann', ghost: false,
+      board: '„Flughafen“, sagt er knapp, ohne aufzuschauen von seinem Handy. „Und fahren Sie, als wäre es Ihr letzter Tag.“',
+      arrive: 'Er wirft dir das Fahrgeld fast beiläufig zu und ist schon am Telefon, bevor die Tür ganz zu ist.' },
+    { name: 'Die alte Dame mit dem Blumenstrauß', ghost: false,
+      board: '„Zum Friedhof am Stadtrand, bitte“, sagt sie und drückt die Blumen fest an sich. „Er wartet schon lange.“',
+      arrive: '„Danke, dass Sie mich nicht gefragt haben, warum so spät“, sagt sie beim Aussteigen. Sie bezahlt mit zitternden Händen.' },
+    { name: 'Stimme ohne Gesicht', ghost: true,
+      board: 'Die hintere Tür geht auf und zu, aber niemand steigt sichtbar ein. „Fahr einfach“, sagt eine Stimme aus dem leeren Rücksitz. „Ich sag dir, wenn wir da sind.“',
+      arrive: 'Die Stimme hört mitten im Satz auf. Du drehst dich um — der Sitz ist so leer, wie er die ganze Zeit war. Niemand steigt aus. Niemand hat je gesessen.' },
+    { name: 'Der Nachtschichtarbeiter', ghost: false,
+      board: '„Zur Fabrik am Fluss“, sagt er müde, „aber nehmen Sie ruhig die längere Route. Ich bin heute nicht in Eile.“',
+      arrive: '„Danke fürs Zuhören“, sagt er, obwohl ihr die ganze Fahrt über kaum geredet habt. Er bezahlt und winkt noch einmal.' }
+  ];
+  const FARE_MIN = 14, FARE_MAX = 34;
+  const TOTAL_FARES = 8;
+
+  // Shuffle-bag so the same passenger can't repeat until the pool
+  // is exhausted, same "don't feel random" discipline as picking
+  // enemy composition elsewhere in this project.
+  let bag = [];
+  function nextPassenger() {
+    if (!bag.length) bag = PASSENGERS.map((_, i) => i).sort(() => Math.random() - 0.5);
+    return PASSENGERS[bag.pop()];
+  }
+
+  function randomStreetPoint() {
+    // Snap roughly onto a street lane so pickups/dropoffs don't land
+    // inside a building block.
+    const gx = Math.floor((Math.random() - 0.5) * 9);
+    const gz = Math.floor((Math.random() - 0.5) * 9);
+    const onXStreet = Math.random() < 0.5;
+    const along = (Math.random() - 0.5) * BLOCK * 8;
+    return onXStreet
+      ? { x: along, z: gz * BLOCK + (Math.random() - 0.5) * STREET_HALF }
+      : { x: gx * BLOCK + (Math.random() - 0.5) * STREET_HALF, z: along };
+  }
+
+  // =========================================================
+  // STATE MACHINE
+  // =========================================================
+  let faresCompleted = 0;
+  let earnings = 0;
+  let shiftOver = false;
+  let phase = 'to_pickup'; // 'to_pickup' -> 'boarding' -> 'to_dropoff' -> 'arriving'
+  let currentPassenger = null;
+  let pickupPoint = null;
+  let dropoffPoint = null;
+  // No-GPS flavor: the radar shows the objective offset from its true
+  // spot, so you're navigating toward "roughly there," not a pin-point.
+  const RADAR_JITTER = 9;
+  const TRIGGER_RADIUS = 6;
+
+  function jittered(p) {
+    return { x: p.x + (Math.random() - 0.5) * RADAR_JITTER, z: p.z + (Math.random() - 0.5) * RADAR_JITTER };
+  }
+  let radarObjective = null;
+
+  function spawnPickup() {
+    currentPassenger = nextPassenger();
+    pickupPoint = randomStreetPoint();
+    radarObjective = jittered(pickupPoint);
+    phase = 'to_pickup';
+    document.getElementById('status-val').textContent = 'SUCHE FAHRGAST';
+  }
+
+  function showCab(name, text, onContinue) {
+    document.getElementById('cab-name').textContent = name;
+    document.getElementById('cab-text').textContent = text;
+    document.getElementById('cab-panel').style.display = 'block';
+    const btn = document.getElementById('cab-continue');
+    const handler = () => { document.getElementById('cab-panel').style.display = 'none'; btn.removeEventListener('click', handler); onContinue(); };
+    btn.addEventListener('click', handler);
+  }
+
+  function showFareBanner(text) {
+    const el = document.getElementById('fare-banner');
+    el.textContent = text;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  function checkTriggers() {
+    if (shiftOver) return;
+    if (phase === 'to_pickup') {
+      const d = Math.hypot(taxi.x - pickupPoint.x, taxi.z - pickupPoint.z);
+      if (d <= TRIGGER_RADIUS) {
+        phase = 'boarding';
+        document.getElementById('status-val').textContent = 'FAHRGAST AN BORD';
+        showCab(currentPassenger.name, currentPassenger.board, () => {
+          dropoffPoint = randomStreetPoint();
+          radarObjective = jittered(dropoffPoint);
+          phase = 'to_dropoff';
+        });
+      }
+    } else if (phase === 'to_dropoff') {
+      const d = Math.hypot(taxi.x - dropoffPoint.x, taxi.z - dropoffPoint.z);
+      if (d <= TRIGGER_RADIUS) {
+        phase = 'arriving';
+        showCab(currentPassenger.name, currentPassenger.arrive, () => {
+          faresCompleted++;
+          if (currentPassenger.ghost) {
+            showFareBanner('Kein Fahrgeld. Nur ein kalter Rest von jemandem, der vielleicht nie da war.');
+          } else {
+            const fare = FARE_MIN + Math.floor(Math.random() * (FARE_MAX - FARE_MIN));
+            earnings += fare;
+            document.getElementById('earnings-val').textContent = earnings + ' €';
+            showFareBanner(`+${fare} € Fahrgeld`);
+          }
+          document.getElementById('fares-val').textContent = `${faresCompleted}/${TOTAL_FARES}`;
+          if (faresCompleted >= TOTAL_FARES) { endShift(); return; }
+          spawnPickup();
+        });
+      }
+    }
+  }
+
+  function endShift() {
+    shiftOver = true;
+    radarObjective = null;
+    const ghostCount = PASSENGERS.filter(p => p.ghost).length;
+    document.getElementById('end-summary').textContent =
+      `Acht Fahrten. ${earnings} € verdient in einer Nacht, an die du dich nicht ganz erinnern wirst. ` +
+      `Nicht jeder, der einstieg, war zahlender Kunde.`;
+    document.getElementById('end-screen').classList.remove('hidden');
+  }
+
+  // =========================================================
+  // RADAR
+  // =========================================================
+  const radarCtx = document.getElementById('radar').getContext('2d');
+  function drawRadar() {
+    radarCtx.clearRect(0, 0, 164, 164);
+    radarCtx.fillStyle = 'rgba(10,10,16,.9)';
+    radarCtx.fillRect(0, 0, 164, 164);
+    const scale = 164 / (CITY_HALF * 2.6);
+    const toRadar = (x, z) => [82 + (x - taxi.x) * scale, 82 + (z - taxi.z) * scale];
+    radarCtx.strokeStyle = 'rgba(217,164,65,.25)';
+    for (let i = -4; i <= 4; i++) {
+      const [gx] = toRadar(i * BLOCK, 0);
+      radarCtx.beginPath(); radarCtx.moveTo(gx, 0); radarCtx.lineTo(gx, 164); radarCtx.stroke();
+      const [, gz] = toRadar(0, i * BLOCK);
+      radarCtx.beginPath(); radarCtx.moveTo(0, gz); radarCtx.lineTo(164, gz); radarCtx.stroke();
+    }
+    if (radarObjective) {
+      const [ox, oz] = toRadar(radarObjective.x, radarObjective.z);
+      const color = phase === 'to_pickup' ? '#66ff99' : '#ffcc44';
+      radarCtx.fillStyle = color;
+      radarCtx.beginPath(); radarCtx.arc(ox, oz, 5, 0, Math.PI * 2); radarCtx.fill();
+      radarCtx.strokeStyle = color;
+      radarCtx.beginPath(); radarCtx.arc(ox, oz, 5 + (Date.now() % 800) / 100, 0, Math.PI * 2); radarCtx.stroke();
+    }
+    radarCtx.fillStyle = '#ffdca0';
+    radarCtx.save();
+    radarCtx.translate(82, 82);
+    radarCtx.rotate(-taxi.heading);
+    radarCtx.beginPath();
+    radarCtx.moveTo(0, -6); radarCtx.lineTo(4, 5); radarCtx.lineTo(-4, 5);
+    radarCtx.closePath(); radarCtx.fill();
+    radarCtx.restore();
+  }
+
+  // =========================================================
+  // MAIN LOOP
+  // =========================================================
+  const clock = new THREE.Clock();
+  let started = false;
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (started && !shiftOver) {
+      updateTaxi(dt);
+      checkTriggers();
+    }
+    updateTraffic(dt);
+    drawRadar();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('cover-screen').classList.add('hidden');
+    started = true;
+    spawnPickup();
+  });
+  document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+})();
+</script>
+</body>
+</html>
