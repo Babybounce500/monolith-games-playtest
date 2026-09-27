@@ -5,27 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:,">
 <title>LAST BUS HOME</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #05060c; font-family: Georgia, 'Times New Roman', serif; }
-  #stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  #stage { position: relative; width: 100%; height: 100%; }
 
-  /* Night sky + passing city through the bus window */
-  #sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0a0e1f 0%, #131a30 55%, #1c2438 100%); overflow: hidden; }
-  #stars { position: absolute; inset: 0; opacity: .55; }
-  #stars span { position: absolute; width: 2px; height: 2px; background: #cfe0ff; border-radius: 50%; }
-  #skyline { position: absolute; bottom: 0; left: 0; width: 220%; height: 40%; display: flex; align-items: flex-end; animation: drift 26s linear infinite; opacity: .5; }
-  #skyline .b { background: #0c1120; margin-right: 2px; border-top: 1px solid #1a2138; flex-shrink: 0; }
-  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .rain { position: absolute; top: -10%; width: 1px; height: 60px; background: linear-gradient(180deg, transparent, rgba(180,200,255,.35)); animation: fall linear infinite; }
-  @keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
+  /* Real 3D bus interior (Three.js) fills the whole screen; the dialogue
+     panel below is an overlay anchored to the bottom, not a separate
+     "window box" — you're sitting inside the scene, not looking at it
+     through a picture frame. */
+  #three-container { position: absolute; inset: 0; z-index: 0; }
 
-  /* Bus interior frame */
-  #interior { position: relative; z-index: 2; width: 100%; max-width: 720px; padding: 0 18px 22px; }
-  #window-frame { position: relative; height: 30vh; min-height: 150px; max-height: 260px; border: 10px solid #14171f; border-bottom: none; border-radius: 18px 18px 0 0; background: rgba(5,7,15,.2); box-shadow: inset 0 0 40px rgba(0,0,0,.6); overflow: hidden; margin-top: 40px; }
-  #glass-glare { position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.05) 0%, transparent 30%, transparent 70%, rgba(255,255,255,.04) 100%); pointer-events: none; }
+  #interior { position: absolute; z-index: 2; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 720px; padding: 0 18px 22px; }
 
-  #cabin { background: linear-gradient(180deg, #1a1510 0%, #100d0a 100%); border-radius: 0 0 10px 10px; padding: 18px 20px 22px; box-shadow: 0 -6px 30px rgba(0,0,0,.5); }
+  #cabin { background: linear-gradient(180deg, rgba(26,21,16,.88) 0%, rgba(16,13,10,.94) 100%); border-radius: 14px 14px 0 0; padding: 18px 20px 22px; box-shadow: 0 -6px 30px rgba(0,0,0,.5); backdrop-filter: blur(2px); }
   .lamp-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, rgba(255,196,120,.14), transparent 60%); }
 
   #stop-label { color: #a88a5c; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; text-align: center; margin-bottom: 10px; opacity: .8; }
@@ -52,8 +46,8 @@
   }
   #continue-btn:hover { background: rgba(255,196,120,.1); }
 
-  #window-line { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; color: #cfe0ff; font-style: italic; font-size: 13px; opacity: 0; transition: opacity .6s; text-shadow: 0 0 8px rgba(0,0,0,.8); padding: 0 20px; }
-  #window-line.show { opacity: .85; }
+  #window-line { position: absolute; top: 8%; left: 0; right: 0; z-index: 1; text-align: center; color: #cfe0ff; font-style: italic; font-size: 14px; opacity: 0; transition: opacity .6s; text-shadow: 0 2px 10px rgba(0,0,0,.9); padding: 0 20px; }
+  #window-line.show { opacity: .9; }
 
   #cover-screen, #ending-screen {
     position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -75,10 +69,8 @@
 </head>
 <body>
 <div id="stage">
-  <div id="sky">
-    <div id="stars"></div>
-    <div id="skyline"></div>
-  </div>
+  <div id="three-container"></div>
+  <div id="window-line"></div>
 
   <button id="sound-toggle">TON: AUS</button>
 
@@ -97,10 +89,6 @@
   </div>
 
   <div id="interior">
-    <div id="window-frame">
-      <div id="glass-glare"></div>
-      <div id="window-line"></div>
-    </div>
     <div id="cabin">
       <div class="lamp-glow"></div>
       <div id="stop-label">HALTESTELLE 1 / 5</div>
@@ -167,36 +155,179 @@
   });
 
   // =========================================================
-  // SCENERY — stars + a repeating skyline silhouette, both
-  // pure CSS/DOM, no art assets needed.
+  // 3D BUS INTERIOR — a real Three.js scene: seats along an aisle,
+  // window strips showing a scrolling procedural night-skyline
+  // texture, and a simple blocky NPC figure that swaps color/prop
+  // per stop and actually sits in the seat across the aisle from
+  // the player's camera. Everything is procedural geometry/canvas
+  // textures — no art assets — same "logic first" approach as every
+  // other game in this project.
   // =========================================================
-  const starsEl = document.getElementById('stars');
-  for (let i = 0; i < 60; i++) {
-    const s = document.createElement('span');
-    s.style.left = Math.random() * 100 + '%';
-    s.style.top = Math.random() * 70 + '%';
-    s.style.opacity = (0.3 + Math.random() * 0.7).toFixed(2);
-    starsEl.appendChild(s);
+  const three = new THREE.Scene();
+  const threeCamera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.05, 60);
+  const threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+  threeRenderer.setSize(window.innerWidth, window.innerHeight);
+  threeRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  document.getElementById('three-container').appendChild(threeRenderer.domElement);
+  window.addEventListener('resize', () => {
+    threeCamera.aspect = window.innerWidth / window.innerHeight;
+    threeCamera.updateProjectionMatrix();
+    threeRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const busGroup = new THREE.Group();
+  three.add(busGroup);
+
+  const lampLight = new THREE.PointLight(0xffc478, 0.9, 8);
+  lampLight.position.set(0, 2.05, 0);
+  busGroup.add(lampLight);
+  busGroup.add(new THREE.AmbientLight(0x334455, 0.7));
+
+  // Scrolling night-city texture reused for every window pane.
+  function makeSkylineTexture() {
+    const cvs = document.createElement('canvas'); cvs.width = 1024; cvs.height = 256;
+    const ctx = cvs.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#0a0e1f'); grad.addColorStop(1, '#1c2438');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 256);
+    for (let i = 0; i < 90; i++) {
+      const w = 14 + Math.random() * 30, h = 40 + Math.random() * 160;
+      const x = Math.random() * 1024;
+      ctx.fillStyle = '#0c1120';
+      ctx.fillRect(x, 256 - h, w, h);
+      if (Math.random() < 0.5) {
+        ctx.fillStyle = 'rgba(255,196,120,.75)';
+        ctx.fillRect(x + w * 0.3, 256 - h + 10 + Math.random() * (h - 20), 3, 3);
+      }
+    }
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.repeat.set(3, 1);
+    return tex;
   }
-  const skylineEl = document.getElementById('skyline');
-  for (let i = 0; i < 40; i++) {
-    const b = document.createElement('div');
-    b.className = 'b';
-    const w = 14 + Math.random() * 26;
-    const h = 30 + Math.random() * 100;
-    b.style.width = w + 'px';
-    b.style.height = h + '%';
-    if (Math.random() < 0.4) b.style.boxShadow = '0 0 6px 1px rgba(255,196,120,.25)';
-    skylineEl.appendChild(b);
+  const skylineTex = makeSkylineTexture();
+  const windowMat = new THREE.MeshBasicMaterial({ map: skylineTex });
+
+  // Shell: floor, ceiling, two side walls with inset window panes.
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a1510, roughness: 0.9 });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(3, 12), wallMat);
+  floor.rotation.x = -Math.PI / 2;
+  busGroup.add(floor);
+  const ceiling = floor.clone();
+  ceiling.position.y = 2.15;
+  ceiling.rotation.x = Math.PI / 2;
+  busGroup.add(ceiling);
+  [-1.5, 1.5].forEach(x => {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.15), wallMat);
+    wall.position.set(x, 1.075, 0);
+    wall.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    busGroup.add(wall);
+    for (let z = -4.5; z <= 4.5; z += 1.5) {
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), windowMat);
+      pane.position.set(x - (x < 0 ? -0.02 : 0.02), 1.3, z);
+      pane.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+      busGroup.add(pane);
+    }
+  });
+
+  // Seat rows: player's row at z=0 (player seat left, NPC seat right),
+  // plus a few empty decorative rows for depth.
+  const seatMat = new THREE.MeshStandardMaterial({ color: 0x2b3a55, roughness: 0.8 });
+  function makeSeat(x, z) {
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.12), seatMat);
+    back.position.set(x, 1.0, z - 0.32);
+    busGroup.add(back);
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.55), seatMat);
+    cushion.position.set(x, 0.62, z);
+    busGroup.add(cushion);
   }
-  for (let i = 0; i < 24; i++) {
-    const r = document.createElement('div');
-    r.className = 'rain';
-    r.style.left = Math.random() * 100 + '%';
-    r.style.animationDuration = (0.7 + Math.random() * 0.6) + 's';
-    r.style.animationDelay = (Math.random() * 2) + 's';
-    document.getElementById('sky').appendChild(r);
+  [-3, -1.5, 0, 1.5, 3].forEach(z => { makeSeat(-0.9, z); makeSeat(0.9, z); });
+
+  // NPC figure — simple blocky humanoid, recolored + given a small
+  // distinguishing prop per stop. Sits in the seat directly across
+  // the aisle from the player, facing the player.
+  const npcGroup = new THREE.Group();
+  npcGroup.position.set(0.9, 0, 0);
+  npcGroup.rotation.y = Math.PI;
+  busGroup.add(npcGroup);
+  const npcBodyMat = new THREE.MeshStandardMaterial({ color: 0xc9a15c, roughness: 0.7 });
+  const npcTorso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.28), npcBodyMat);
+  npcTorso.position.set(0, 0.95, 0);
+  npcGroup.add(npcTorso);
+  const npcHead = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), npcBodyMat);
+  npcHead.position.set(0, 1.36, 0);
+  npcGroup.add(npcHead);
+
+  // One prop mesh per stop, all parented to npcGroup, only the
+  // current stop's prop visible at a time.
+  const propMat = new THREE.MeshStandardMaterial({ color: 0x8a7a5c, roughness: 0.6 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x9fd6ff });
+  const props = [
+    (() => { const g = new THREE.Group(); // birdcage: thin wire-ish box
+      const cage = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.22), new THREE.MeshBasicMaterial({ color: 0x445566, wireframe: true }));
+      cage.position.set(0.32, 0.68, 0.05); g.add(cage); return g; })(),
+    (() => { const g = new THREE.Group(); // phone glow
+      const phone = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.2), glowMat);
+      phone.position.set(0.28, 0.7, 0.15); g.add(phone); return g; })(),
+    (() => { const g = new THREE.Group(); // briefcase
+      const case_ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.08), propMat);
+      case_.position.set(0.3, 0.55, 0.1); g.add(case_); return g; })(),
+    (() => { const g = new THREE.Group(); // guitar case, elongated
+      const gcase = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.62, 0.1), propMat);
+      gcase.position.set(0.35, 0.85, 0.1); gcase.rotation.z = 0.12; g.add(gcase); return g; })(),
+    (() => { const g = new THREE.Group(); // baby bundle
+      const bundle = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), new THREE.MeshStandardMaterial({ color: 0xe8ddc8 }));
+      bundle.position.set(0, 0.98, 0.22); g.add(bundle); return g; })()
+  ];
+  props.forEach(p => { p.visible = false; npcGroup.add(p); });
+
+  function updateNpcFigure(idx) {
+    const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+    npcBodyMat.color.set(color);
+    props.forEach((p, i) => { p.visible = i === idx; });
   }
+  function hideNpcFigure() { npcTorso.visible = false; npcHead.visible = false; props.forEach(p => p.visible = false); }
+  function showNpcFigure() { npcTorso.visible = true; npcHead.visible = true; }
+
+  // Camera sits in the player's seat, glancing across the aisle and
+  // slightly toward the front of the bus — a natural "sitting and
+  // looking at the person across from you" angle. Subtle mouse-driven
+  // parallax on top (no pointer lock needed, this isn't an FPS).
+  const camBasePos = new THREE.Vector3(-0.9, 1.25, 0.1);
+  const camLookTarget = new THREE.Vector3(0.6, 1.3, -0.35);
+  threeCamera.position.copy(camBasePos);
+  threeCamera.lookAt(camLookTarget);
+  const baseQuaternion = threeCamera.quaternion.clone();
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseY = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+
+  const busClock = new THREE.Clock();
+  let scrollSpeed = 0.09; // faster while cruising between stops, eased down while parked at one
+  let scrollSpeedTarget = 0.09;
+  function animateThree() {
+    requestAnimationFrame(animateThree);
+    const dt = Math.min(busClock.getDelta(), 0.1);
+    const t = busClock.elapsedTime;
+
+    scrollSpeed += (scrollSpeedTarget - scrollSpeed) * Math.min(1, dt * 2);
+    skylineTex.offset.x += dt * scrollSpeed;
+
+    // Gentle whole-cabin sway to sell "moving vehicle" — applied to the
+    // group that contains the seats/walls/NPC, not the camera itself,
+    // so the player's own view stays comfortable to look at.
+    busGroup.rotation.z = Math.sin(t * 1.3) * 0.012 * (scrollSpeed / 0.09);
+    busGroup.position.y = Math.sin(t * 2.1) * 0.01 * (scrollSpeed / 0.09);
+
+    threeCamera.quaternion.copy(baseQuaternion);
+    threeCamera.rotateY(-mouseX * 0.12);
+    threeCamera.rotateX(-mouseY * 0.06);
+
+    threeRenderer.render(three, threeCamera);
+  }
+  animateThree();
 
   // =========================================================
   // CONTENT — six stops. Each stop: an opening line, three
@@ -335,12 +466,20 @@
     els.avatar.textContent = stop.initial;
     els.avatar.style.background = AVATAR_COLORS[idx % AVATAR_COLORS.length];
     els.speakerName.textContent = stop.name;
+    showNpcFigure();
+    updateNpcFigure(idx);
   }
 
   function showWindowLine(line) {
     els.windowLine.textContent = line;
     els.windowLine.classList.add('show');
     setTimeout(() => els.windowLine.classList.remove('show'), 4200);
+    // The bus visibly slows as it pulls into the stop, then pulls away
+    // again — ties the 3D scene's motion to the same beat this line
+    // already narrates.
+    hideNpcFigure();
+    scrollSpeedTarget = 0.015;
+    setTimeout(() => { scrollSpeedTarget = 0.09; }, 1800);
   }
 
   function renderOpen() {
@@ -407,6 +546,8 @@
 
   function showEnding() {
     rideEnded = true;
+    hideNpcFigure();
+    scrollSpeedTarget = 0;
     document.getElementById('interior').style.display = 'none';
     const trait = dominantTrait();
     const ending = ENDINGS[trait];
