@@ -156,7 +156,7 @@
       <span class="hint-pill"><b>1-6</b> WAFFEN</span>
       <span class="hint-pill"><b>WASD</b> BEWEGEN</span>
       <span class="hint-pill"><b>B/T/M/U</b> SHOP (VORBEREITUNG)</span>
-      <span class="hint-pill"><b>G</b> WAFFE KAUFEN (VORBEREITUNG)</span>
+      <span class="hint-pill"><b>G</b> WAFFE KAUFEN (JEDERZEIT)</span>
     </div>
 
     <div id="status-bar">
@@ -1443,9 +1443,11 @@
     // Buys the next locked weapon in WEAPON_ORDER — same unlock effects as
     // picking up its wave-clear crate (full mag, reserve grant, auto-equip)
     // so scrap becomes a second path to the full arsenal, not just a
-    // shortcut around it.
+    // shortcut around it. Unlike the other letter-key shop actions this
+    // works mid-wave too — a player getting overrun should be able to buy
+    // their way to a stronger gun without waiting for prep.
     function buyWeapon() {
-      if (!inPrep) return;
+      if (gameEnded) return;
       const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
       if (!nextId) { playSound('empty'); document.getElementById('msg-box').innerText = 'ALLE WAFFEN FREIGESCHALTET'; return; }
       const cost = WEAPON_BUY_COST[nextId];
@@ -1558,9 +1560,9 @@
      });
      document.getElementById('touch-interact').addEventListener('pointerdown', e => {
        e.preventDefault();
-       if (!inPrep) return;
-       [buyRepairBarricades, buyRepairTerminal, buyAmmo, buyMagUpgrade, buyWeapon][touchShopIndex]();
+       const action = [buyRepairBarricades, buyRepairTerminal, buyAmmo, buyMagUpgrade, buyWeapon][touchShopIndex];
        touchShopIndex = (touchShopIndex + 1) % 5;
+       if (action === buyWeapon || inPrep) action();
      });
 
     function damagePlayer(amount) {
