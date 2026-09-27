@@ -104,7 +104,7 @@
   <span class="hint-pill"><b>LEERTASTE</b> SCHIESSEN (BEIDE MODI)</span>
   <span class="hint-pill"><b>R</b> NACHLADEN (FUSS)</span>
   <span class="hint-pill"><b>1-3</b> WAFFEN (FUSS)</span>
-  <span class="hint-pill"><b>B/T/M/U</b> SHOP (BELAGERUNG)</span>
+  <span class="hint-pill"><b>B/T/M/U/H</b> SHOP (BELAGERUNG)</span>
   <span class="hint-pill"><b>G</b> WAFFE KAUFEN (JEDERZEIT)</span>
   <span class="hint-pill"><b>V</b> FAHRZEUG-UPGRADE (JEDERZEIT)</span>
 </div>
@@ -420,10 +420,15 @@
     }
   }
 
+  // Repair cost scales up each use (same pattern as magUpgradeCost below)
+  // so repeatedly patching barricades every prep window stops being a
+  // guaranteed net-positive trade against the flat 30-scrap wave reward.
+  let barricadeRepairCost = 20;
   function buyRepairBarricades() {
     if (!siegeActive || !inPrep) return;
-    if (spend(20)) {
+    if (spend(barricadeRepairCost)) {
       Object.values(barricades).forEach(b => { b.hp = b.maxHp; b.alive = true; b.mesh.material.opacity = 0.85; });
+      barricadeRepairCost = Math.round(barricadeRepairCost * 1.35);
       setMsg('EISWAENDE REPARIERT');
     }
   }
@@ -435,6 +440,19 @@
     if (!siegeActive || !inPrep) return;
     if (player.reserveAmmo >= MAX_RESERVE_AMMO) return;
     if (spend(10)) { const gained = grantAmmo(60); setMsg(`MUNITION +${gained}`); }
+  }
+  // Siege enemies can now actually hurt the player directly (see
+  // updateSiegeEnemies) — a heal option during prep is the counterpart,
+  // otherwise damage taken during a wave would be unrecoverable for the
+  // rest of the run with no medkit pickups anywhere in this world.
+  function buyHeal() {
+    if (!siegeActive || !inPrep) return;
+    if (player.health >= 100) { setMsg('GESUNDHEIT VOLL'); return; }
+    if (spend(15)) {
+      player.health = Math.min(100, player.health + 30);
+      document.getElementById('health-val').innerText = Math.round(player.health) + '%';
+      setMsg('ERSTE HILFE +30%');
+    }
   }
   let magUpgradeCost = Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, 35]));
   function buyMagUpgrade() {
@@ -475,21 +493,29 @@
     });
   }
   // Patrol population scattered across the open field between spawn
-  // and the siege site, roughly 20 raiders + 6 tougher outriders.
+  // and the siege site, roughly 20 raiders + 6 tougher outriders. Z
+  // range is kept within [-WORLD_HALF, WORLD_HALF] so every spawn is
+  // actually reachable (an earlier version let ~20% of raiders land
+  // past the playable edge, permanently irrelevant).
   for (let i = 0; i < 20; i++) {
     const x = (Math.random() - 0.5) * WORLD_HALF * 1.6;
-    const z = -WORLD_HALF * 1.5 + Math.random() * (WORLD_HALF * 2.4);
+    const z = -WORLD_HALF + Math.random() * (WORLD_HALF * 2);
     spawnEnemy('raider', x, z);
   }
   for (let i = 0; i < 6; i++) {
     const x = (Math.random() - 0.5) * WORLD_HALF * 1.2;
-    const z = -100 + Math.random() * 160;
+    const z = -WORLD_HALF * 0.8 + Math.random() * (WORLD_HALF * 1.4);
     spawnEnemy('outrider', x, z);
   }
 
   function activeActorPos() {
     return mode === 'vehicle' ? { x: vehicle.x, z: vehicle.z } : { x: player.pos.x, z: player.pos.z };
   }
+  // Brief invulnerability after being forcibly ejected from a destroyed
+  // vehicle — without this, a player who just lost their ride is frozen
+  // (pointer lock dropped, WASD gated on re-engaging it) while the same
+  // enemies that killed the vehicle keep landing free, unavoidable hits.
+  let footInvulnUntil = 0;
   function damageActiveActor(amount) {
     if (mode === 'vehicle') {
       vehicle.hp = Math.max(0, vehicle.hp - amount);
@@ -497,6 +523,7 @@
       flashDamage();
       if (vehicle.hp <= 0) forceExitVehicle();
     } else {
+      if (elapsed < footInvulnUntil) return;
       player.health = Math.max(0, player.health - amount);
       document.getElementById('health-val').innerText = Math.round(player.health) + '%';
       flashDamage();
@@ -509,21 +536,34 @@
     setTimeout(() => { flash.style.background = 'rgba(255,0,0,0)'; }, 120);
   }
 
-  const ACTIVATION_RADIUS = 70; // only fully simulate enemies near the player, open world is large
+  // No distance-based activation gate: enemy count is small enough
+  // (<= ~45 total including siege waves) that simulating all of them
+  // every frame is cheap. An earlier cutoff caused visible "statue"
+  // enemies inside fog-visible range but outside the simulated radius.
+  //
+  // A parked vehicle is also a valid attack target, not just whichever
+  // actor is currently controlled — otherwise abandoning the vehicle
+  // anywhere made it permanently safe, removing any stake from armor
+  // upgrades outside the moments you're actively driving.
   function updateEnemies(dt) {
     const actor = activeActorPos();
+    const vehiclePos = { x: vehicle.x, z: vehicle.z };
+    const vehicleIsThreatenable = mode === 'foot' && vehicle.hp > 0;
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       if (!e.alive) continue;
-      const dist = Math.hypot(e.x - actor.x, e.z - actor.z);
-      if (dist > ACTIVATION_RADIUS) continue;
+      const distActor = Math.hypot(e.x - actor.x, e.z - actor.z);
+      const distVehicle = vehicleIsThreatenable ? Math.hypot(e.x - vehiclePos.x, e.z - vehiclePos.z) : Infinity;
+      const targetIsVehicle = distVehicle < distActor;
+      const target = targetIsVehicle ? vehiclePos : actor;
+      const dist = targetIsVehicle ? distVehicle : distActor;
       const def = ENEMY_TYPES[e.type];
       if (dist <= def.aggroR) e.state = 'aggro';
       else if (dist > def.aggroR * 1.6) e.state = 'patrol';
 
       if (e.state === 'aggro') {
         if (dist > def.attackR * 0.7) {
-          const dx = actor.x - e.x, dz = actor.z - e.z;
+          const dx = target.x - e.x, dz = target.z - e.z;
           const len = Math.hypot(dx, dz) || 1;
           e.x += (dx / len) * def.speed * dt;
           e.z += (dz / len) * def.speed * dt;
@@ -534,7 +574,14 @@
             e.lastAttack = 1.1;
             const accuracy = Math.max(0.22, def.skill - dist * 0.009);
             if (Math.random() < accuracy) {
-              damageActiveActor(mode === 'vehicle' ? def.dmgVehicle : def.dmgFoot);
+              if (targetIsVehicle) {
+                vehicle.hp = Math.max(0, vehicle.hp - def.dmgVehicle);
+                document.getElementById('vehicle-val').innerText = Math.round(vehicle.hp / vehicle.maxHp * 100) + '%';
+                if (mode === 'vehicle') flashDamage();
+                if (vehicle.hp <= 0 && mode === 'vehicle') forceExitVehicle();
+              } else {
+                damageActiveActor(mode === 'vehicle' ? def.dmgVehicle : def.dmgFoot);
+              }
             }
           }
         }
@@ -622,16 +669,33 @@
       setMsg(`EISWAND ${id.toUpperCase()} DURCHBROCHEN!`);
     }
   }
+  // Siege enemies used to only ever path toward a barricade/terminal —
+  // the player standing anywhere near the fight was never actually at
+  // risk, turning the "finale" into pure undefended tower-defense.
+  // Now any enemy that gets within its attack range of the player
+  // strikes the player instead of the structure that tick, same
+  // aggro-formula as the open-world roamers.
   function updateSiegeEnemies(dt) {
     for (let i = siegeEnemies.length - 1; i >= 0; i--) {
       const e = siegeEnemies[i];
       if (!e.alive) continue;
+      const def = ENEMY_TYPES[e.type];
+      const distPlayer = Math.hypot(player.pos.x - e.x, player.pos.z - e.z);
+      if (distPlayer <= def.attackR) {
+        e.lastAttack -= dt;
+        if (e.lastAttack <= 0) {
+          e.lastAttack = 1.1;
+          const accuracy = Math.max(0.22, def.skill - distPlayer * 0.009);
+          if (Math.random() < accuracy) damageActiveActor(def.dmgFoot);
+        }
+        e.mesh.position.set(e.x, terrainHeight(e.x, e.z) + 1.2, e.z);
+        continue;
+      }
       const targetPos = e.target === 'terminal'
         ? { x: SIEGE_SITE.x + terminalMesh.position.x, z: SIEGE_SITE.z + terminalMesh.position.z }
         : { x: SIEGE_SITE.x + BARRICADE_DEFS.find(d => d.id === e.target).x, z: SIEGE_SITE.z + BARRICADE_DEFS.find(d => d.id === e.target).z };
       const dx = targetPos.x - e.x, dz = targetPos.z - e.z;
       const dist = Math.hypot(dx, dz);
-      const def = ENEMY_TYPES[e.type];
       if (dist > 2.2) {
         e.x += (dx / dist) * def.speed * dt;
         e.z += (dz / dist) * def.speed * dt;
@@ -779,7 +843,11 @@
       const angle = forward.angleTo(toEnemy);
       if (angle < 0.5 && dist < bestDist) { best = e; bestDist = dist; }
     });
-    if (best) damageEnemyByMesh(best.mesh, tier.dmg);
+    // Explicit feedback either way — without this, a Space press with
+    // nothing in the forward cone was indistinguishable from the input
+    // not registering at all (no crosshair exists in third-person).
+    if (best) { damageEnemyByMesh(best.mesh, tier.dmg); setMsg('TREFFER'); }
+    else setMsg('KEIN ZIEL IN SCHUSSLINIE');
   }
 
   // =========================================================
@@ -860,7 +928,8 @@
   function forceExitVehicle() {
     if (mode !== 'vehicle') return;
     tryEnterExit();
-    setMsg('FAHRZEUG ZERSTOERT — DU BIST ZU FUSS UNTERWEGS');
+    footInvulnUntil = elapsed + 3;
+    setMsg('FAHRZEUG ZERSTOERT — DU BIST ZU FUSS UNTERWEGS (3s SCHUTZ)');
   }
 
   window.addEventListener('keydown', (e) => {
@@ -873,6 +942,7 @@
     if (e.code === 'KeyT' && !e.repeat) buyRepairTerminal();
     if (e.code === 'KeyM' && !e.repeat) buyAmmo();
     if (e.code === 'KeyU' && !e.repeat) buyMagUpgrade();
+    if (e.code === 'KeyH' && !e.repeat) buyHeal();
     if (e.code === 'KeyR' && !e.repeat && mode === 'foot') reloadFoot();
     const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
     if (slot !== -1 && mode === 'foot' && WEAPON_DEFS[WEAPON_ORDER[slot]].unlocked) {
