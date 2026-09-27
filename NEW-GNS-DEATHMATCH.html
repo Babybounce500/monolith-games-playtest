@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#080c12">
+  <link rel="icon" href="data:,">
+  <title>GNS FRAG ARENA // Deathmatch</title>
+  <link rel="stylesheet" href="arena-tournament.css">
+  <script src="vendor/three.r128.min.js"></script>
+  <script defer src="arena-tournament.js"></script>
+</head>
+<body>
+  <main id="game-root">
+    <div id="canvas-container" aria-label="3D Arena"></div>
+    <div id="fallback-badge" class="fallback-badge hidden">2D COMPATIBILITY MODE · WEBGL NOT AVAILABLE</div>
+    <div id="damage-flash"></div>
+    <div id="hitmarker" aria-hidden="true">×</div>
+
+    <section id="menu-layer" class="screen-layer">
+      <div class="menu-panel">
+        <div class="eyebrow"><span class="status-dot"></span> NEW-GNS // OFFLINE DEATHMATCH</div>
+        <h1>FRAG <span>ARENA</span></h1>
+        <p class="menu-lede">Zehn bewaffnete Rivalen. Drei Arenen. Vier vollautomatische Waffen. Wenn die Zeit abläuft, gewinnt die höchste Frag-Zahl.</p>
+
+        <div class="section-label">ARENA WÄHLEN</div>
+        <div class="arena-picker">
+          <button class="arena-card selected" type="button" data-arena="core-forge">
+            <span class="arena-art art-forge" role="img" aria-label="Core Forge arena artwork"><i></i><i></i><i></i></span>
+            <span class="arena-copy"><b>CORE FORGE</b><small>ENG · INDUSTRIAL</small></span>
+            <span class="arena-check">01</span>
+          </button>
+          <button class="arena-card" type="button" data-arena="void-bridge">
+            <span class="arena-art art-void" role="img" aria-label="Void Bridge arena artwork"><i></i><i></i><i></i></span>
+            <span class="arena-copy"><b>VOID BRIDGE</b><small>OPEN · LONG SIGHTLINES</small></span>
+            <span class="arena-check">02</span>
+          </button>
+          <button class="arena-card" type="button" data-arena="ion-cathedral">
+            <span class="arena-art art-cathedral" role="img" aria-label="Ion Cathedral arena artwork"><i></i><i></i><i></i></span>
+            <span class="arena-copy"><b>ION CATHEDRAL</b><small>VERTICAL · CLOSE QUARTERS</small></span>
+            <span class="arena-check">03</span>
+          </button>
+        </div>
+
+        <div class="loadout-row">
+          <div>
+            <div class="section-label">NEW-GNS LOADOUT</div>
+            <div class="weapon-preview-row" aria-label="Four automatic GNS weapons ready">
+              <span class="weapon-swatch" style="--weapon-color:#ff405f"></span><span class="weapon-swatch" style="--weapon-color:#4ce7ff"></span><span class="weapon-swatch" style="--weapon-color:#b888ff"></span><span class="weapon-swatch" style="--weapon-color:#ff984d"></span>
+            </div>
+          </div>
+          <div class="match-length">
+            <label class="section-label" for="match-duration">MATCH</label>
+            <select id="match-duration">
+              <option value="180">03:00 // FRAG RUSH</option>
+              <option value="300">05:00 // FULL MATCH</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <span><b>WASD</b> MOVE</span><span><b>MOUSE</b> AIM</span><span><b>CLICK / SPACE</b> FIRE</span>
+          <span><b>1–4 / WHEEL</b> WEAPON</span><span><b>R</b> RELOAD</span><span><b>TAB</b> SCORE</span>
+          <label for="mouse-sensitivity"><b>AIM</b>
+            <select id="mouse-sensitivity" aria-label="Mouse sensitivity">
+              <option value="0.0019">LOW</option><option value="0.0026" selected>MED</option><option value="0.0034">HIGH</option>
+            </select>
+          </label>
+        </div>
+        <button id="start-match" class="primary-button" type="button" disabled>START MATCH <span>→</span></button>
+        <p class="menu-footnote">Single-player against ten armed bots · Mouse/keyboard and touch controls · No network connection required</p>
+      </div>
+    </section>
+
+    <section id="pause-screen" class="screen-layer hidden">
+      <div class="modal-panel compact-panel">
+        <div class="eyebrow">MATCH PAUSED</div>
+        <h2>TAKE A BREATHER</h2>
+        <button id="resume-match" class="primary-button" type="button">RESUME <span>→</span></button>
+        <button id="quit-match" class="text-button" type="button">END MATCH</button>
+      </div>
+    </section>
+
+    <section id="end-screen" class="screen-layer hidden">
+      <div class="modal-panel results-panel">
+        <div class="eyebrow">FINAL STANDINGS // <span id="final-arena">CORE FORGE</span></div>
+        <h2 id="winner-title">MATCH COMPLETE</h2>
+        <p id="winner-subtitle" class="winner-subtitle"></p>
+        <div id="final-scoreboard" class="final-scoreboard"></div>
+        <div class="result-actions">
+          <button id="replay-match" class="primary-button" type="button">REMATCH <span>↻</span></button>
+          <button id="back-to-menu" class="text-button" type="button">CHANGE ARENA</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="game-hud" class="hidden" aria-live="polite">
+      <header class="hud-top">
+        <div class="hud-brand"><span class="brand-mark">G</span><span>FRAG ARENA<small id="hud-arena">CORE FORGE</small></span></div>
+        <div id="live-leaderboard" class="live-leaderboard"></div>
+        <div class="hud-clock"><small>TIME LEFT</small><b id="time-left">03:00</b></div>
+      </header>
+
+      <div class="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+      <div id="scoreboard-overlay" class="scoreboard-overlay hidden">
+        <div class="scoreboard-card">
+          <div class="scoreboard-heading"><span>LIVE FRAG BOARD</span><small>HOLD TAB</small></div>
+          <div id="live-scoreboard"></div>
+        </div>
+      </div>
+
+      <div id="kill-feed" class="kill-feed"></div>
+      <canvas id="radar-canvas" class="radar-canvas" width="128" height="128" aria-label="Arena minimap"></canvas>
+      <div class="hud-bottom">
+        <div class="health-panel">
+          <small>ARMOR / HEALTH</small>
+          <div class="health-line"><b id="health-value">100</b><span>%</span><div class="health-track"><i id="health-fill"></i></div></div>
+        </div>
+        <div class="weapon-panel">
+          <div><small id="weapon-slot">01 // PLASMA</small><b id="weapon-name">ARC PLASMA RIFLE</b></div>
+          <div class="ammo-count"><b id="ammo-mag">30</b><span>/</span><small id="ammo-reserve">180</small></div>
+        </div>
+      </div>
+      <div id="weapon-keybar" class="weapon-keybar"></div>
+      <img id="weapon-view" src="assets/gns-deathmatch/weapons/02-laser-carbine.webp" alt="Laser carbine first-person weapon view">
+      <div id="laser-flare"></div>
+      <div id="reload-message" class="reload-message hidden">RELOADING</div>
+      <div id="touch-controls" class="touch-controls hidden">
+        <div id="move-pad" class="move-pad"><i></i><small>MOVE</small></div>
+        <button id="touch-fire" type="button">FIRE</button>
+        <button id="touch-jump" type="button">JUMP</button>
+        <button id="touch-reload" type="button">R</button>
+      </div>
+    </div>
+    <div id="renderer-error" class="renderer-error hidden">
+      <b>3D renderer unavailable</b>
+      <span>Open this match in a browser with WebGL enabled. Your score is not lost until you start a match.</span>
+    </div>
+  </main>
+</body>
+</html>
