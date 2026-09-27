@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>LAST BUS HOME</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060c; font-family: Georgia, 'Times New Roman', serif; }
+  #stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+
+  /* Night sky + passing city through the bus window */
+  #sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0a0e1f 0%, #131a30 55%, #1c2438 100%); overflow: hidden; }
+  #stars { position: absolute; inset: 0; opacity: .55; }
+  #stars span { position: absolute; width: 2px; height: 2px; background: #cfe0ff; border-radius: 50%; }
+  #skyline { position: absolute; bottom: 0; left: 0; width: 220%; height: 40%; display: flex; align-items: flex-end; animation: drift 26s linear infinite; opacity: .5; }
+  #skyline .b { background: #0c1120; margin-right: 2px; border-top: 1px solid #1a2138; flex-shrink: 0; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .rain { position: absolute; top: -10%; width: 1px; height: 60px; background: linear-gradient(180deg, transparent, rgba(180,200,255,.35)); animation: fall linear infinite; }
+  @keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
+
+  /* Bus interior frame */
+  #interior { position: relative; z-index: 2; width: 100%; max-width: 720px; padding: 0 18px 22px; }
+  #window-frame { position: relative; height: 30vh; min-height: 150px; max-height: 260px; border: 10px solid #14171f; border-bottom: none; border-radius: 18px 18px 0 0; background: rgba(5,7,15,.2); box-shadow: inset 0 0 40px rgba(0,0,0,.6); overflow: hidden; margin-top: 40px; }
+  #glass-glare { position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.05) 0%, transparent 30%, transparent 70%, rgba(255,255,255,.04) 100%); pointer-events: none; }
+
+  #cabin { background: linear-gradient(180deg, #1a1510 0%, #100d0a 100%); border-radius: 0 0 10px 10px; padding: 18px 20px 22px; box-shadow: 0 -6px 30px rgba(0,0,0,.5); }
+  .lamp-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, rgba(255,196,120,.14), transparent 60%); }
+
+  #stop-label { color: #a88a5c; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; text-align: center; margin-bottom: 10px; opacity: .8; }
+
+  #speaker-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; min-height: 46px; }
+  #avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font: 700 16px Georgia, serif; color: #1a1510; box-shadow: 0 0 0 2px rgba(255,255,255,.08); }
+  #speaker-name { color: #e8d9c0; font-size: 15px; font-weight: 700; letter-spacing: .04em; }
+
+  #dialogue-text { color: #d9cdb8; font-size: 17px; line-height: 1.6; min-height: 78px; }
+  #dialogue-text i { color: #a89678; }
+
+  #choices { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .choice-btn {
+    text-align: left; background: rgba(255,255,255,.04); border: 1px solid rgba(232,217,192,.25);
+    color: #e8d9c0; padding: 10px 14px; font: inherit; font-size: 14.5px; border-radius: 8px; cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .choice-btn:hover, .choice-btn:focus-visible { background: rgba(255,196,120,.12); border-color: rgba(255,196,120,.55); outline: none; }
+
+  #continue-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+  #continue-btn {
+    background: none; border: 1px solid rgba(232,217,192,.35); color: #e8d9c0; padding: 8px 18px;
+    font: inherit; font-size: 13px; letter-spacing: .08em; border-radius: 20px; cursor: pointer;
+  }
+  #continue-btn:hover { background: rgba(255,196,120,.1); }
+
+  #window-line { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; color: #cfe0ff; font-style: italic; font-size: 13px; opacity: 0; transition: opacity .6s; text-shadow: 0 0 8px rgba(0,0,0,.8); padding: 0 20px; }
+  #window-line.show { opacity: .85; }
+
+  #cover-screen, #ending-screen {
+    position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(5,6,12,.92); text-align: center; padding: 30px; gap: 14px;
+  }
+  #cover-screen.hidden, #ending-screen.hidden { display: none; }
+  #cover-screen h1, #ending-screen h1 { color: #e8d9c0; font-size: 34px; letter-spacing: .06em; font-weight: 400; }
+  #cover-screen p, #ending-screen p { color: #a89678; max-width: 480px; font-size: 15px; line-height: 1.7; }
+  #cover-screen small, #ending-screen small { color: #6d6152; font-size: 12px; letter-spacing: .05em; }
+  .big-btn {
+    margin-top: 10px; background: none; border: 1px solid #a88a5c; color: #e8d9c0; padding: 12px 30px;
+    font: inherit; font-size: 14px; letter-spacing: .12em; border-radius: 24px; cursor: pointer; text-transform: uppercase;
+  }
+  .big-btn:hover { background: rgba(255,196,120,.1); }
+  #trait-tag { color: #ffc478; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; margin-top: 4px; }
+
+  #sound-toggle { position: absolute; top: 14px; right: 16px; z-index: 11; background: none; border: 1px solid rgba(232,217,192,.3); color: #a89678; font: 700 11px monospace; padding: 6px 10px; border-radius: 14px; cursor: pointer; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="sky">
+    <div id="stars"></div>
+    <div id="skyline"></div>
+  </div>
+
+  <button id="sound-toggle">TON: AUS</button>
+
+  <div id="cover-screen">
+    <h1>LAST BUS HOME</h1>
+    <p>Der letzte Bus der Nacht. Fünf Haltestellen, fünf Fremde, und du. Was du sagst, entscheidet, wer du heute Nacht bist.</p>
+    <small id="prev-ride-note"></small>
+    <button class="big-btn" id="start-btn">Einsteigen</button>
+  </div>
+
+  <div id="ending-screen" class="hidden">
+    <h1 id="ending-title">Zuhause</h1>
+    <p id="ending-text"></p>
+    <div id="trait-tag"></div>
+    <button class="big-btn" id="restart-btn">Nochmal fahren</button>
+  </div>
+
+  <div id="interior">
+    <div id="window-frame">
+      <div id="glass-glare"></div>
+      <div id="window-line"></div>
+    </div>
+    <div id="cabin">
+      <div class="lamp-glow"></div>
+      <div id="stop-label">HALTESTELLE 1 / 5</div>
+      <div id="speaker-row">
+        <div id="avatar"></div>
+        <div id="speaker-name"></div>
+      </div>
+      <div id="dialogue-text"></div>
+      <div id="choices"></div>
+      <div id="continue-row"><button id="continue-btn">weiter →</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // =========================================================
+  // AMBIENT SOUND — tiny WebAudio hum + soft arrival chime,
+  // same lightweight oscillator-based approach used elsewhere
+  // in this project's games. Off by default (autoplay policy
+  // needs a gesture anyway, and this genre wants quiet-by-default).
+  // =========================================================
+  let audioCtx = null, hum = null, soundOn = false;
+  function ensureAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  function startHum() {
+    ensureAudio();
+    if (hum) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.value = 55;
+    gain.gain.value = 0.02;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start();
+    hum = { osc, gain };
+  }
+  function stopHum() {
+    if (!hum) return;
+    hum.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+    setTimeout(() => { try { hum.osc.stop(); } catch (_) {} }, 300);
+    hum = null;
+  }
+  function chime() {
+    if (!soundOn) return;
+    ensureAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.value = 720;
+    gain.gain.value = 0.0001;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    osc.start(t); osc.stop(t + 0.9);
+  }
+  document.getElementById('sound-toggle').addEventListener('click', () => {
+    soundOn = !soundOn;
+    document.getElementById('sound-toggle').textContent = 'TON: ' + (soundOn ? 'AN' : 'AUS');
+    if (soundOn) startHum(); else stopHum();
+  });
+
+  // =========================================================
+  // SCENERY — stars + a repeating skyline silhouette, both
+  // pure CSS/DOM, no art assets needed.
+  // =========================================================
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('span');
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 70 + '%';
+    s.style.opacity = (0.3 + Math.random() * 0.7).toFixed(2);
+    starsEl.appendChild(s);
+  }
+  const skylineEl = document.getElementById('skyline');
+  for (let i = 0; i < 40; i++) {
+    const b = document.createElement('div');
+    b.className = 'b';
+    const w = 14 + Math.random() * 26;
+    const h = 30 + Math.random() * 100;
+    b.style.width = w + 'px';
+    b.style.height = h + '%';
+    if (Math.random() < 0.4) b.style.boxShadow = '0 0 6px 1px rgba(255,196,120,.25)';
+    skylineEl.appendChild(b);
+  }
+  for (let i = 0; i < 24; i++) {
+    const r = document.createElement('div');
+    r.className = 'rain';
+    r.style.left = Math.random() * 100 + '%';
+    r.style.animationDuration = (0.7 + Math.random() * 0.6) + 's';
+    r.style.animationDelay = (Math.random() * 2) + 's';
+    document.getElementById('sky').appendChild(r);
+  }
+
+  // =========================================================
+  // CONTENT — six stops. Each stop: an opening line, three
+  // trait-tagged choices, a reaction per choice, a shared
+  // follow-up line, and a trait-tagged farewell line. Stop 6
+  // is the player's own stop and has no choices — its text is
+  // picked from ENDINGS based on whichever trait was chosen
+  // most across the ride.
+  // =========================================================
+  const AVATAR_COLORS = ['#c9a15c', '#8fae7a', '#b06a6a', '#7a93b0', '#a888b8'];
+  const STOPS = [
+    {
+      name: 'Der Mann mit dem Käfig', initial: 'M',
+      open: 'Er setzt sich dir gegenüber, den leeren Vogelkäfig auf dem Schoß. Nach einer Weile bemerkt er deinen Blick.<br><br>„Sie ist heute Morgen gestorben“, sagt er, ohne dich anzusehen. „Der Vogel.“',
+      choices: [
+        { text: '„Das tut mir leid.“', trait: 'KIND', reaction: 'Er nickt langsam. „Danke. Die meisten Leute schauen einfach weg.“' },
+        { text: '„Wie lange hatten Sie sie?“', trait: 'CURIOUS', reaction: '„Elf Jahre. Man vergisst, wie leise es wird, wenn... na ja.“' },
+        { text: '(schweigen, nur nicken)', trait: 'GUARDED', reaction: 'Er scheint das Schweigen zu respektieren und schaut wieder aus dem Fenster.' }
+      ],
+      follow: 'Nach einer Weile sagt er: „Ich nehme den Käfig trotzdem mit. Man gewöhnt sich an Gewohnheiten.“',
+      farewell: {
+        KIND: 'Er lächelt kurz, bevor er aussteigt. „Danke fürs Zuhören.“',
+        CURIOUS: '„Fragen Sie ruhig weiter, wenn Sie mal wieder hier sitzen.“ Er steigt aus.',
+        GUARDED: 'Er steigt wortlos aus, der leere Käfig schaukelt leicht in seiner Hand.',
+        HONEST: 'Er sieht dich einen Moment an, nickt, und steigt dann aus.',
+        WRY: 'Ein trockenes Lächeln, dann verschwindet er in die Nacht.'
+      },
+      windowLine: 'Die Straßenlaternen ziehen vorbei wie Perlen an einer Schnur.'
+    },
+    {
+      name: 'Die Jugendliche', initial: 'J',
+      open: 'Ein Mädchen, vielleicht sechzehn, setzt sich hastig neben dich und starrt aufs Handy.<br><br>„Schauen Sie nicht so streng, ich hab nichts angestellt“, sagt sie, ohne aufzublicken.',
+      choices: [
+        { text: '„Hab ich gar nicht behauptet.“', trait: 'WRY', reaction: 'Sie schnaubt, aber ein kleines Lächeln blitzt auf. „Touché.“' },
+        { text: '„Alles okay bei dir?“', trait: 'KIND', reaction: 'Sie schaut kurz hoch. „Ja. Nur... meine Mutter denkt, ich bin schon zuhause.“' },
+        { text: '„Wo warst du so spät noch?“', trait: 'CURIOUS', reaction: '„Bei einer Freundin. Ist kompliziert.“ Sie wirkt vorsichtig.' }
+      ],
+      follow: 'Sie tippt weiter, murmelt halb zu sich selbst: „Wenn sie wach ist, bin ich tot.“',
+      farewell: {
+        WRY: '„Wünschen Sie mir Glück.“ Sie grinst und verschwindet in der Dunkelheit.',
+        KIND: '„Danke, dass Sie nicht komisch reagiert haben.“ Sie steigt schnell aus.',
+        CURIOUS: 'Sie zögert kurz, sagt aber nichts mehr, und steigt aus.',
+        GUARDED: 'Sie nickt dir knapp zu und verschwindet, bevor der Bus ganz hält.',
+        HONEST: 'Sie sieht dich überrascht an. „Sie sagen wenigstens, was Sie denken.“ Dann steigt sie aus.'
+      },
+      windowLine: 'Ein Streifenwagen fährt vorbei, ohne Blaulicht. Niemand im Bus schaut hin.'
+    },
+    {
+      name: 'Der Gekündigte', initial: 'B',
+      open: 'Ein Mann im zerknitterten Hemd lässt sich schwer neben dich fallen, die Aktentasche zwischen den Füßen.<br><br>„Fünfzehn Jahre“, sagt er in die Luft. „Fünfzehn Jahre, und ein Satz reicht.“',
+      choices: [
+        { text: '„Was ist passiert?“', trait: 'CURIOUS', reaction: '„Umstrukturierung. So nennen sie das jetzt.“ Er lacht bitter.' },
+        { text: '„Das klingt hart.“', trait: 'KIND', reaction: 'Er sieht dich an, überrascht von der Ehrlichkeit. „Ist es auch.“' },
+        { text: '„Sie riechen nach der Bar am Bahnhof.“', trait: 'WRY', reaction: 'Er lacht laut auf, zum ersten Mal ehrlich. „Erwischt.“' }
+      ],
+      follow: '„Ich hab’s nicht mal meiner Frau gesagt“, murmelt er. „Wie sagt man sowas?“',
+      farewell: {
+        CURIOUS: '„Vielleicht sag ich’s einfach genauso, wie ich’s Ihnen erzählt hab.“ Er steht auf, etwas gerader als vorher.',
+        KIND: '„Danke. Ernsthaft.“ Ein kurzer Händedruck, dann steigt er aus.',
+        WRY: 'Er schüttelt den Kopf, lächelt aber beim Aussteigen.',
+        GUARDED: 'Er steigt aus, ohne sich noch einmal umzudrehen.',
+        HONEST: '„Sagen Sie’s einfach genau so geradeheraus, wie Sie mit mir reden“, sagt er leise, fast zu sich selbst.'
+      },
+      windowLine: 'In einem erleuchteten Fenster packt jemand noch spät einen Umzugskarton.'
+    },
+    {
+      name: 'Die Straßenmusikerin', initial: 'S',
+      open: 'Eine Frau mit einer alten Gitarre im Kofferformat setzt sich, die Fingerspitzen noch rot von den Saiten.<br><br>„Zwölf Euro heute“, sagt sie zu niemand Bestimmtem. „Immerhin mehr als gestern.“',
+      choices: [
+        { text: '„Was haben Sie gespielt?“', trait: 'CURIOUS', reaction: 'Ihre Augen leuchten kurz auf. „Alte Sachen. Ein bisschen Cohen, ein bisschen Eigenes.“' },
+        { text: '„Zwölf Euro ist trotzdem was.“', trait: 'KIND', reaction: '„Ja. Für die Miete reicht’s trotzdem nicht.“ Ein müdes Lächeln.' },
+        { text: '„Warum machen Sie das noch?“', trait: 'HONEST', reaction: 'Sie schweigt einen Moment. „Weil ich sonst aufhören würde, mit irgendwem zu reden.“' }
+      ],
+      follow: 'Sie öffnet den Koffer einen Spalt, als wolle sie das Instrument noch einmal ansehen, bevor sie ihn schließt.',
+      farewell: {
+        CURIOUS: '„Kommen Sie mal vorbei, ich spiel donnerstags am Markt.“ Sie lächelt beim Aussteigen.',
+        KIND: 'Sie nickt dankbar und steigt leise aus.',
+        HONEST: 'Sie sieht dich lange an, sagt nichts, nickt nur einmal – und steigt aus.',
+        WRY: 'Ein schiefes Grinsen, ein Kopfnicken, dann ist sie weg.',
+        GUARDED: 'Sie steigt aus, ohne noch etwas zu sagen, die Gitarre fest umklammert.'
+      },
+      windowLine: 'Irgendwo klingt kurz eine echte Gitarre durch ein offenes Fenster – oder bildest du dir das nur ein.'
+    },
+    {
+      name: 'Die junge Mutter', initial: 'M',
+      open: 'Eine junge Frau setzt sich vorsichtig, ein schlafendes Baby fest an sich gedrückt.<br><br>„Endlich eingeschlafen“, flüstert sie, halb zu dir, halb zu sich selbst.',
+      choices: [
+        { text: '„Wie alt?“', trait: 'CURIOUS', reaction: '„Vier Monate. Fühlt sich an wie vier Jahre.“ Ein müdes Lachen.' },
+        { text: '„Sie sehen erschöpft aus.“', trait: 'HONEST', reaction: 'Sie lacht leise, überrascht. „Ehrlich gesagt eine Erleichterung, dass das mal jemand sagt.“' },
+        { text: '„Ich halte den Mund, damit’s so bleibt.“', trait: 'WRY', reaction: 'Sie grinst dankbar und flüstert zurück: „Ein Verbündeter.“' }
+      ],
+      follow: 'Sie schaut aus dem Fenster, das Baby fest im Arm. „Zwei Haltestellen noch.“',
+      farewell: {
+        CURIOUS: '„Danke fürs Fragen. Man fühlt sich manchmal unsichtbar mit einem schlafenden Baby.“ Sie steigt vorsichtig aus.',
+        HONEST: '„Danke. Wirklich.“ Ein kurzes, echtes Lächeln.',
+        WRY: 'Sie zwinkert dir zu und steigt leise aus, das Baby immer noch schlafend.',
+        KIND: 'Sie lächelt müde und nickt dir zu, bevor sie vorsichtig aussteigt.',
+        GUARDED: 'Sie steigt leise aus, ein knappes Nicken als Abschied.'
+      },
+      windowLine: 'Der Bus ist jetzt fast leer. Nur noch das Brummen des Motors und ferne Ampeln.'
+    }
+  ];
+
+  const ENDINGS = {
+    KIND: { title: 'Zuhause', text: 'Der Bus hält. Du stehst auf, und zum ersten Mal seit langem denkst du nicht sofort an morgen. Fünf Fremde, fünf kleine Momente, in denen du einfach zugehört hast. Vielleicht ist das mehr wert, als du dachtest.' },
+    CURIOUS: { title: 'Zuhause', text: 'Der Bus hält an deiner Haltestelle. Du steigst aus mit einem Kopf voller halber Geschichten – der Vogel, die Gitarre, die Kündigung. Du wirst nie erfahren, wie sie enden. Aber du hast gefragt. Das zählt.' },
+    GUARDED: { title: 'Zuhause', text: 'Der Bus hält. Du steigst aus, so still, wie du eingestiegen bist. Die Nacht war voller Menschen mit etwas zu sagen. Du hast zugehört, ohne viel preiszugeben. Manchmal ist das auch eine Art, für jemanden da zu sein.' },
+    HONEST: { title: 'Zuhause', text: 'Der Bus hält. Du steigst aus und denkst an die ehrlichen Sätze, die du heute gesagt hast, ohne groß nachzudenken. Manchmal ist die Wahrheit das Einzige, was jemand wirklich braucht.' },
+    WRY: { title: 'Zuhause', text: 'Der Bus hält. Du steigst aus, noch ein kleines Lächeln auf den Lippen. Fünf Fremde, ein paar schlechte Witze, die Nacht ein bisschen weniger schwer. Nicht jede Nähe muss ernst sein.' }
+  };
+  const TRAIT_PRIORITY = ['KIND', 'CURIOUS', 'HONEST', 'WRY', 'GUARDED'];
+
+  // =========================================================
+  // STATE MACHINE
+  // =========================================================
+  let stopIndex = 0;
+  let phase = 'open'; // 'open' -> 'reaction' -> 'follow' -> (next stop)
+  let chosenReaction = '';
+  let chosenTrait = null;
+  let rideEnded = false;
+  const tally = { KIND: 0, CURIOUS: 0, GUARDED: 0, HONEST: 0, WRY: 0 };
+
+  const els = {
+    stopLabel: document.getElementById('stop-label'),
+    avatar: document.getElementById('avatar'),
+    speakerName: document.getElementById('speaker-name'),
+    text: document.getElementById('dialogue-text'),
+    choices: document.getElementById('choices'),
+    continueRow: document.getElementById('continue-row'),
+    continueBtn: document.getElementById('continue-btn'),
+    windowLine: document.getElementById('window-line')
+  };
+
+  function renderStopHeader(stop, idx) {
+    els.stopLabel.textContent = `HALTESTELLE ${idx + 1} / ${STOPS.length}`;
+    els.avatar.textContent = stop.initial;
+    els.avatar.style.background = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+    els.speakerName.textContent = stop.name;
+  }
+
+  function showWindowLine(line) {
+    els.windowLine.textContent = line;
+    els.windowLine.classList.add('show');
+    setTimeout(() => els.windowLine.classList.remove('show'), 4200);
+  }
+
+  function renderOpen() {
+    const stop = STOPS[stopIndex];
+    renderStopHeader(stop, stopIndex);
+    els.text.innerHTML = stop.open;
+    els.choices.innerHTML = '';
+    els.continueRow.style.display = 'none';
+    stop.choices.forEach(choice => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = choice.text;
+      btn.addEventListener('click', () => selectChoice(choice));
+      els.choices.appendChild(btn);
+    });
+  }
+
+  function selectChoice(choice) {
+    chosenTrait = choice.trait;
+    tally[choice.trait]++;
+    chosenReaction = choice.reaction;
+    phase = 'reaction';
+    els.choices.innerHTML = '';
+    els.text.innerHTML = '<i>' + chosenReaction + '</i>';
+    els.continueRow.style.display = 'flex';
+  }
+
+  function advance() {
+    if (rideEnded) return;
+    const stop = STOPS[stopIndex];
+    if (phase === 'reaction') {
+      phase = 'follow';
+      els.text.innerHTML = stop.follow;
+      return;
+    }
+    if (phase === 'follow') {
+      const farewell = stop.farewell[chosenTrait] || stop.farewell.KIND;
+      els.text.innerHTML = farewell;
+      els.continueBtn.textContent = stopIndex < STOPS.length - 1 ? 'nächste Haltestelle →' : 'ankommen →';
+      phase = 'farewell';
+      return;
+    }
+    if (phase === 'farewell') {
+      chime();
+      showWindowLine(stop.windowLine);
+      stopIndex++;
+      chosenTrait = null;
+      if (stopIndex >= STOPS.length) {
+        showEnding();
+        return;
+      }
+      phase = 'open';
+      els.continueBtn.textContent = 'weiter →';
+      renderOpen();
+    }
+  }
+  els.continueBtn.addEventListener('click', advance);
+
+  function dominantTrait() {
+    let best = TRAIT_PRIORITY[0], bestCount = -1;
+    TRAIT_PRIORITY.forEach(t => { if (tally[t] > bestCount) { best = t; bestCount = tally[t]; } });
+    return best;
+  }
+
+  function showEnding() {
+    rideEnded = true;
+    document.getElementById('interior').style.display = 'none';
+    const trait = dominantTrait();
+    const ending = ENDINGS[trait];
+    document.getElementById('ending-title').textContent = ending.title;
+    document.getElementById('ending-text').textContent = ending.text;
+    document.getElementById('trait-tag').textContent = 'Heute warst du vor allem: ' + trait;
+    document.getElementById('ending-screen').classList.remove('hidden');
+    try { localStorage.setItem('last-bus-home-trait', trait); } catch (_) {}
+    stopHum();
+  }
+
+  // =========================================================
+  // START / RESTART
+  // =========================================================
+  try {
+    const prev = localStorage.getItem('last-bus-home-trait');
+    if (prev) document.getElementById('prev-ride-note').textContent = `Letztes Mal warst du vor allem: ${prev}. Bist du heute noch derselbe?`;
+  } catch (_) {}
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('cover-screen').classList.add('hidden');
+    document.getElementById('interior').style.display = 'block';
+    if (soundOn) startHum();
+    renderOpen();
+  });
+  document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+})();
+</script>
+</body>
+</html>
