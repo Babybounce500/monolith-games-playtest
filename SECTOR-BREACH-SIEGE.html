@@ -125,8 +125,8 @@
   </div>
 
   <div id="lock-screen">
-    <h2 id="lock-title">ALIEN BREACH // KLICKEN ZUM SPIELEN</h2>
-    <p id="lock-desc">Ein Klick aktiviert die Maussteuerung. Escape pausiert jederzeit — ein weiterer Klick geht direkt weiter.</p>
+    <h2 id="lock-title">ALIEN BREACH // ENTER ODER KLICK ZUM SPIELEN</h2>
+    <p id="lock-desc">ENTER oder ein Klick aktiviert die Maussteuerung. Escape pausiert jederzeit — ENTER oder ein weiterer Klick geht direkt weiter.</p>
     <label class="sensitivity-control">MAUS <input class="mouse-sensitivity" type="range" min="0.0015" max="0.008" step="0.0001" value="0.0042"><span class="sensitivity-value">0.0042</span></label>
   </div>
 
@@ -1287,8 +1287,8 @@
        document.getElementById('lock-screen').style.display = (!locked && !isTouchDevice() && !gameEnded) ? 'flex' : 'none';
       if (!locked) {
         clearFireInputs();
-        document.getElementById('lock-title').textContent = 'PAUSIERT // KLICKEN ZUM WEITERSPIELEN';
-        document.getElementById('lock-desc').textContent = 'Pointer Lock wurde verlassen (z. B. durch ESC). Ein Klick reicht, um zurückzukehren.';
+        document.getElementById('lock-title').textContent = 'PAUSIERT // ENTER ODER KLICK ZUM WEITERSPIELEN';
+        document.getElementById('lock-desc').textContent = 'Pointer Lock wurde verlassen (z. B. durch ESC). ENTER oder ein Klick reicht, um zurückzukehren.';
       } else {
         lockEngagedAt = performance.now();
       }
@@ -1445,7 +1445,10 @@
       if (e.code === 'KeyM' && !e.repeat) buyAmmo();
       if (e.code === 'KeyU' && !e.repeat) buyMagUpgrade();
       if (e.code === 'KeyR' && !e.repeat && document.pointerLockElement === document.body && !gameEnded) reload();
-      if (e.code === 'Enter' && !e.repeat && inPrep) { prepTimer = 0; } // skip prep early
+      if (e.code === 'Enter' && !e.repeat) {
+        if (document.pointerLockElement !== document.body && !isTouchDevice() && !gameEnded) lockPointer();
+        else if (inPrep) prepTimer = 0; // skip prep early
+      }
       if (e.code === 'Space' && document.pointerLockElement === document.body && !gameEnded) {
         e.preventDefault();
         if (!e.repeat) setFireInput('space', true);
