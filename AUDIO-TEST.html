@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>AUDIO TEST // MONOLITH GAMES</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0d12; color: #e6edf3; font-family: ui-monospace, monospace; padding: clamp(16px, 4vw, 40px); }
+  h1 { color: #7beaff; font-size: 24px; letter-spacing: .08em; margin-bottom: 6px; }
+  .intro { color: #9fb2c0; font-size: 13px; max-width: 760px; line-height: 1.6; margin-bottom: 28px; }
+  .intro b { color: #ffcc66; }
+  section { margin-bottom: 32px; }
+  h2 { color: #ffcc66; font-size: 15px; letter-spacing: .1em; border-bottom: 1px solid rgba(255,204,102,.3); padding-bottom: 6px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .card {
+    background: #111722; border: 1px solid rgba(123,234,255,.2); border-radius: 8px;
+    padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .card.playing { border-color: #7beaff; background: #142030; }
+  .play-btn {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #7beaff;
+    background: rgba(123,234,255,.08); color: #7beaff; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .play-btn:hover { background: rgba(123,234,255,.2); }
+  .meta { flex: 1; min-width: 0; }
+  .meta .name { font-size: 12.5px; color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .src { font-size: 10px; color: #6d7f8f; }
+  .badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; letter-spacing: .05em; }
+  .badge.cc0 { background: rgba(102,204,255,.15); color: #66ccff; }
+  .badge.gen { background: rgba(255,153,102,.15); color: #ff9966; }
+  footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(123,234,255,.15); color: #6d7f8f; font-size: 11px; line-height: 1.7; }
+  footer a { color: #7beaff; }
+</style>
+</head>
+<body>
+  <h1>AUDIO TEST // MONOLITH GAMES</h1>
+  <p class="intro">
+    Kuratierte Sound-Auswahl für die Games in dieser Sammlung. <b>CC0</b> = Kenney.nl,
+    Public Domain, keine Attribution nötig, direkt einsatzbereit. <b>GEN</b> = selbst per
+    Node.js-PCM-Synthese generiert (Sinus/Noise/Hüllkurven direkt zu WAV), ebenfalls ohne
+    Lizenzfragen. Klick auf ▶ zum Anhören. Dateien liegen lokal unter
+    <code>assets/audio-test/</code>.
+  </p>
+
+  <section>
+    <h2>WEAPONS</h2>
+    <div class="grid" id="grp-weapons"></div>
+  </section>
+
+  <section>
+    <h2>VEHICLES (Merge-Worlds / PRIME / Nightshift Taxi)</h2>
+    <div class="grid" id="grp-vehicles"></div>
+  </section>
+
+  <section>
+    <h2>IMPACTS & FOOTSTEPS</h2>
+    <div class="grid" id="grp-impacts"></div>
+  </section>
+
+  <section>
+    <h2>AMBIENT & SCI-FI UTILITY</h2>
+    <div class="grid" id="grp-ambient"></div>
+  </section>
+
+  <section>
+    <h2>UI — universell für alle Games</h2>
+    <div class="grid" id="grp-ui"></div>
+  </section>
+
+  <section>
+    <h2>STINGERS — universell (Sieg/Niederlage)</h2>
+    <div class="grid" id="grp-stingers"></div>
+  </section>
+
+  <footer>
+    Quellen: <a href="https://kenney.nl/assets/impact-sounds" target="_blank">Kenney Impact Sounds</a>,
+    <a href="https://kenney.nl/assets/sci-fi-sounds" target="_blank">Kenney Sci-Fi Sounds</a>,
+    <a href="https://kenney.nl/assets/ui-audio" target="_blank">Kenney UI Audio</a>,
+    <a href="https://kenney.nl/assets/interface-sounds" target="_blank">Kenney Interface Sounds</a>
+    — alle CC0. Weitere Optionen zum Selbstsuchen:
+    <a href="https://freesound.org" target="_blank">Freesound.org</a> (nach CC0 filtern),
+    <a href="https://opengameart.org" target="_blank">OpenGameArt.org</a>,
+    <a href="https://pixabay.com/sound-effects/" target="_blank">Pixabay Sound Effects</a>.
+    Generierte Sounds: eigene PCM-Synthese, kein externes Tool.
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+  const BASE = 'assets/audio-test/';
+  const GROUPS = {
+    'grp-weapons': [
+      ['kenney/weapon-laser-small.ogg', 'Laser (klein)', 'cc0'],
+      ['kenney/weapon-laser-small-alt.ogg', 'Laser (klein, Variante)', 'cc0'],
+      ['kenney/weapon-laser-large.ogg', 'Laser (schwer)', 'cc0'],
+      ['kenney/weapon-laser-retro.ogg', 'Laser (Retro/Arcade)', 'cc0'],
+      ['kenney/weapon-explosion.ogg', 'Explosion', 'cc0'],
+      ['kenney/weapon-explosion-heavy.ogg', 'Explosion (schwer, tieffrequent)', 'cc0'],
+      ['generated/gen-gunshot-ballistic.wav', 'Schuss (ballistisch, Pistole/MP)', 'gen'],
+      ['generated/gen-shotgun-blast.wav', 'Schrotflinte', 'gen'],
+      ['generated/gen-laser-zap.wav', 'Laser-Zap (Pitch-Sweep)', 'gen']
+    ],
+    'grp-vehicles': [
+      ['kenney/vehicle-engine-circular.ogg', 'Motor (zirkulär, Loop-Kandidat)', 'cc0'],
+      ['kenney/vehicle-engine-standard.ogg', 'Motor (Standard)', 'cc0'],
+      ['kenney/vehicle-engine-large.ogg', 'Motor (groß/Truck — Whiteout)', 'cc0'],
+      ['kenney/vehicle-engine-low.ogg', 'Motor (tief/U-Boot — Subglacial)', 'cc0'],
+      ['kenney/vehicle-engine-small.ogg', 'Motor (klein/Buggy — Molten Canyon)', 'cc0'],
+      ['kenney/vehicle-thruster.ogg', 'Thruster (Zero-G Siege Pod)', 'cc0'],
+      ['generated/gen-car-horn.wav', 'Hupe (Nightshift Taxi)', 'gen']
+    ],
+    'grp-impacts': [
+      ['kenney/impact-metal-heavy.ogg', 'Metall (schwer — Barrikade/Fahrzeug)', 'cc0'],
+      ['kenney/impact-metal-medium.ogg', 'Metall (mittel)', 'cc0'],
+      ['kenney/impact-plate-heavy.ogg', 'Platte (schwer)', 'cc0'],
+      ['kenney/impact-glass-heavy.ogg', 'Glas (schwer — Fenster/Schild)', 'cc0'],
+      ['kenney/impact-punch-heavy.ogg', 'Faustschlag (Nahkampf/Grunt-Treffer)', 'cc0'],
+      ['kenney/footstep-concrete.ogg', 'Schritt (Beton — FPS-Games)', 'cc0'],
+      ['kenney/footstep-grass.ogg', 'Schritt (Gras)', 'cc0'],
+      ['kenney/footstep-snow.ogg', 'Schritt (Schnee — Whiteout Pursuit)', 'cc0'],
+      ['generated/gen-hitmarker.wav', 'Hitmarker (hoher Tink, Treffer-Bestätigung)', 'gen']
+    ],
+    'grp-ambient': [
+      ['kenney/ambient-door-open.ogg', 'Tür öffnen (Sci-Fi — Alien Breach Portal)', 'cc0'],
+      ['kenney/ambient-door-close.ogg', 'Tür schließen', 'cc0'],
+      ['kenney/ambient-forcefield.ogg', 'Kraftfeld (Barrikade/Schild-Loop-Kandidat)', 'cc0'],
+      ['kenney/ambient-computer.ogg', 'Computer/Terminal-Rauschen', 'cc0'],
+      ['generated/gen-ambient-drone.wav', 'Tiefer Ambient-Drone (Stations-Hum, 4s Loop-Kandidat)', 'gen']
+    ],
+    'grp-ui': [
+      ['kenney/ui-click.ogg', 'Klick', 'cc0'],
+      ['kenney/ui-click-alt.ogg', 'Klick (Variante)', 'cc0'],
+      ['kenney/ui-hover.ogg', 'Hover/Rollover', 'cc0'],
+      ['kenney/ui-toggle.ogg', 'Toggle/Switch', 'cc0'],
+      ['kenney/ui-toggle-alt.ogg', 'Toggle (Variante)', 'cc0'],
+      ['kenney/ui-select.ogg', 'Auswahl bestätigen', 'cc0'],
+      ['kenney/ui-confirm.ogg', 'Bestätigung', 'cc0'],
+      ['kenney/ui-error.ogg', 'Fehler/Kauf abgelehnt', 'cc0'],
+      ['kenney/ui-open.ogg', 'Panel öffnen', 'cc0'],
+      ['kenney/ui-close.ogg', 'Panel schließen', 'cc0'],
+      ['generated/gen-pickup-chime.wav', 'Pickup/Powerup-Chime (Arpeggio)', 'gen']
+    ],
+    'grp-stingers': [
+      ['generated/gen-victory-stinger.wav', 'Sieg-Stinger (aufsteigend)', 'gen'],
+      ['generated/gen-defeat-stinger.wav', 'Niederlage-Stinger (absteigend)', 'gen']
+    ]
+  };
+
+  let currentAudio = null, currentCard = null;
+  function makeCard(src, label, badge) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const btn = document.createElement('button');
+    btn.className = 'play-btn';
+    btn.textContent = '▶';
+    btn.addEventListener('click', () => {
+      if (currentAudio) { currentAudio.pause(); if (currentCard) currentCard.classList.remove('playing'); }
+      const audio = new Audio(BASE + src);
+      audio.play().catch(() => {});
+      currentAudio = audio; currentCard = card;
+      card.classList.add('playing');
+      audio.addEventListener('ended', () => card.classList.remove('playing'));
+    });
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = label;
+    const srcLine = document.createElement('div');
+    srcLine.className = 'src';
+    srcLine.innerHTML = `<span class="badge ${badge}">${badge === 'cc0' ? 'CC0' : 'GEN'}</span> ${src.split('/').pop()}`;
+    meta.appendChild(name); meta.appendChild(srcLine);
+    card.appendChild(btn); card.appendChild(meta);
+    return card;
+  }
+
+  Object.entries(GROUPS).forEach(([groupId, items]) => {
+    const container = document.getElementById(groupId);
+    items.forEach(([src, label, badge]) => container.appendChild(makeCard(src, label, badge)));
+  });
+})();
+</script>
+</body>
+</html>
