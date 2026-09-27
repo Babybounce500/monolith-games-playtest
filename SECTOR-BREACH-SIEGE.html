@@ -64,6 +64,23 @@
       50% { box-shadow: 0 0 22px rgba(51,204,255,.95); }
     }
     #control-hints { position: absolute; bottom: 68px; left: 16px; z-index: 11; display: flex; flex-wrap: wrap; gap: 6px; max-width: 340px; }
+    #arsenal-panel {
+      position: absolute; top: 16px; right: 174px; z-index: 11; min-width: 178px;
+      background: rgba(0,0,0,.72); border: 2px solid #ffcc00; padding: 8px 10px;
+      font: 700 11px monospace; color: #ffcc00; letter-spacing: .4px;
+    }
+    #arsenal-panel h4 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    #arsenal-panel h4 span { color: #fff; }
+    .arsenal-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    .arsenal-row.owned { color: #33cc66; }
+    .arsenal-row.next { color: #fff; animation: promptPulse 1s infinite; }
+    .arsenal-row.locked { color: #886600; }
+    @keyframes shopFlash {
+      0% { box-shadow: 0 0 0 rgba(255,204,0,0); }
+      30% { box-shadow: 0 0 26px rgba(255,204,0,.95); }
+      100% { box-shadow: 0 0 0 rgba(255,204,0,0); }
+    }
+    #arsenal-panel.flash { animation: shopFlash .5s ease-out; }
     .hint-pill {
       background: rgba(0,0,0,.65); border: 1px solid #ffcc00; border-radius: 12px;
       padding: 3px 10px; font: 700 10px monospace; letter-spacing: .5px; color: #ffcc00; white-space: nowrap;
@@ -85,6 +102,7 @@
     @media (max-width: 800px), (pointer: coarse) {
       #touch-controls { display: block; }
       #control-hints { display: none; }
+      #arsenal-panel { display: none; }
       #minimap-wrap { top: 8px; right: 8px; width: 106px; height: 106px; }
       #minimap { width: 106px; height: 106px; }
       #level-indicator { top: 8px; left: 8px; font-size: 10px; padding: 5px 7px; }
@@ -157,6 +175,11 @@
       <span class="hint-pill"><b>WASD</b> BEWEGEN</span>
       <span class="hint-pill"><b>B/T/M/U</b> SHOP (VORBEREITUNG)</span>
       <span class="hint-pill"><b>G</b> WAFFE KAUFEN (JEDERZEIT)</span>
+    </div>
+
+    <div id="arsenal-panel">
+      <h4>ARSENAL <span id="arsenal-scrap-hint">G = KAUFEN</span></h4>
+      <div id="arsenal-list"></div>
     </div>
 
     <div id="status-bar">
@@ -1232,6 +1255,7 @@
     // still be bought straight from scrap — priced roughly by DPS so the
     // stronger guns cost more than a couple of wave clears' worth.
     const WEAPON_BUY_COST = { smg: 50, revolver: 65, assault_rifle: 85, lmg: 110 };
+    renderArsenalPanel();
     function addScrap(amount) {
       scrap += amount;
       document.getElementById('scrap-val').innerText = scrap;
@@ -1440,6 +1464,25 @@
         document.getElementById('msg-box').innerText = `${WEAPON_DEFS[w].name} MAGAZIN +1`;
       }
     }
+    // Always-visible HUD panel listing all 6 weapons with owned/next/locked
+    // status and price — this IS "the shop" now, permanently open rather
+    // than a menu that has to be summoned, so there's never any ambiguity
+    // about whether pressing G did anything.
+    function renderArsenalPanel() {
+      const list = document.getElementById('arsenal-list');
+      if (!list) return;
+      const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+      list.innerHTML = WEAPON_ORDER.map(id => {
+        const def = WEAPON_DEFS[id];
+        if (def.unlocked) return `<div class="arsenal-row owned">${def.name}<span>BESITZ</span></div>`;
+        const cls = id === nextId ? 'next' : 'locked';
+        return `<div class="arsenal-row ${cls}">${def.name}<span>${WEAPON_BUY_COST[id]}</span></div>`;
+      }).join('');
+    }
+    function flashArsenalPanel() {
+      const panel = document.getElementById('arsenal-panel');
+      panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
+    }
     // Buys the next locked weapon in WEAPON_ORDER — same unlock effects as
     // picking up its wave-clear crate (full mag, reserve grant, auto-equip)
     // so scrap becomes a second path to the full arsenal, not just a
@@ -1449,6 +1492,7 @@
     function buyWeapon() {
       if (gameEnded) return;
       const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+      flashArsenalPanel();
       if (!nextId) { playSound('empty'); document.getElementById('msg-box').innerText = 'ALLE WAFFEN FREIGESCHALTET'; return; }
       const cost = WEAPON_BUY_COST[nextId];
       if (spend(cost)) {
@@ -1459,6 +1503,7 @@
         const gained = grantAmmo(def.reserveGrant);
         selectWeapon(nextId);
         playSound('levelup');
+        renderArsenalPanel();
         document.getElementById('msg-box').innerText = `${def.name} GEKAUFT // MAGAZIN VOLL // +${gained} RESERVE`;
       }
     }
@@ -1757,6 +1802,7 @@
               player.reloading[pk.weaponId] = false;
               const gained = grantAmmo(def.reserveGrant);
               selectWeapon(pk.weaponId);
+              renderArsenalPanel();
               document.getElementById('msg-box').innerText =
                 `${def.name} ERHALTEN // MAGAZIN VOLL // +${gained} RESERVE`;
             } else {
