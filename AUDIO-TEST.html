@@ -30,6 +30,9 @@
   .badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; letter-spacing: .05em; }
   .badge.cc0 { background: rgba(102,204,255,.15); color: #66ccff; }
   .badge.gen { background: rgba(255,153,102,.15); color: #ff9966; }
+  .badge.adv { background: rgba(153,255,153,.18); color: #77ff99; }
+  .badge.rec { background: rgba(255,221,102,.18); color: #ffdd66; }
+  #grp-advanced .card, #grp-recorded .card { border-color: rgba(119,255,153,.3); }
   footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(123,234,255,.15); color: #6d7f8f; font-size: 11px; line-height: 1.7; }
   footer a { color: #7beaff; }
 </style>
@@ -41,11 +44,26 @@
     Public Domain, keine Attribution nötig, direkt einsatzbereit. <b>GEN</b> = selbst per
     Node.js-PCM-Synthese generiert (Sinus/Noise/Hüllkurven direkt zu WAV), ebenfalls ohne
     Lizenzfragen. Klick auf ▶ zum Anhören. Dateien liegen lokal unter
-    <code>assets/audio-test/</code>.
+    <code>assets/audio-test/</code>. <b>NEU:</b> unten gibt's jetzt auch eine
+    "ADVANCED" Sektion — eigene Sounds nochmal komplett neu mit echtem
+    Sound-Design (Reverb, gefiltertes statt rohes Noise, Sub-Bass-Layering,
+    Sättigung, Pitch-Sweeps statt starrer Töne) statt nacktem Sinus+Noise,
+    plus ein paar echte (Telefon-)Aufnahmen von OpenGameArt als organischere
+    Alternative zu Kenneys synthetischem Sound.
   </p>
 
   <section>
-    <h2>WEAPONS</h2>
+    <h2>★ ADVANCED — eigene Synthese mit Reverb/Layering/Sättigung</h2>
+    <div class="grid" id="grp-advanced"></div>
+  </section>
+
+  <section>
+    <h2>REAL-RECORDED — echte Aufnahmen (OpenGameArt, CC0)</h2>
+    <div class="grid" id="grp-recorded"></div>
+  </section>
+
+  <section>
+    <h2>WEAPONS <span style="color:#6d7f8f;font-size:11px;">(v1, einfache Synthese/Kenney — zum Vergleich)</span></h2>
     <div class="grid" id="grp-weapons"></div>
   </section>
 
@@ -91,6 +109,32 @@
   'use strict';
   const BASE = 'assets/audio-test/';
   const GROUPS = {
+    'grp-advanced': [
+      ['generated-v2/gen2-laser.wav', 'Laser (FM-Synthese, Pitch-Sweep, Reverb)', 'adv'],
+      ['generated-v2/gen2-gunshot.wav', 'Schuss (gefiltertes Noise + Sub-Thump + Reverb)', 'adv'],
+      ['generated-v2/gen2-shotgun.wav', 'Schrotflinte (Bandpass-Noise + Pellet-Streuung)', 'adv'],
+      ['generated-v2/gen2-explosion.wav', 'Explosion (3-Lagen: Crack/Rumble/Debris + langer Tail)', 'adv'],
+      ['generated-v2/gen2-impact-metal-ring.wav', 'Metall-Treffer (inharmonische Partialtöne, klingt nach)', 'adv'],
+      ['generated-v2/gen2-hitmarker.wav', 'Hitmarker (Zwei-Ton + kurzer Raum)', 'adv'],
+      ['generated-v2/gen2-pickup-chime.wav', 'Pickup-Chime (Obertöne + Reverb)', 'adv'],
+      ['generated-v2/gen2-ambient-drone.wav', 'Ambient-Drone (4 verstimmte Oszillatoren, Chorus-Effekt, 6s)', 'adv'],
+      ['generated-v2/gen2-car-horn.wav', 'Hupe (3-Ton-Akkord + Sättigung)', 'adv'],
+      ['generated-v2/gen2-victory-stinger.wav', 'Sieg-Stinger (4 echte Akkorde statt Einzeltöne)', 'adv'],
+      ['generated-v2/gen2-defeat-stinger.wav', 'Niederlage-Stinger (absteigende Moll-Akkorde)', 'adv']
+    ],
+    'grp-recorded': [
+      ['real-recorded/weapon-shot-recorded-1.ogg', 'Schuss (echte Aufnahme, Variante 1)', 'rec'],
+      ['real-recorded/weapon-shot-recorded-2.ogg', 'Schuss (echte Aufnahme, Variante 2)', 'rec'],
+      ['real-recorded/weapon-explosion-recorded.ogg', 'Explosion (echte Aufnahme)', 'rec'],
+      ['real-recorded/impact-metal-recorded-1.ogg', 'Metall-Treffer (echte Aufnahme 1)', 'rec'],
+      ['real-recorded/impact-metal-recorded-2.ogg', 'Metall-Treffer (echte Aufnahme 2)', 'rec'],
+      ['real-recorded/impact-metal-recorded-3.ogg', 'Metall-Treffer (echte Aufnahme 3)', 'rec'],
+      ['real-recorded/impact-glass-recorded.ogg', 'Glasbruch (echte Aufnahme)', 'rec'],
+      ['real-recorded/impact-hit-recorded.ogg', 'Treffer/Schlag (echte Aufnahme)', 'rec'],
+      ['real-recorded/impact-slam-recorded.ogg', 'Zuschlagen (echte Aufnahme — Tür/Barrikade)', 'rec'],
+      ['real-recorded/ambient-machine-recorded.ogg', 'Maschinen-Loop-Kandidat (echte Aufnahme)', 'rec'],
+      ['real-recorded/misc-spring-recorded.ogg', 'Feder/Mechanik (echte Aufnahme)', 'rec']
+    ],
     'grp-weapons': [
       ['kenney/weapon-laser-small.ogg', 'Laser (klein)', 'cc0'],
       ['kenney/weapon-laser-small-alt.ogg', 'Laser (klein, Variante)', 'cc0'],
@@ -170,7 +214,8 @@
     name.textContent = label;
     const srcLine = document.createElement('div');
     srcLine.className = 'src';
-    srcLine.innerHTML = `<span class="badge ${badge}">${badge === 'cc0' ? 'CC0' : 'GEN'}</span> ${src.split('/').pop()}`;
+    const badgeLabel = { cc0: 'CC0', gen: 'GEN', adv: 'ADV', rec: 'REC' }[badge] || badge.toUpperCase();
+    srcLine.innerHTML = `<span class="badge ${badge}">${badgeLabel}</span> ${src.split('/').pop()}`;
     meta.appendChild(name); meta.appendChild(srcLine);
     card.appendChild(btn); card.appendChild(meta);
     return card;
