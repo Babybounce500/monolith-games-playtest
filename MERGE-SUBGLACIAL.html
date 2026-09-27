@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>SUBGLACIAL // MERGE WORLD</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body, html { width: 100%; height: 100%; overflow: hidden; background: #060a10; font-family: 'Impact', sans-serif; color: #bfe8ff; }
+  #canvas-container { width: 100%; height: 100%; position: absolute; }
+  #ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+
+  #gameover-screen, #victory-screen, #lock-screen {
+    position: absolute; inset: 0; background: rgba(2,6,12,0.9); z-index: 30; display: none;
+    flex-direction: column; justify-content: center; align-items: center;
+    cursor: pointer; pointer-events: auto; text-align: center;
+  }
+  h1 { font-size: 44px; letter-spacing: 3px; text-shadow: 4px 4px 0 #000, 0 0 20px currentColor; }
+  #gameover-screen h1 { color: #ff4444; }
+  #victory-screen h1 { color: #66eaff; }
+  #lock-screen h2 { color: #bfe8ff; font-size: 26px; }
+  p { font-size: 15px; color: #bfe8ff; margin-top: 10px; max-width: 600px; }
+  button.action-btn { margin-top: 20px; padding: 10px 26px; background: #66d9ff; color: #04121c; border: none; font: 700 15px Impact, sans-serif; letter-spacing: 2px; cursor: pointer; }
+  .sensitivity-control { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; padding: 6px 10px; border: 1px solid rgba(102,217,255,.55); background: rgba(0,0,0,.55); color: #bfe8ff; font: 700 11px monospace; }
+  .sensitivity-control input { width: 120px; accent-color: #66d9ff; }
+  .sensitivity-value { min-width: 42px; color: #fff; text-align: right; }
+
+  #damage-flash { position: absolute; inset: 0; background: rgba(255,0,0,0); pointer-events: none; z-index: 12; transition: background .1s; }
+  #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: #ff3333; transform: translate(-50%,-50%); box-shadow: 0 0 8px #ff3333, 0 0 2px #fff; z-index: 16; display: none; }
+  #crosshair.pulse { animation: crosshairPulse .12s ease-out; }
+  @keyframes crosshairPulse { 0% { transform: translate(-50%,-50%) scale(2.4); } 100% { transform: translate(-50%,-50%) scale(1); } }
+
+  #msg-box { position: absolute; top: 18px; width: 100%; text-align: center; font-size: 20px; color: #bfe8ff; text-shadow: 2px 2px 0 #000; z-index: 11; }
+  #minimap-wrap { position: absolute; top: 16px; right: 16px; width: 150px; height: 150px; border: 2px solid #66d9ff; background: rgba(0,0,0,.6); z-index: 11; }
+  #storm-wrap { position: absolute; top: 176px; right: 16px; width: 150px; z-index: 11; background: rgba(0,0,0,.6); border: 2px solid #66d9ff; padding: 6px 8px; font: 700 10px monospace; color: #bfe8ff; }
+  #storm-bar-bg { width: 100%; height: 8px; background: #123; margin-top: 4px; border: 1px solid #66d9ff; }
+  #storm-bar { height: 100%; width: 0%; background: #bfe8ff; }
+
+  #status-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; background: #0a1420; border-top: 4px solid #66d9ff; display: flex; justify-content: space-around; align-items: center; z-index: 20; }
+  .hud-box { background: #000; border: 2px solid #345; padding: 4px 12px; text-align: center; min-width: 84px; }
+  .hud-label { font-size: 10px; color: #789; }
+  .hud-value { font-size: 20px; color: #ff5555; text-shadow: 0 0 6px #ff5555; }
+
+  #arsenal-panel { position: absolute; top: 16px; left: 176px; z-index: 11; min-width: 176px; background: rgba(0,0,0,.72); border: 2px solid #66d9ff; padding: 8px 10px; font: 700 11px monospace; color: #66d9ff; }
+  #arsenal-panel h4 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  #arsenal-panel h4 span { color: #fff; }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .row.owned { color: #33cc66; }
+  .row.next { color: #fff; animation: pulseRow 1s infinite; }
+  .row.locked { color: #557; }
+  @keyframes pulseRow { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+  @keyframes flashPanel { 0% { box-shadow: 0 0 0 rgba(102,217,255,0); } 30% { box-shadow: 0 0 26px rgba(102,217,255,.95); } 100% { box-shadow: 0 0 0 rgba(102,217,255,0); } }
+  #arsenal-panel.flash, #garage-panel.flash { animation: flashPanel .5s ease-out; }
+  #garage-panel { position: absolute; top: 16px; left: 16px; z-index: 11; min-width: 150px; background: rgba(0,0,0,.72); border: 2px solid #ffaa33; padding: 8px 10px; font: 700 11px monospace; color: #ffaa33; }
+  #garage-panel h4 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
+
+  #level-indicator { position: absolute; top: 16px; right: 174px; z-index: 11; background: rgba(0,0,0,.6); border: 2px solid #66d9ff; padding: 6px 12px; font-size: 12px; color: #66d9ff; letter-spacing: 1px; max-width: 230px; text-align: right; }
+
+  #control-hints { position: absolute; bottom: 68px; left: 16px; z-index: 11; display: flex; flex-wrap: wrap; gap: 6px; max-width: 460px; }
+  .hint-pill { background: rgba(0,0,0,.65); border: 1px solid #66d9ff; border-radius: 12px; padding: 3px 10px; font: 700 10px monospace; letter-spacing: .5px; color: #66d9ff; white-space: nowrap; }
+  .hint-pill b { color: #fff; }
+
+  #reload-indicator { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); color: #ffcc00; font: 700 13px monospace; letter-spacing: 1px; z-index: 11; display: none; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div id="gameover-screen">
+  <h1>U-BOOT VERLOREN</h1>
+  <p id="gameover-stats"></p>
+  <button class="action-btn" id="restart-btn">NEUSTART</button>
+</div>
+
+<div id="victory-screen">
+  <h1>STATION GESICHERT</h1>
+  <p id="victory-stats"></p>
+  <button class="action-btn" id="restart-btn-2">NOCHMAL SPIELEN</button>
+</div>
+
+<div id="lock-screen">
+  <h2 id="lock-title">SUBGLACIAL // ENTER ODER KLICK ZUM SPIELEN</h2>
+  <p id="lock-desc">ENTER oder ein Klick aktiviert die Maussteuerung fuer den Fussmodus. Im Fahrzeug brauchst du keinen Pointer-Lock — WASD reicht.</p>
+  <p style="font-size:12px;color:#8ab;">Fahre zur Tiefsee-Station im Norden der Karte. Unterwegs patrouillieren Anglerfish-Stalker. E steigt ein/aus.</p>
+  <label class="sensitivity-control">MAUS <input class="mouse-sensitivity" type="range" min="0.0015" max="0.008" step="0.0001" value="0.0042"><span class="sensitivity-value">0.0042</span></label>
+</div>
+
+<div id="canvas-container"></div>
+<div id="damage-flash"></div>
+<div id="level-indicator">OFFENE WELT // STATION NOCH NICHT ERREICHT</div>
+<div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+<div id="storm-wrap">STURM-INTENSITAET<div id="storm-bar-bg"><div id="storm-bar"></div></div></div>
+
+<div id="ui-layer">
+  <div id="msg-box">MISSION: ERREICHE DIE TIEFSEE-STATION</div>
+  <div id="crosshair"></div>
+  <div id="reload-indicator">NACHLADEN...</div>
+</div>
+
+<div id="control-hints">
+  <span class="hint-pill"><b>WASD</b> FAHREN / LAUFEN</span>
+  <span class="hint-pill"><b>E</b> EIN-/AUSSTEIGEN</span>
+  <span class="hint-pill"><b>LEERTASTE</b> SCHIESSEN (BEIDE MODI)</span>
+  <span class="hint-pill"><b>R</b> NACHLADEN (FUSS)</span>
+  <span class="hint-pill"><b>1-3</b> WAFFEN (FUSS)</span>
+  <span class="hint-pill"><b>B/T/M/U/H</b> SHOP (BELAGERUNG)</span>
+  <span class="hint-pill"><b>G</b> WAFFE KAUFEN (JEDERZEIT)</span>
+  <span class="hint-pill"><b>V</b> FAHRZEUG-UPGRADE (JEDERZEIT)</span>
+</div>
+
+<div id="arsenal-panel"><h4>ARSENAL <span>G=KAUFEN</span></h4><div id="arsenal-list"></div></div>
+<div id="garage-panel"><h4>GARAGE <span>V=UPGRADE</span></h4><div id="garage-list"></div></div>
+
+<div id="status-bar">
+  <div class="hud-box"><div class="hud-label">HEALTH</div><div class="hud-value" id="health-val">100%</div></div>
+  <div class="hud-box"><div class="hud-label">AMMO</div><div class="hud-value" style="font-size:16px;" id="ammo-val">-</div></div>
+  <div class="hud-box"><div class="hud-label">FAHRZEUG</div><div class="hud-value" style="color:#66d9ff" id="vehicle-val">100%</div></div>
+  <div class="hud-box"><div class="hud-label">SCHROTT</div><div class="hud-value" style="color:#ffcc00" id="scrap-val">0</div></div>
+  <div class="hud-box"><div class="hud-label">MODUS</div><div class="hud-value" style="font-size:15px;color:#66ffcc" id="mode-val">FAHRZEUG</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // =========================================================
+  // SCENE / RENDERER / CAMERA
+  // =========================================================
+  const container = document.getElementById('canvas-container');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06222c);
+  scene.fog = new THREE.Fog(0x06222c, 40, 260);
+
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 900);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  container.appendChild(renderer.domElement);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const hemi = new THREE.HemisphereLight(0x6fb0cc, 0x061018, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xbfe8ff, 0.7);
+  sun.position.set(60, 120, 40);
+  scene.add(sun);
+
+  // =========================================================
+  // TERRAIN — heightmap-driven sub-glacial ocean shelf floor. Same
+  // shape of idea as PRIME's terrainHeight(x,z) ground-follow pattern
+  // (confirmed in GRID-CIRCUIT/index.html), reimplemented locally
+  // since this file has no shared module to import from.
+  // =========================================================
+  const WORLD_HALF = 170;
+  function terrainHeight(x, z) {
+    return Math.sin(x * 0.02) * 3 + Math.cos(z * 0.025) * 2.5 + Math.sin((x + z) * 0.015) * 1.5;
+  }
+  const groundGeo = new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2, 80, 80);
+  groundGeo.rotateX(-Math.PI / 2);
+  const gPos = groundGeo.attributes.position;
+  for (let i = 0; i < gPos.count; i++) {
+    const x = gPos.getX(i), z = gPos.getZ(i);
+    gPos.setY(i, terrainHeight(x, z));
+  }
+  groundGeo.computeVertexNormals();
+  const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ color: 0x0c3648, roughness: 0.95 }));
+  scene.add(ground);
+
+  // Scattered ice-chunk/rock-formation props purely for visual reference
+  // points while driving (open shelf is otherwise featureless and
+  // disorienting underwater).
+  const propGeo = new THREE.DodecahedronGeometry(1.4, 0);
+  const propMat = new THREE.MeshStandardMaterial({ color: 0x7fc4dd, roughness: 1 });
+  for (let i = 0; i < 90; i++) {
+    const x = (Math.random() - 0.5) * WORLD_HALF * 1.9;
+    const z = (Math.random() - 0.5) * WORLD_HALF * 1.9;
+    const prop = new THREE.Mesh(propGeo, propMat);
+    const s = 0.6 + Math.random() * 1.8;
+    prop.scale.setScalar(s);
+    prop.position.set(x, terrainHeight(x, z) + s * 0.5, z);
+    prop.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(prop);
+  }
+
+  // =========================================================
+  // SIEGE SITE — fixed coordinate, north edge of the map. Reuses
+  // Alien Breach's wave/barricade/terminal/shop pattern almost
+  // unchanged once triggered. Reskinned as the flooding Tiefsee-Station.
+  // =========================================================
+  const SIEGE_SITE = { x: 0, z: -140 };
+  const siegeGroup = new THREE.Group();
+  siegeGroup.position.set(SIEGE_SITE.x, 0, SIEGE_SITE.z);
+  scene.add(siegeGroup);
+  const outpostMat = new THREE.MeshStandardMaterial({ color: 0x2c4a5e });
+  const outpostHub = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 10), outpostMat);
+  outpostHub.position.y = 4 + terrainHeight(SIEGE_SITE.x, SIEGE_SITE.z);
+  siegeGroup.add(outpostHub);
+  const terminalMesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x2266aa, emissive: 0x113355 }));
+  terminalMesh.position.set(0, 1.2 + terrainHeight(SIEGE_SITE.x, SIEGE_SITE.z), 5.5);
+  siegeGroup.add(terminalMesh);
+
+  // Three pressure-hatch ("Druckluke") barricades guard the approach —
+  // same concept as Alien Breach's corridor barricades, but arranged
+  // around the hub since there's no maze corridor here.
+  const BARRICADE_DEFS = [
+    { id: 'north', x: 0, z: -14 },
+    { id: 'east', x: 14, z: 0 },
+    { id: 'west', x: -14, z: 0 }
+  ];
+  const hatchMat = new THREE.MeshStandardMaterial({ color: 0x8a9aa8, transparent: true, opacity: 0.9 });
+  const barricades = {};
+  BARRICADE_DEFS.forEach(def => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 1.2), hatchMat.clone());
+    mesh.position.set(def.x, 2 + terrainHeight(SIEGE_SITE.x + def.x, SIEGE_SITE.z + def.z), def.z);
+    siegeGroup.add(mesh);
+    barricades[def.id] = { mesh, hp: 100, maxHp: 100, alive: true };
+  });
+
+  // =========================================================
+  // FLOODING HAZARD (this world's bespoke mechanic) — when a
+  // Druckluke is breached it doesn't just vanish, it opens a visible
+  // expanding water-intrusion disc at the breach point and starts a
+  // small periodic trickle of extra damage to the terminal, on top of
+  // whatever siege enemies are already doing to it. Repairing that
+  // hatch (buyRepairBarricades) seals the breach and stops its trickle.
+  // =========================================================
+  const FLOOD_MAT = new THREE.MeshStandardMaterial({ color: 0x2aa0e0, transparent: true, opacity: 0.55, emissive: 0x0d3a55 });
+  const FLOOD_DPS_PER_HATCH = 1.1;
+  const floodEffects = {};
+  function findBarricadeDef(id) { return BARRICADE_DEFS.find(d => d.id === id); }
+  function triggerFlood(id) {
+    if (floodEffects[id]) return;
+    const def = findBarricadeDef(id);
+    if (!def) return;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.12, 18), FLOOD_MAT.clone());
+    mesh.position.set(def.x, 0.08 + terrainHeight(SIEGE_SITE.x + def.x, SIEGE_SITE.z + def.z), def.z);
+    siegeGroup.add(mesh);
+    floodEffects[id] = { mesh, t: 0 };
+  }
+  function clearFlood(id) {
+    const f = floodEffects[id];
+    if (!f) return;
+    siegeGroup.remove(f.mesh);
+    delete floodEffects[id];
+  }
+  function updateFloods(dt) {
+    const ids = Object.keys(floodEffects);
+    if (!ids.length) return;
+    ids.forEach(id => {
+      const f = floodEffects[id];
+      f.t += dt;
+      const scale = Math.min(7, 1 + f.t * 1.1);
+      f.mesh.scale.set(scale, 1, scale);
+      f.mesh.material.opacity = Math.max(0.18, 0.55 - f.t * 0.01);
+    });
+    terminalHp -= FLOOD_DPS_PER_HATCH * ids.length * dt;
+    if (terminalHp <= 0) endGame(false, 'terminal');
+  }
+
+  // =========================================================
+  // PROCEDURAL ICON HELPER — no custom art exists for this new
+  // world yet, so weapon/pickup icons are drawn on a canvas the
+  // same way Alien Breach's medkit/ammo icons were before this
+  // session removed its external OpenGameArt dependency.
+  // =========================================================
+  function makeIconTex(color, glyph) {
+    const cvs = document.createElement('canvas'); cvs.width = 64; cvs.height = 64;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = color; ctx.fillRect(6, 22, 52, 20);
+    ctx.fillStyle = '#111'; ctx.fillRect(6, 22, 52, 4);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(glyph, 32, 46);
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.magFilter = THREE.NearestFilter;
+    return tex;
+  }
+
+  // =========================================================
+  // ON-FOOT WEAPON ARSENAL — ported directly from Alien Breach's
+  // WEAPON_DEFS/shoot()/reload() pattern (SECTOR-BREACH-SIEGE.html),
+  // trimmed to 3 weapons and using procedural icons instead of
+  // photo art since none has been generated for this world yet.
+  // =========================================================
+  const WEAPON_ORDER = ['pistol', 'smg', 'shotgun'];
+  const WEAPON_DEFS = {
+    pistol:  { name: 'PISTOLE',   mag: 8,  dmg: 9,  pellets: 1, spread: 0,    reloadMs: 800, reserveGrant: 0,  color: '#ccddee', unlocked: true,  automatic: false, fireMs: 380 },
+    smg:     { name: 'MP',        mag: 22, dmg: 5,  pellets: 1, spread: 0.02, reloadMs: 700, reserveGrant: 80, color: '#88ccff', unlocked: false, automatic: true,  fireMs: 95 },
+    shotgun: { name: 'SCHROTFLINTE', mag: 5, dmg: 4, pellets: 6, spread: 0.09, reloadMs: 850, reserveGrant: 40, color: '#ffaa66', unlocked: false, automatic: false, fireMs: 700 }
+  };
+  const WEAPON_BUY_COST = { smg: 45, shotgun: 60 };
+  Object.keys(WEAPON_DEFS).forEach(id => { WEAPON_DEFS[id]._icon = null; });
+  const MAG_SIZE = Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, WEAPON_DEFS[id].mag]));
+
+  // =========================================================
+  // VEHICLE — the Subglacial ice-breaker submersible. Simple arcade
+  // physics (accel/brake/steer/friction) with terrain-following
+  // height, no suspension simulation — identical formulas to the
+  // Whiteout snow-truck, only the hull mesh is reshaped/recolored.
+  // Mounted weapon ("Druckluft-Harpune") fires forward along the
+  // vehicle heading.
+  // =========================================================
+  const vehicleGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff8a1f });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 3.2, 14), bodyMat);
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 1.1;
+  vehicleGroup.add(body);
+  const noseCap = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), bodyMat);
+  noseCap.position.set(0, 1.1, 1.6);
+  vehicleGroup.add(noseCap);
+  const tailCap = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), bodyMat);
+  tailCap.position.set(0, 1.1, -1.6);
+  vehicleGroup.add(tailCap);
+  const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 1.1, 10), new THREE.MeshStandardMaterial({ color: 0x8fe0ff, transparent: true, opacity: 0.7 }));
+  cab.position.set(0, 2.05, -0.4);
+  vehicleGroup.add(cab);
+  const gunMat = new THREE.MeshStandardMaterial({ color: 0x445566 });
+  const mountedGun = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.2, 8), gunMat);
+  mountedGun.rotation.x = Math.PI / 2;
+  mountedGun.position.set(0, 1.9, 2.6);
+  vehicleGroup.add(mountedGun);
+  const finGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.4, 10);
+  const finMat = new THREE.MeshStandardMaterial({ color: 0x1c2f3a });
+  [[-1.3, 0.6, 1.6], [1.3, 0.6, 1.6], [-1.3, 0.6, -1.6], [1.3, 0.6, -1.6]].forEach(p => {
+    const fin = new THREE.Mesh(finGeo, finMat);
+    fin.rotation.z = Math.PI / 2;
+    fin.position.set(p[0], p[1], p[2]);
+    vehicleGroup.add(fin);
+  });
+  scene.add(vehicleGroup);
+
+  const vehicle = {
+    x: 0, z: 130, heading: Math.PI, speed: 0,
+    hp: 100, maxHp: 100,
+    weaponTier: 1, armorTier: 1, speedTier: 1,
+    reload: 0
+  };
+  const VEHICLE_TIERS = {
+    weapon: [null, { dmg: 14, fireMs: 260 }, { dmg: 20, fireMs: 220 }, { dmg: 28, fireMs: 190 }],
+    armor: [null, { maxHp: 100 }, { maxHp: 150 }, { maxHp: 210 }],
+    speed: [null, { maxSpeed: 26 }, { maxSpeed: 32 }, { maxSpeed: 38 }]
+  };
+  const VEHICLE_UPGRADE_COST = { weapon: 40, armor: 45, speed: 35 };
+
+  // =========================================================
+  // PLAYER (foot mode) — same shape of state Alien Breach uses:
+  // position vector, look angles, health, per-weapon magazine
+  // and reload flags, mouse sensitivity.
+  // =========================================================
+  const player = {
+    pos: new THREE.Vector3(0, 1.7, 134),
+    rotX: 0, rotY: Math.PI,
+    health: 100,
+    magazine: Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, WEAPON_DEFS[id].mag])),
+    reloading: Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, false])),
+    reserveAmmo: 60,
+    sensitivity: 0.0042
+  };
+  let currentWeapon = 'pistol';
+  const MAX_RESERVE_AMMO = 400;
+
+  let mode = 'vehicle'; // 'vehicle' | 'foot'
+  let scrap = 0;
+  let gameEnded = false;
+  let gameWon = false;
+  const clock = new THREE.Clock();
+  let elapsed = 0;
+
+  const isTouchDevice = () => navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+
+  function addScrap(amount) {
+    scrap += amount;
+    document.getElementById('scrap-val').innerText = scrap;
+  }
+  function spend(cost) {
+    if (scrap < cost) { return false; }
+    scrap -= cost;
+    document.getElementById('scrap-val').innerText = scrap;
+    return true;
+  }
+  function grantAmmo(amount) {
+    const before = player.reserveAmmo;
+    player.reserveAmmo = Math.min(MAX_RESERVE_AMMO, player.reserveAmmo + amount);
+    updateAmmoHud();
+    return player.reserveAmmo - before;
+  }
+  function updateAmmoHud() {
+    if (mode === 'foot') {
+      document.getElementById('ammo-val').innerText = `${player.magazine[currentWeapon]}/${player.reserveAmmo}`;
+    } else {
+      document.getElementById('ammo-val').innerText = 'DRUCKLUFT-HARPUNE';
+    }
+  }
+  function setMsg(text) { document.getElementById('msg-box').innerText = text; }
+
+  function flashPanel(id) {
+    const panel = document.getElementById(id);
+    panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
+  }
+  function renderArsenalPanel() {
+    const list = document.getElementById('arsenal-list');
+    const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+    list.innerHTML = WEAPON_ORDER.map(id => {
+      const def = WEAPON_DEFS[id];
+      if (def.unlocked) return `<div class="row owned">${def.name}<span>BESITZ</span></div>`;
+      const cls = id === nextId ? 'next' : 'locked';
+      return `<div class="row ${cls}">${def.name}<span>${WEAPON_BUY_COST[id]}</span></div>`;
+    }).join('');
+  }
+  function renderGaragePanel() {
+    const list = document.getElementById('garage-list');
+    const rows = [
+      ['weapon', 'BORDWAFFE', vehicle.weaponTier],
+      ['armor', 'PANZERUNG', vehicle.armorTier],
+      ['speed', 'ANTRIEB', vehicle.speedTier]
+    ];
+    list.innerHTML = rows.map(([key, label, tier]) => {
+      const maxed = tier >= 3;
+      const cost = maxed ? '-' : Math.round(VEHICLE_UPGRADE_COST[key] * Math.pow(1.7, tier - 1));
+      return `<div class="row ${maxed ? 'owned' : 'next'}">${label} T${tier}<span>${maxed ? 'MAX' : cost}</span></div>`;
+    }).join('');
+  }
+  renderArsenalPanel();
+  renderGaragePanel();
+
+  function buyWeapon() {
+    if (gameEnded) return;
+    flashPanel('arsenal-panel');
+    const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+    if (!nextId) { setMsg('ALLE WAFFEN FREIGESCHALTET'); return; }
+    const cost = WEAPON_BUY_COST[nextId];
+    if (spend(cost)) {
+      const def = WEAPON_DEFS[nextId];
+      def.unlocked = true;
+      player.magazine[nextId] = MAG_SIZE[nextId];
+      player.reloading[nextId] = false;
+      const gained = grantAmmo(def.reserveGrant);
+      currentWeapon = nextId;
+      renderArsenalPanel();
+      updateAmmoHud();
+      setMsg(`${def.name} GEKAUFT // +${gained} RESERVE`);
+    } else {
+      setMsg(`ZU WENIG SCHROTT (${cost} BENOETIGT)`);
+    }
+  }
+  function buyVehicleUpgrade() {
+    if (gameEnded) return;
+    flashPanel('garage-panel');
+    const options = ['weapon', 'armor', 'speed'].filter(k => vehicle[k + 'Tier'] < 3);
+    if (!options.length) { setMsg('FAHRZEUG VOLL AUSGEBAUT'); return; }
+    // Always upgrades whichever eligible stat is cheapest right now.
+    const key = options.sort((a, b) => costFor(a) - costFor(b))[0];
+    const cost = costFor(key);
+    function costFor(k) { return Math.round(VEHICLE_UPGRADE_COST[k] * Math.pow(1.7, vehicle[k + 'Tier'] - 1)); }
+    if (spend(cost)) {
+      vehicle[key + 'Tier']++;
+      if (key === 'armor') {
+        vehicle.maxHp = VEHICLE_TIERS.armor[vehicle.armorTier].maxHp;
+        vehicle.hp = vehicle.maxHp;
+      }
+      renderGaragePanel();
+      setMsg(`FAHRZEUG-UPGRADE: ${key.toUpperCase()} T${vehicle[key + 'Tier']}`);
+    } else {
+      setMsg(`ZU WENIG SCHROTT (${cost} BENOETIGT)`);
+    }
+  }
+
+  // Repair cost scales up each use (same pattern as magUpgradeCost below)
+  // so repeatedly patching barricades every prep window stops being a
+  // guaranteed net-positive trade against the flat 30-scrap wave reward.
+  let barricadeRepairCost = 20;
+  function buyRepairBarricades() {
+    if (!siegeActive || !inPrep) return;
+    if (spend(barricadeRepairCost)) {
+      Object.keys(barricades).forEach(id => { const b = barricades[id]; b.hp = b.maxHp; b.alive = true; b.mesh.material.opacity = 0.9; clearFlood(id); });
+      barricadeRepairCost = Math.round(barricadeRepairCost * 1.35);
+      setMsg('DRUCKLUKEN REPARIERT — FLUTUNG GESTOPPT');
+    }
+  }
+  function buyRepairTerminal() {
+    if (!siegeActive || !inPrep) return;
+    if (spend(25)) { terminalHp = Math.min(100, terminalHp + 40); setMsg('TERMINAL REPARIERT'); }
+  }
+  function buyAmmo() {
+    if (!siegeActive || !inPrep) return;
+    if (player.reserveAmmo >= MAX_RESERVE_AMMO) return;
+    if (spend(10)) { const gained = grantAmmo(60); setMsg(`MUNITION +${gained}`); }
+  }
+  // Siege enemies can now actually hurt the player directly (see
+  // updateSiegeEnemies) — a heal option during prep is the counterpart,
+  // otherwise damage taken during a wave would be unrecoverable for the
+  // rest of the run with no medkit pickups anywhere in this world.
+  function buyHeal() {
+    if (!siegeActive || !inPrep) return;
+    if (player.health >= 100) { setMsg('GESUNDHEIT VOLL'); return; }
+    if (spend(15)) {
+      player.health = Math.min(100, player.health + 30);
+      document.getElementById('health-val').innerText = Math.round(player.health) + '%';
+      setMsg('ERSTE HILFE +30%');
+    }
+  }
+  let magUpgradeCost = Object.fromEntries(Object.keys(WEAPON_DEFS).map(id => [id, 35]));
+  function buyMagUpgrade() {
+    if (!siegeActive || !inPrep) return;
+    const w = currentWeapon;
+    if (!WEAPON_DEFS[w].unlocked) return;
+    const cost = magUpgradeCost[w];
+    if (spend(cost)) {
+      MAG_SIZE[w]++; WEAPON_DEFS[w].mag = MAG_SIZE[w]; player.magazine[w]++;
+      magUpgradeCost[w] = Math.round(cost * 1.6);
+      updateAmmoHud();
+      setMsg(`${WEAPON_DEFS[w].name} MAGAZIN +1`);
+    }
+  }
+
+  // =========================================================
+  // ROAMING ENEMIES — GNS's skill/accuracy formula
+  // (accuracy = max(0.22, skill - dist*0.009), from
+  // arena-tournament.js) reworked into an open-world
+  // wander -> aggro -> engage state machine instead of GNS's
+  // arena-bound spawn/respawn loop. Reskinned as deep-shelf predators:
+  // Anglerfish-Stalker (raider-tier) and Kraken-Spross (outrider-tier).
+  // =========================================================
+  const enemyMat = { stalker: new THREE.MeshStandardMaterial({ color: 0x226644, emissive: 0x552200 }), kraken: new THREE.MeshStandardMaterial({ color: 0x4a1a66 }) };
+  const ENEMY_TYPES = {
+    stalker: { hp: 30, dmgVehicle: 6,  dmgFoot: 9,  speed: 5,  skill: 0.55, aggroR: 26, attackR: 16, scrap: 8 },
+    kraken:  { hp: 55, dmgVehicle: 11, dmgFoot: 14, speed: 7,  skill: 0.68, aggroR: 32, attackR: 20, scrap: 16 }
+  };
+  const enemies = [];
+  function spawnEnemy(type, x, z) {
+    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.4, 6), enemyMat[type]);
+    mesh.position.set(x, terrainHeight(x, z) + 1.2, z);
+    scene.add(mesh);
+    const def = ENEMY_TYPES[type];
+    enemies.push({
+      mesh, type, x, z, hp: def.hp, alive: true,
+      state: 'patrol', wanderTarget: { x: x + (Math.random() - 0.5) * 20, z: z + (Math.random() - 0.5) * 20 },
+      lastAttack: 0
+    });
+  }
+  // Patrol population scattered across the open shelf between spawn
+  // and the siege site, roughly 20 Anglerfish-Stalker + 6 tougher
+  // Kraken-Spross. Z range is kept within [-WORLD_HALF, WORLD_HALF] so
+  // every spawn is actually reachable (an earlier version let ~20% of
+  // raiders land past the playable edge, permanently irrelevant).
+  for (let i = 0; i < 20; i++) {
+    const x = (Math.random() - 0.5) * WORLD_HALF * 1.6;
+    const z = -WORLD_HALF + Math.random() * (WORLD_HALF * 2);
+    spawnEnemy('stalker', x, z);
+  }
+  for (let i = 0; i < 6; i++) {
+    const x = (Math.random() - 0.5) * WORLD_HALF * 1.2;
+    const z = -WORLD_HALF * 0.8 + Math.random() * (WORLD_HALF * 1.4);
+    spawnEnemy('kraken', x, z);
+  }
+
+  function activeActorPos() {
+    return mode === 'vehicle' ? { x: vehicle.x, z: vehicle.z } : { x: player.pos.x, z: player.pos.z };
+  }
+  // Brief invulnerability after being forcibly ejected from a destroyed
+  // vehicle — without this, a player who just lost their ride is frozen
+  // (pointer lock dropped, WASD gated on re-engaging it) while the same
+  // enemies that killed the vehicle keep landing free, unavoidable hits.
+  let footInvulnUntil = 0;
+  function damageActiveActor(amount) {
+    if (mode === 'vehicle') {
+      vehicle.hp = Math.max(0, vehicle.hp - amount);
+      document.getElementById('vehicle-val').innerText = Math.round(vehicle.hp / vehicle.maxHp * 100) + '%';
+      flashDamage();
+      if (vehicle.hp <= 0) forceExitVehicle();
+    } else {
+      if (elapsed < footInvulnUntil) return;
+      player.health = Math.max(0, player.health - amount);
+      document.getElementById('health-val').innerText = Math.round(player.health) + '%';
+      flashDamage();
+      if (player.health <= 0) endGame(false, 'player');
+    }
+  }
+  function flashDamage() {
+    const flash = document.getElementById('damage-flash');
+    flash.style.background = 'rgba(255,0,0,.35)';
+    setTimeout(() => { flash.style.background = 'rgba(255,0,0,0)'; }, 120);
+  }
+
+  // No distance-based activation gate: enemy count is small enough
+  // (<= ~45 total including siege waves) that simulating all of them
+  // every frame is cheap. An earlier cutoff caused visible "statue"
+  // enemies inside fog-visible range but outside the simulated radius.
+  //
+  // A parked vehicle is also a valid attack target, not just whichever
+  // actor is currently controlled — otherwise abandoning the vehicle
+  // anywhere made it permanently safe, removing any stake from armor
+  // upgrades outside the moments you're actively driving.
+  function updateEnemies(dt) {
+    const actor = activeActorPos();
+    const vehiclePos = { x: vehicle.x, z: vehicle.z };
+    const vehicleIsThreatenable = mode === 'foot' && vehicle.hp > 0;
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (!e.alive) continue;
+      const distActor = Math.hypot(e.x - actor.x, e.z - actor.z);
+      const distVehicle = vehicleIsThreatenable ? Math.hypot(e.x - vehiclePos.x, e.z - vehiclePos.z) : Infinity;
+      const targetIsVehicle = distVehicle < distActor;
+      const target = targetIsVehicle ? vehiclePos : actor;
+      const dist = targetIsVehicle ? distVehicle : distActor;
+      const def = ENEMY_TYPES[e.type];
+      if (dist <= def.aggroR) e.state = 'aggro';
+      else if (dist > def.aggroR * 1.6) e.state = 'patrol';
+
+      if (e.state === 'aggro') {
+        if (dist > def.attackR * 0.7) {
+          const dx = target.x - e.x, dz = target.z - e.z;
+          const len = Math.hypot(dx, dz) || 1;
+          e.x += (dx / len) * def.speed * dt;
+          e.z += (dz / len) * def.speed * dt;
+        }
+        if (dist <= def.attackR) {
+          e.lastAttack -= dt;
+          if (e.lastAttack <= 0) {
+            e.lastAttack = 1.1;
+            const accuracy = Math.max(0.22, def.skill - dist * 0.009);
+            if (Math.random() < accuracy) {
+              if (targetIsVehicle) {
+                vehicle.hp = Math.max(0, vehicle.hp - def.dmgVehicle);
+                document.getElementById('vehicle-val').innerText = Math.round(vehicle.hp / vehicle.maxHp * 100) + '%';
+                if (mode === 'vehicle') flashDamage();
+                if (vehicle.hp <= 0 && mode === 'vehicle') forceExitVehicle();
+              } else {
+                damageActiveActor(mode === 'vehicle' ? def.dmgVehicle : def.dmgFoot);
+              }
+            }
+          }
+        }
+      } else {
+        const dx = e.wanderTarget.x - e.x, dz = e.wanderTarget.z - e.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 1.5) {
+          e.wanderTarget = { x: e.x + (Math.random() - 0.5) * 24, z: e.z + (Math.random() - 0.5) * 24 };
+        } else {
+          e.x += (dx / len) * def.speed * 0.35 * dt;
+          e.z += (dz / len) * def.speed * 0.35 * dt;
+        }
+      }
+      e.mesh.position.set(e.x, terrainHeight(e.x, e.z) + 1.2, e.z);
+      e.mesh.rotation.y += dt * 0.6;
+    }
+  }
+  // =========================================================
+  // SIEGE FINALE — triggered once when the active actor gets
+  // close to SIEGE_SITE while on foot. Reuses Alien Breach's
+  // wave/barricade/terminal/shop shape (WAVES table, per-wave
+  // enemy composition, prep countdown between waves).
+  // =========================================================
+  let siegeActive = false;
+  let siegeStarted = false;
+  let inPrep = false;
+  let prepTimer = 0;
+  let currentWave = -1;
+  let waveActive = false;
+  let terminalHp = 100;
+  const WAVES = [
+    { stalker: 3 },
+    { stalker: 4 },
+    { stalker: 3, kraken: 1 },
+    { stalker: 4, kraken: 1 },
+    { stalker: 4, kraken: 2 },
+    { stalker: 5, kraken: 3 }
+  ];
+  let siegeSpawnQueue = [];
+  let siegeSpawnClock = 0;
+  const siegeEnemies = [];
+
+  function triggerSiege() {
+    siegeActive = true;
+    siegeStarted = true;
+    document.getElementById('level-indicator').innerText = 'BELAGERUNG // WELLE 1/' + WAVES.length;
+    inPrep = true;
+    prepTimer = 10;
+    setMsg('TIEFSEE-STATION ERREICHT — BEREITE DICH VOR');
+  }
+  function startSiegeWave(idx) {
+    const comp = WAVES[idx];
+    siegeSpawnQueue = [];
+    Object.entries(comp).forEach(([type, count]) => {
+      for (let i = 0; i < count; i++) siegeSpawnQueue.push(type);
+    });
+    siegeSpawnClock = 0;
+    waveActive = true;
+    setMsg(`WELLE ${idx + 1} — HALTET DIE STELLUNG!`);
+  }
+  function spawnSiegeEnemy(type) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = 20 + Math.random() * 6;
+    const x = SIEGE_SITE.x + Math.cos(angle) * r;
+    const z = SIEGE_SITE.z + Math.sin(angle) * r;
+    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.4, 6), enemyMat[type]);
+    mesh.position.set(x, terrainHeight(x, z) + 1.2, z);
+    scene.add(mesh);
+    const def = ENEMY_TYPES[type];
+    siegeEnemies.push({ mesh, type, x, z, hp: def.hp, alive: true, lastAttack: 0, target: pickBarricadeTarget() });
+  }
+  function pickBarricadeTarget() {
+    const alive = Object.entries(barricades).filter(([, b]) => b.alive);
+    if (!alive.length) return 'terminal';
+    return alive[Math.floor(Math.random() * alive.length)][0];
+  }
+  function damageBarricade(id, amount) {
+    const b = barricades[id];
+    if (!b || !b.alive) return;
+    b.hp -= amount;
+    b.mesh.material.opacity = Math.max(0.15, b.hp / b.maxHp * 0.85);
+    if (b.hp <= 0) {
+      b.alive = false;
+      b.mesh.material.opacity = 0;
+      triggerFlood(id);
+      setMsg(`DRUCKLUKE ${id.toUpperCase()} DURCHBROCHEN — WASSER DRINGT EIN!`);
+    }
+  }
+  // Siege enemies used to only ever path toward a barricade/terminal —
+  // the player standing anywhere near the fight was never actually at
+  // risk, turning the "finale" into pure undefended tower-defense.
+  // Now any enemy that gets within its attack range of the player
+  // strikes the player instead of the structure that tick, same
+  // aggro-formula as the open-world roamers.
+  function updateSiegeEnemies(dt) {
+    for (let i = siegeEnemies.length - 1; i >= 0; i--) {
+      const e = siegeEnemies[i];
+      if (!e.alive) continue;
+      const def = ENEMY_TYPES[e.type];
+      const distPlayer = Math.hypot(player.pos.x - e.x, player.pos.z - e.z);
+      if (distPlayer <= def.attackR) {
+        e.lastAttack -= dt;
+        if (e.lastAttack <= 0) {
+          e.lastAttack = 1.1;
+          const accuracy = Math.max(0.22, def.skill - distPlayer * 0.009);
+          if (Math.random() < accuracy) damageActiveActor(def.dmgFoot);
+        }
+        e.mesh.position.set(e.x, terrainHeight(e.x, e.z) + 1.2, e.z);
+        continue;
+      }
+      const targetPos = e.target === 'terminal'
+        ? { x: SIEGE_SITE.x + terminalMesh.position.x, z: SIEGE_SITE.z + terminalMesh.position.z }
+        : { x: SIEGE_SITE.x + BARRICADE_DEFS.find(d => d.id === e.target).x, z: SIEGE_SITE.z + BARRICADE_DEFS.find(d => d.id === e.target).z };
+      const dx = targetPos.x - e.x, dz = targetPos.z - e.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 2.2) {
+        e.x += (dx / dist) * def.speed * dt;
+        e.z += (dz / dist) * def.speed * dt;
+      } else {
+        e.lastAttack -= dt;
+        if (e.lastAttack <= 0) {
+          e.lastAttack = 0.9;
+          if (e.target === 'terminal') {
+            terminalHp -= 6;
+            if (terminalHp <= 0) { endGame(false, 'terminal'); }
+          } else if (barricades[e.target] && barricades[e.target].alive) {
+            damageBarricade(e.target, 14);
+          } else {
+            e.target = pickBarricadeTarget();
+          }
+        }
+      }
+      e.mesh.position.set(e.x, terrainHeight(e.x, e.z) + 1.2, e.z);
+    }
+  }
+  function updateSiege(dt) {
+    if (!siegeActive || gameEnded) return;
+    updateFloods(dt);
+    if (gameEnded) return;
+    document.getElementById('level-indicator').innerText = inPrep
+      ? `BELAGERUNG // VORBEREITUNG ${Math.ceil(prepTimer)}s`
+      : `BELAGERUNG // WELLE ${currentWave + 1}/${WAVES.length}`;
+    if (inPrep) {
+      prepTimer -= dt;
+      if (prepTimer <= 0) {
+        inPrep = false;
+        currentWave++;
+        startSiegeWave(currentWave);
+      }
+      return;
+    }
+    if (waveActive) {
+      siegeSpawnClock -= dt;
+      if (siegeSpawnClock <= 0 && siegeSpawnQueue.length) {
+        spawnSiegeEnemy(siegeSpawnQueue.shift());
+        siegeSpawnClock = 1.3;
+      }
+      updateSiegeEnemies(dt);
+      const allDead = siegeSpawnQueue.length === 0 && siegeEnemies.every(e => !e.alive);
+      if (allDead) {
+        waveActive = false;
+        if (currentWave >= WAVES.length - 1) {
+          endGame(true);
+        } else {
+          inPrep = true;
+          prepTimer = 15;
+          addScrap(30);
+          setMsg(`WELLE ${currentWave + 1} ABGEWEHRT — +30 SCHROTT // VORBEREITUNG`);
+        }
+      }
+    }
+  }
+
+  function endGame(won, reason) {
+    gameEnded = true; gameWon = won;
+    cancelPendingReloads();
+    document.exitPointerLock();
+    document.getElementById('lock-screen').style.display = 'none';
+    const screen = document.getElementById(won ? 'victory-screen' : 'gameover-screen');
+    const stats = document.getElementById(won ? 'victory-stats' : 'gameover-stats');
+    const failCause = reason === 'terminal' ? 'Das Terminal wurde von der Flutung zerstoert' : reason === 'player' ? 'Du wurdest ueberrannt' : '';
+    stats.innerText = won
+      ? `STATION GESICHERT // ${scrap} SCHROTT UEBRIG`
+      : `${failCause} // ${scrap} SCHROTT GESAMMELT`;
+    screen.style.display = 'flex';
+  }
+  document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+  document.getElementById('restart-btn-2').addEventListener('click', () => location.reload());
+
+  // =========================================================
+  // SHOOTING (foot mode) — ported from Alien Breach's shoot().
+  // =========================================================
+  const raycaster = new THREE.Raycaster();
+  const pendingReloadTimeouts = [];
+  function cancelPendingReloads() { pendingReloadTimeouts.forEach(id => clearTimeout(id)); pendingReloadTimeouts.length = 0; }
+
+  function allLiveEnemyMeshes() {
+    return enemies.filter(e => e.alive).concat(siegeEnemies.filter(e => e.alive));
+  }
+  function damageEnemyByMesh(mesh, dmg) {
+    const target = enemies.find(e => e.alive && e.mesh === mesh) || siegeEnemies.find(e => e.alive && e.mesh === mesh);
+    if (!target) return;
+    target.hp -= dmg;
+    if (target.hp <= 0) {
+      target.alive = false;
+      target.mesh.visible = false;
+      scene.remove(target.mesh);
+      if (enemies.includes(target)) addScrap(ENEMY_TYPES[target.type].scrap);
+    }
+  }
+
+  function shootFoot() {
+    const ch = document.getElementById('crosshair');
+    ch.classList.remove('pulse'); void ch.offsetWidth; ch.classList.add('pulse');
+    const def = WEAPON_DEFS[currentWeapon];
+    if (player.reloading[currentWeapon]) return;
+    if (player.magazine[currentWeapon] <= 0) { setMsg('LEER — R ZUM NACHLADEN'); clearFireInputs(); return; }
+    player.magazine[currentWeapon]--;
+    updateAmmoHud();
+    const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(player.rotX, player.rotY, 0, 'YXZ'));
+    for (let i = 0; i < def.pellets; i++) {
+      const spread = def.spread;
+      const shotDir = dir.clone();
+      if (spread) {
+        shotDir.x += (Math.random() - 0.5) * spread;
+        shotDir.y += (Math.random() - 0.5) * spread;
+        shotDir.normalize();
+      }
+      raycaster.set(player.pos, shotDir);
+      raycaster.far = 120;
+      const hits = raycaster.intersectObjects(allLiveEnemyMeshes().map(e => e.mesh), false);
+      if (hits.length) damageEnemyByMesh(hits[0].object, def.dmg);
+    }
+  }
+  function reloadFoot() {
+    const w = currentWeapon;
+    const def = WEAPON_DEFS[w];
+    if (player.reloading[w] || player.magazine[w] >= MAG_SIZE[w] || player.reserveAmmo <= 0) return;
+    player.reloading[w] = true;
+    pendingReloadTimeouts.push(setTimeout(() => {
+      const needed = MAG_SIZE[w] - player.magazine[w];
+      const take = Math.min(needed, player.reserveAmmo);
+      player.magazine[w] += take;
+      player.reserveAmmo -= take;
+      player.reloading[w] = false;
+      updateAmmoHud();
+    }, def.reloadMs));
+  }
+
+  function shootVehicle() {
+    if (vehicle.reload > 0) return;
+    const tier = VEHICLE_TIERS.weapon[vehicle.weaponTier];
+    vehicle.reload = tier.fireMs / 1000;
+    const heading = vehicle.heading;
+    const forward = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
+    let best = null, bestDist = 34;
+    allLiveEnemyMeshes().forEach(e => {
+      const dx = e.x - vehicle.x, dz = e.z - vehicle.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 34) return;
+      const toEnemy = new THREE.Vector3(dx, 0, dz).normalize();
+      const angle = forward.angleTo(toEnemy);
+      if (angle < 0.5 && dist < bestDist) { best = e; bestDist = dist; }
+    });
+    // Explicit feedback either way — without this, a Space press with
+    // nothing in the forward cone was indistinguishable from the input
+    // not registering at all (no crosshair exists in third-person).
+    if (best) { damageEnemyByMesh(best.mesh, tier.dmg); setMsg('TREFFER'); }
+    else setMsg('KEIN ZIEL IN SCHUSSLINIE');
+  }
+
+  // =========================================================
+  // INPUT
+  // =========================================================
+  const keys = {};
+  const fireInputs = { held: false };
+  let lockEngagedAt = 0;
+
+  function lockPointer() {
+    if (isTouchDevice()) { document.getElementById('lock-screen').style.display = 'none'; return; }
+    try {
+      const request = document.body.requestPointerLock();
+      if (request && typeof request.catch === 'function') {
+        request.catch(() => { if (!gameEnded) document.getElementById('lock-screen').style.display = 'flex'; });
+      }
+    } catch (e) { if (!gameEnded) document.getElementById('lock-screen').style.display = 'flex'; }
+  }
+  function refreshLockScreenVisibility() {
+    const shouldShow = mode === 'foot' && document.pointerLockElement !== document.body && !gameEnded && !isTouchDevice();
+    document.getElementById('lock-screen').style.display = shouldShow ? 'flex' : 'none';
+  }
+  document.getElementById('lock-screen').addEventListener('click', event => {
+    if (event.target.closest('.sensitivity-control')) return;
+    if (!gameEnded) lockPointer();
+  });
+  document.querySelectorAll('.mouse-sensitivity').forEach(input => {
+    input.value = player.sensitivity.toFixed(4);
+    input.nextElementSibling.textContent = Number(input.value).toFixed(4);
+    input.addEventListener('input', event => {
+      player.sensitivity = Number(event.target.value);
+      document.querySelectorAll('.mouse-sensitivity').forEach(other => {
+        other.value = event.target.value;
+        other.nextElementSibling.textContent = Number(event.target.value).toFixed(4);
+      });
+    });
+  });
+  document.addEventListener('pointerlockchange', () => {
+    const locked = document.pointerLockElement === document.body;
+    refreshLockScreenVisibility();
+    if (!locked) { fireInputs.held = false; }
+    else { lockEngagedAt = performance.now(); }
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (mode === 'foot' && document.pointerLockElement === document.body) {
+      player.rotY -= e.movementX * player.sensitivity;
+      player.rotX -= e.movementY * player.sensitivity;
+      player.rotX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, player.rotX));
+    }
+  });
+
+  function clearFireInputs() { fireInputs.held = false; }
+
+  function tryEnterExit() {
+    if (mode === 'vehicle') {
+      // Exit: place player just beside the vehicle, switch to foot mode.
+      mode = 'foot';
+      const side = vehicle.heading + Math.PI / 2;
+      player.pos.set(vehicle.x + Math.sin(side) * 2.6, terrainHeight(vehicle.x, vehicle.z) + 1.7, vehicle.z + Math.cos(side) * 2.6);
+      player.rotY = vehicle.heading;
+      player.rotX = 0;
+      document.getElementById('crosshair').style.display = 'block';
+      document.getElementById('mode-val').innerText = 'ZU FUSS';
+      updateAmmoHud();
+      refreshLockScreenVisibility();
+    } else {
+      const dist = Math.hypot(player.pos.x - vehicle.x, player.pos.z - vehicle.z);
+      if (dist > 6) { setMsg('KEIN FAHRZEUG IN DER NAEHE'); return; }
+      if (vehicle.hp <= 0) { setMsg('FAHRZEUG ZERSTOERT'); return; }
+      mode = 'vehicle';
+      document.exitPointerLock();
+      document.getElementById('crosshair').style.display = 'none';
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('mode-val').innerText = 'FAHRZEUG';
+      updateAmmoHud();
+    }
+  }
+  function forceExitVehicle() {
+    if (mode !== 'vehicle') return;
+    tryEnterExit();
+    footInvulnUntil = elapsed + 3;
+    setMsg('FAHRZEUG ZERSTOERT — DU BIST ZU FUSS UNTERWEGS (3s SCHUTZ)');
+  }
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if (gameEnded) return;
+    if (e.code === 'KeyE' && !e.repeat) tryEnterExit();
+    if (e.code === 'KeyG' && !e.repeat) buyWeapon();
+    if (e.code === 'KeyV' && !e.repeat) buyVehicleUpgrade();
+    if (e.code === 'KeyB' && !e.repeat) buyRepairBarricades();
+    if (e.code === 'KeyT' && !e.repeat) buyRepairTerminal();
+    if (e.code === 'KeyM' && !e.repeat) buyAmmo();
+    if (e.code === 'KeyU' && !e.repeat) buyMagUpgrade();
+    if (e.code === 'KeyH' && !e.repeat) buyHeal();
+    if (e.code === 'KeyR' && !e.repeat && mode === 'foot') reloadFoot();
+    const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+    if (slot !== -1 && mode === 'foot' && WEAPON_DEFS[WEAPON_ORDER[slot]].unlocked) {
+      currentWeapon = WEAPON_ORDER[slot];
+      updateAmmoHud();
+    }
+    if (e.code === 'Enter' && !e.repeat) {
+      if (mode === 'foot' && document.pointerLockElement !== document.body && !isTouchDevice()) lockPointer();
+    }
+    if (e.code === 'Space' && !e.repeat) fireInputs.held = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+    if (e.code === 'Space') fireInputs.held = false;
+  });
+  window.addEventListener('mousedown', (e) => {
+    if (gameEnded || e.button !== 0) return;
+    if (mode === 'foot') {
+      if (document.pointerLockElement !== document.body) { if (!isTouchDevice()) lockPointer(); return; }
+      if (performance.now() - lockEngagedAt < 250) return;
+    }
+    fireInputs.held = true;
+  });
+  window.addEventListener('mouseup', (e) => { if (e.button === 0) fireInputs.held = false; });
+  window.addEventListener('blur', clearFireInputs);
+
+  // =========================================================
+  // MINIMAP
+  // =========================================================
+  const miniCtx = document.getElementById('minimap').getContext('2d');
+  function drawMinimap() {
+    miniCtx.clearRect(0, 0, 150, 150);
+    miniCtx.fillStyle = 'rgba(10,20,30,.9)'; miniCtx.fillRect(0, 0, 150, 150);
+    const scale = 150 / (WORLD_HALF * 2.2);
+    const actor = activeActorPos();
+    const toMini = (x, z) => [75 + (x - actor.x) * scale * 3, 75 + (z - actor.z) * scale * 3];
+    // Siege site marker (world-fixed, offset by actor)
+    let [sx, sz] = toMini(SIEGE_SITE.x, SIEGE_SITE.z);
+    miniCtx.fillStyle = '#2266aa'; miniCtx.fillRect(sx - 3, sz - 3, 6, 6);
+    enemies.concat(siegeEnemies).forEach(e => {
+      if (!e.alive) return;
+      const [ex, ez] = toMini(e.x, e.z);
+      if (ex < 0 || ex > 150 || ez < 0 || ez > 150) return;
+      miniCtx.fillStyle = e.type === 'kraken' ? '#cc44ff' : '#ff8833';
+      miniCtx.fillRect(ex - 2, ez - 2, 4, 4);
+    });
+    miniCtx.fillStyle = '#66ff99';
+    miniCtx.beginPath(); miniCtx.arc(75, 75, 4, 0, Math.PI * 2); miniCtx.fill();
+  }
+
+  // =========================================================
+  // MAIN LOOP
+  // =========================================================
+  function updateVehicle(dt) {
+    const maxSpeed = VEHICLE_TIERS.speed[vehicle.speedTier].maxSpeed;
+    let accel = 0;
+    if (keys['KeyW']) accel = 16;
+    else if (keys['KeyS']) accel = -11;
+    vehicle.speed += accel * dt;
+    if (!keys['KeyW'] && !keys['KeyS']) {
+      const decel = Math.sign(vehicle.speed) * 9 * dt;
+      vehicle.speed = Math.abs(decel) > Math.abs(vehicle.speed) ? 0 : vehicle.speed - decel;
+    }
+    vehicle.speed = Math.max(-maxSpeed * 0.45, Math.min(maxSpeed, vehicle.speed));
+    const steerInput = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+    const turnRate = 1.7 * Math.min(1, Math.abs(vehicle.speed) / 6 + 0.25);
+    vehicle.heading += steerInput * turnRate * dt * (vehicle.speed < 0 ? -1 : 1);
+    vehicle.x += Math.sin(vehicle.heading) * vehicle.speed * dt;
+    vehicle.z += Math.cos(vehicle.heading) * vehicle.speed * dt;
+    vehicle.x = Math.max(-WORLD_HALF, Math.min(WORLD_HALF, vehicle.x));
+    vehicle.z = Math.max(-WORLD_HALF, Math.min(WORLD_HALF, vehicle.z));
+    vehicle.reload = Math.max(0, vehicle.reload - dt);
+
+    vehicleGroup.position.set(vehicle.x, terrainHeight(vehicle.x, vehicle.z), vehicle.z);
+    vehicleGroup.rotation.y = vehicle.heading;
+
+    const camDist = 9, camHeight = 4.2;
+    const camX = vehicle.x - Math.sin(vehicle.heading) * camDist;
+    const camZ = vehicle.z - Math.cos(vehicle.heading) * camDist;
+    const camY = terrainHeight(camX, camZ) + camHeight;
+    camera.position.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(1, dt * 6));
+    camera.lookAt(vehicle.x, terrainHeight(vehicle.x, vehicle.z) + 1.4, vehicle.z);
+
+    if (fireInputs.held) shootVehicle();
+
+    if (!siegeStarted) {
+      const dist = Math.hypot(vehicle.x - SIEGE_SITE.x, vehicle.z - SIEGE_SITE.z);
+      if (dist < 40) setMsg('STATION IN SICHT — STEIG AUS UND KAEMPF DICH DURCH (E)');
+    }
+  }
+  function updateFoot(dt) {
+    if (document.pointerLockElement === document.body) {
+      const dir = new THREE.Vector3();
+      if (keys['KeyW']) dir.z -= 1;
+      if (keys['KeyS']) dir.z += 1;
+      if (keys['KeyA']) dir.x -= 1;
+      if (keys['KeyD']) dir.x += 1;
+      if (dir.lengthSq() > 0) {
+        dir.normalize();
+        dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotY);
+        player.pos.x += dir.x * 6.5 * dt;
+        player.pos.z += dir.z * 6.5 * dt;
+      }
+    }
+    player.pos.y = terrainHeight(player.pos.x, player.pos.z) + 1.7;
+    camera.position.copy(player.pos);
+    camera.rotation.set(0, 0, 0);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = player.rotY;
+    camera.rotation.x = player.rotX;
+
+    const def = WEAPON_DEFS[currentWeapon];
+    document.getElementById('reload-indicator').style.display = player.reloading[currentWeapon] ? 'block' : 'none';
+    if (fireInputs.held) {
+      footFireCooldown -= dt;
+      if (footFireCooldown <= 0 && document.pointerLockElement === document.body) {
+        shootFoot();
+        footFireCooldown = def.fireMs / 1000;
+        if (!def.automatic) fireInputs.held = false;
+      }
+    } else {
+      footFireCooldown = 0;
+    }
+
+    if (!siegeStarted) {
+      const dist = Math.hypot(player.pos.x - SIEGE_SITE.x, player.pos.z - SIEGE_SITE.z);
+      if (dist < 18) triggerSiege();
+    }
+  }
+  let footFireCooldown = 0;
+
+  function updateStormAndHud(dt) {
+    elapsed += dt;
+    const stormIntensity = Math.min(1, elapsed / 180) * (0.7 + 0.3 * Math.sin(elapsed * 0.15));
+    const clampedIntensity = Math.max(0, stormIntensity);
+    scene.fog.near = 40 - clampedIntensity * 25;
+    scene.fog.far = 260 - clampedIntensity * 170;
+    document.getElementById('storm-bar').style.width = Math.round(clampedIntensity * 100) + '%';
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (gameEnded) { renderer.render(scene, camera); return; }
+
+    if (mode === 'vehicle') updateVehicle(dt);
+    else updateFoot(dt);
+
+    updateEnemies(dt);
+    updateSiege(dt);
+    updateStormAndHud(dt);
+    drawMinimap();
+
+    renderer.render(scene, camera);
+  }
+
+  document.getElementById('mode-val').innerText = 'FAHRZEUG';
+  animate();
+})();
+</script>
+</body>
+</html>
