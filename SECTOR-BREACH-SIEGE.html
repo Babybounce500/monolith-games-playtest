@@ -254,6 +254,11 @@
     loadRealSfx('weapon-assault_rifle', SFX_BASE + 'weapon-assault-rifle.mp3');
     loadRealSfx('weapon-lmg', SFX_BASE + 'weapon-lmg.mp3');
     loadRealSfx('weapon-shotgun', SFX_BASE + 'weapon-shotgun.mp3');
+    loadRealSfx('weapon-revolver', SFX_BASE + 'weapon-revolver.mp3');
+    loadRealSfx('weapon-pistol', SFX_BASE + 'weapon-revolver.mp3'); // no dedicated pistol take yet - reuse the revolver shot
+    loadRealSfx('reload', SFX_BASE + 'reload.mp3');
+    loadRealSfx('empty', SFX_BASE + 'empty.mp3');
+    loadRealSfx('enemy-hit', SFX_BASE + 'enemy-hit.mp3');
     loadRealSfx('guardian-roar', SFX_BASE + 'guardian-roar.mp3');
     loadRealSfx('victory', SFX_BASE + 'victory.mp3');
     loadRealSfx('combat-loop', SFX_BASE + 'combat-loop.mp3');
@@ -277,6 +282,38 @@
       if (!combatLoopSource) return;
       try { combatLoopSource.stop(); } catch (_) {}
       combatLoopSource = null;
+    }
+    // Automatic weapons (smg/assault_rifle/lmg) use a generated sample
+    // that's a whole sustained burst, not a single bullet — triggering
+    // one full playthrough per shoot() tick (as the semi-auto weapons
+    // correctly do) meant the entire clip kept playing long after the
+    // player released the fire button. Instead: start ONE looping
+    // BufferSource the moment fire begins, and explicitly stop it the
+    // moment fire input is released (see setFireInput/clearFireInputs).
+    let weaponLoopSource = null;
+    let weaponLoopId = null;
+    function startWeaponLoopSfx(weaponId) {
+      const sfxId = 'weapon-' + weaponId;
+      if (weaponLoopId === sfxId && weaponLoopSource) return;
+      stopWeaponLoopSfx();
+      const buf = REAL_SFX[sfxId];
+      if (!buf) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const src = audioCtx.createBufferSource();
+      const g = audioCtx.createGain();
+      g.gain.value = 0.45;
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(g); g.connect(audioCtx.destination);
+      src.start();
+      weaponLoopSource = src;
+      weaponLoopId = sfxId;
+    }
+    function stopWeaponLoopSfx() {
+      if (!weaponLoopSource) return;
+      try { weaponLoopSource.stop(); } catch (_) {}
+      weaponLoopSource = null;
+      weaponLoopId = null;
     }
 
     // =========================================================
@@ -1196,7 +1233,7 @@
       ud.hitFlashTimer = 0.22;
       ud.attackKind = null;
       ud.pendingAttackTarget = null;
-      playSound('hit');
+      if (!playRealSfx('enemy-hit', 0.4)) playSound('hit');
       spawnHitSpark(e.position);
       if (ud.health <= 0) {
         ud.alive = false;
@@ -1257,6 +1294,7 @@
       fireInputs.space = false;
        fireInputs.touch = false;
       autoFireCooldown = 0;
+      stopWeaponLoopSfx();
     }
     function setFireInput(source, pressed) {
        const wasHeld = fireInputs.mouse || fireInputs.space || fireInputs.touch;
@@ -1265,8 +1303,12 @@
       if (pressed && !wasHeld) {
         shoot();
         autoFireCooldown = WEAPON_DEFS[currentWeapon].fireMs / 1000;
+        if (WEAPON_DEFS[currentWeapon].automatic) startWeaponLoopSfx(currentWeapon);
       }
-      if (!isHeld) autoFireCooldown = 0;
+      if (!isHeld) {
+        autoFireCooldown = 0;
+        stopWeaponLoopSfx();
+      }
     }
     function updateAutoFire(dt) {
        if (!fireInputs.mouse && !fireInputs.space && !fireInputs.touch) { autoFireCooldown = 0; return; }
@@ -1396,7 +1438,7 @@
        const def = WEAPON_DEFS[currentWeapon];
       if (player.reloading[currentWeapon]) return;
       if (player.magazine[currentWeapon] <= 0) {
-        playSound('empty');
+        if (!playRealSfx('empty', 0.5)) playSound('empty');
         const av = document.getElementById('ammo-val');
         av.classList.remove('flash-empty'); void av.offsetWidth; av.classList.add('flash-empty');
         clearFireInputs();
@@ -1404,7 +1446,15 @@
       }
       player.magazine[currentWeapon]--;
       updateAmmoHud();
-      if (!playRealSfx('weapon-' + currentWeapon, 0.5)) playSound('shot');
+      // Automatic weapons' sound is handled as a hold-to-loop by
+      // startWeaponLoopSfx (see setFireInput) — only trigger a one-shot
+      // here for semi-auto weapons, or as a procedural fallback for an
+      // automatic weapon that has no real loop sample yet.
+      if (!def.automatic) {
+        if (!playRealSfx('weapon-' + currentWeapon, 0.5)) playSound('shot');
+      } else if (!REAL_SFX['weapon-' + currentWeapon]) {
+        playSound('shot');
+      }
       triggerMuzzleFlash();
 
        const aimDirection = getMobileAimDirection();
@@ -1457,12 +1507,17 @@
       const w = currentWeapon;
       const def = WEAPON_DEFS[w];
       if (player.reloading[w] || player.magazine[w] >= MAG_SIZE[w] || player.reserveAmmo <= 0) {
-        if (!player.reloading[w] && player.reserveAmmo <= 0 && player.magazine[w] < MAG_SIZE[w]) playSound('empty');
+        if (!player.reloading[w] && player.reserveAmmo <= 0 && player.magazine[w] < MAG_SIZE[w]) { if (!playRealSfx('empty', 0.5)) playSound('empty'); }
         return;
       }
       player.reloading[w] = true;
-      playSound('reload');
-      pendingReloadTimeouts.push(setTimeout(() => playSound('reload'), Math.min(420, Math.floor(def.reloadMs * 0.55))));
+      const hasRealReloadSfx = !!REAL_SFX['reload'];
+      if (!playRealSfx('reload', 0.5)) playSound('reload');
+      // The real reload sample already covers the full eject-insert-click
+      // sequence in one clip; the second procedural blip here exists only
+      // to simulate that two-stage feel when falling back to oscillator
+      // sound, so skip it once a real sample is available.
+      if (!hasRealReloadSfx) pendingReloadTimeouts.push(setTimeout(() => playSound('reload'), Math.min(420, Math.floor(def.reloadMs * 0.55))));
       pendingReloadTimeouts.push(setTimeout(() => {
         const needed = MAG_SIZE[w] - player.magazine[w];
         const take = Math.min(needed, player.reserveAmmo);

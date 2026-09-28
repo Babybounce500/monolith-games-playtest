@@ -154,6 +154,35 @@
     if (arenaHumSource) { try { arenaHumSource.stop(); } catch (_) {} arenaHumSource = null; }
     if (battleThemeSource) { try { battleThemeSource.stop(); } catch (_) {} battleThemeSource = null; }
   }
+  // Player weapon fire is hold-to-loop, same reasoning as Alien Breach's
+  // automatic weapons: the generated samples are sustained bursts, not
+  // single bullets, so a one-shot per fire tick kept playing the whole
+  // clip long after the button was released.
+  let weaponLoopSource = null, weaponLoopId = null;
+  function startWeaponLoopSfx(weaponId) {
+    const sfxId = WEAPON_SFX_ID[weaponId];
+    if (!sfxId) { stopWeaponLoopSfx(); return; }
+    if (weaponLoopId === sfxId && weaponLoopSource) return;
+    stopWeaponLoopSfx();
+    const buf = REAL_SFX[sfxId];
+    if (!buf) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.4;
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(gain); gain.connect(audioCtx.destination);
+    src.start();
+    weaponLoopSource = src;
+    weaponLoopId = sfxId;
+  }
+  function stopWeaponLoopSfx() {
+    if (!weaponLoopSource) return;
+    try { weaponLoopSource.stop(); } catch (_) {}
+    weaponLoopSource = null;
+    weaponLoopId = null;
+  }
   const WORLD_EDGE = 41;
 
   const ui = {
@@ -768,6 +797,7 @@
     if (gameState === 'finished') return;
     gameState = 'finished';
     stopArenaAudio();
+    stopWeaponLoopSfx();
     mouseFiring = false;
     touchFiring = false;
     document.exitPointerLock?.();
@@ -917,7 +947,21 @@
     if (player.jumpHeight === 0) player.verticalVelocity = 0;
     if (performance.now() >= player.reloadUntil && player.reloadUntil > 0) finishReload();
     positionCamera();
-    if (mouseFiring || touchFiring || keys.has('Space')) firePlayerWeapon();
+    // All 4 GNS weapons are automatic, and their generated samples are
+    // sustained bursts, not single bullets - firePlayerWeapon()'s own
+    // fire-rate cooldown means retriggering a one-shot per call (like
+    // semi-auto weapons correctly do) left the whole clip playing long
+    // after the button was released. startWeaponLoopSfx/stopWeaponLoopSfx
+    // are both idempotent per-weapon, so calling them every held frame is
+    // safe and also naturally handles switching weapons mid-fire.
+    if (mouseFiring || touchFiring || keys.has('Space')) {
+      firePlayerWeapon();
+      const weapon = WEAPONS[currentWeapon];
+      const isReloading = player.reloadUntil > performance.now();
+      if (weapon.automatic && !isReloading) startWeaponLoopSfx(weapon.id); else stopWeaponLoopSfx();
+    } else {
+      stopWeaponLoopSfx();
+    }
   }
 
   function chooseTarget(bot) {
@@ -1153,8 +1197,8 @@
       weapon.id === 'laser-carbine' ? 0.105 : weapon.id === 'railgun' || weapon.id === 'photon-lance' ? 0.16 : 0.075,
       weapon.id === 'laser-carbine' ? 0.19 : 0.13
     );
-    const sfxId = WEAPON_SFX_ID[weapon.id];
-    if (sfxId) playRealSfx(sfxId, 0.45);
+    // Sound is handled as a hold-to-loop, not retriggered per shot -
+    // see startWeaponLoopSfx in the main update loop.
     animateWeaponShot(weapon);
     if (hitAny) pulseHitmarker();
     updateHud(true);
@@ -1207,8 +1251,8 @@
       }
     }
     createFallbackBeam(player.x, player.z, endX, endZ, weapon.color, weapon.id === 'laser-carbine' ? 0.2 : 0.14);
-    const sfxId2D = WEAPON_SFX_ID[weapon.id];
-    if (sfxId2D) playRealSfx(sfxId2D, 0.45);
+    // Sound is handled as a hold-to-loop, not retriggered per shot -
+    // see startWeaponLoopSfx in the main update loop.
     animateWeaponShot(weapon);
     if (hitAny) pulseHitmarker();
     updateHud(true);
