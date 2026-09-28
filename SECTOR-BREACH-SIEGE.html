@@ -171,9 +171,8 @@
     <div id="control-hints">
       <span class="hint-pill"><b>LMB / LEERTASTE</b> SCHIESSEN</span>
       <span class="hint-pill"><b>RMB / R</b> NACHLADEN</span>
-      <span class="hint-pill"><b>1-6</b> WAFFEN</span>
+      <span class="hint-pill"><b>1-9</b> WAFFEN</span>
       <span class="hint-pill"><b>WASD</b> BEWEGEN</span>
-      <span class="hint-pill"><b>B/T/M/U</b> SHOP (VORBEREITUNG)</span>
       <span class="hint-pill"><b>G</b> WAFFE KAUFEN (JEDERZEIT)</span>
     </div>
 
@@ -375,10 +374,29 @@
       plasma_shotgun:{ name: 'PLASMASCHROTFLINTE',mag: 5,  dmg: 2, pellets: 6, spread: 0.065, reloadMs: 900,  reserveGrant: 40,  url: LOCAL_ASSETS + 'weapon-plasma-shotgun.png', alpha: true, unlocked: false, automatic: false, fireMs: 700, ...FORWARD, scale: 0.225 }
     };
     const WEAPON_ORDER = ['pistol', 'shotgun', 'smg', 'revolver', 'assault_rifle', 'lmg', 'plasma_pistol', 'ion_thrower', 'arc_smg', 'sniper_rifle', 'gatling', 'shock_cannon', 'plasma_shotgun'];
-    // Only the original six get a direct number-key slot; the sector-2 tier
-    // is reached via the scroll-wheel cycle (see the wheel handler below),
-    // same as any arsenal beyond a 6-key hotbar in this genre.
-    const WEAPON_KEY_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'];
+    // 9-key hotbar. Slots 1-5 are "upgrade slots": once the sector-2 weapon
+    // in SLOT_UPGRADE is unlocked, pressing that slot's key (and cycling
+    // through it via the touch WEAPON button) selects the upgrade instead
+    // of the original - the old gun isn't lost, just no longer the one
+    // that key reaches. Slot 6 (lmg) has no upgrade. Slots 7-8 are new,
+    // dedicated sector-2-only weapons with no old-gun equivalent. Slot 9
+    // is reserved (no weapon assigned yet).
+    const SLOT_ORDER = ['pistol', 'shotgun', 'smg', 'revolver', 'assault_rifle', 'lmg', 'ion_thrower', 'sniper_rifle', null];
+    const SLOT_UPGRADE = {
+      pistol: 'plasma_pistol',
+      shotgun: 'plasma_shotgun',
+      smg: 'arc_smg',
+      revolver: 'shock_cannon',
+      assault_rifle: 'gatling'
+    };
+    function effectiveWeaponForSlot(baseId) {
+      const upgrade = SLOT_UPGRADE[baseId];
+      return (upgrade && WEAPON_DEFS[upgrade].unlocked) ? upgrade : baseId;
+    }
+    function weaponHotbar() {
+      return SLOT_ORDER.filter(Boolean).map(effectiveWeaponForSlot);
+    }
+    const WEAPON_KEY_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
     // Drop order for wave-clear crates. Indexed by weaponDropPtr (see
     // onWaveCleared), NOT by clearedWave number directly — the wave-10
     // sector transition returns early and hands out no crate that round,
@@ -1730,7 +1748,10 @@
     window.addEventListener('keydown', (e) => {
       keys[e.code] = true;
       const weaponSlot = WEAPON_KEY_CODES.indexOf(e.code);
-      if (weaponSlot !== -1 && !e.repeat) selectWeapon(WEAPON_ORDER[weaponSlot]);
+      if (weaponSlot !== -1 && !e.repeat) {
+        const baseId = SLOT_ORDER[weaponSlot];
+        if (baseId) selectWeapon(effectiveWeaponForSlot(baseId));
+      }
       if (e.code === 'KeyB' && !e.repeat) buyRepairBarricades();
       if (e.code === 'KeyT' && !e.repeat) buyRepairTerminal();
       if (e.code === 'KeyM' && !e.repeat) buyAmmo();
@@ -1819,8 +1840,9 @@
      document.getElementById('touch-reload').addEventListener('pointerdown', e => { e.preventDefault(); reload(); });
      document.getElementById('touch-weapon').addEventListener('pointerdown', e => {
        e.preventDefault();
-       const index = (WEAPON_ORDER.indexOf(currentWeapon) + 1) % WEAPON_ORDER.length;
-       selectWeapon(WEAPON_ORDER[index]);
+       const hotbar = weaponHotbar();
+       const index = (hotbar.indexOf(currentWeapon) + 1) % hotbar.length;
+       selectWeapon(hotbar[index]);
      });
      document.getElementById('touch-interact').addEventListener('pointerdown', e => {
        e.preventDefault();
