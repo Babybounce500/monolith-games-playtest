@@ -122,28 +122,57 @@
     @media (max-width: 800px), (pointer: coarse) {
       #touch-controls { display: block; }
       #control-hints { display: none; }
-      #minimap-wrap { top: 8px; right: 8px; width: 96px; height: 96px; }
-      #minimap { width: 96px; height: 96px; }
-      #level-indicator { top: 8px; left: 8px; font-size: 10px; padding: 5px 7px; }
-      #msg-box { top: 8px; font-size: 13px; padding: 0 118px; }
-      #weapon { bottom: 0; transform: translateX(-50%) scale(.85); }
-      #status-bar { height: 58px; gap: 3px; }
-      .hud-box { min-width: 0; flex: 1; padding: 3px 2px; }
-      .hud-value { font-size: 15px; }
-      .hud-label { font-size: 8px; }
-      #interact-prompt { bottom: 148px; max-width: 74vw; font-size: 11px; }
-      /* The shop panel used to just be display:none on touch devices,
-         hiding scrap/prices/ownership entirely with no way to see them.
-         Reflowed instead of hidden: narrow column under the level
-         indicator (left side is otherwise empty above the move stick),
-         capped height with scroll since 13 weapon rows no longer fit
-         in one screen at any readable font size. */
-      #arsenal-panel {
-        top: 44px; left: 8px; right: auto; min-width: 0; width: 118px;
-        padding: 5px 6px; font-size: 9px; max-height: 42vh; overflow-y: auto;
+      /* Radar: smaller, and a softer glass treatment (thin translucent
+         border + blur + rounded corners) instead of the same heavy
+         2px solid block used on desktop. */
+      #minimap-wrap {
+        top: 8px; right: 8px; width: 68px; height: 68px;
+        border: 1px solid rgba(255,204,0,.5); border-radius: 8px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
       }
-      #arsenal-panel h4 { font-size: 9px; margin-bottom: 3px; }
-      .arsenal-row { padding: 1px 0; }
+      #minimap { width: 68px; height: 68px; border-radius: 7px; }
+      #audio-toggle { top: 8px; right: 84px; width: 28px; height: 28px; }
+      #audio-toggle svg { width: 15px; height: 15px; }
+      /* Same glass treatment on the WELLE pill and stat row instead of
+         the desktop's flat black boxes with hard yellow borders. */
+      #level-indicator {
+        top: 8px; left: 8px; font-size: 10px; padding: 5px 8px;
+        border: 1px solid rgba(255,204,0,.5); border-radius: 7px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      #msg-box { top: 8px; font-size: 13px; padding: 0 100px; }
+      #weapon { bottom: 0; transform: translateX(-50%) scale(.85); }
+      #status-bar {
+        height: auto; gap: 4px; padding: 4px 6px; margin: 0 6px;
+        background: rgba(10,10,10,.55); border-radius: 9px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,.08);
+      }
+      .hud-box {
+        min-width: 0; flex: 1; padding: 3px 2px; background: transparent;
+        border: none; border-right: 1px solid rgba(255,255,255,.1);
+      }
+      .hud-box:last-child { border-right: none; }
+      .hud-value { font-size: 14px; }
+      .hud-label { font-size: 7px; letter-spacing: .5px; }
+      #interact-prompt { bottom: 148px; max-width: 74vw; font-size: 11px; }
+      #menu-toggle { display: flex; }
+      /* The shop panel used to be permanently visible, eating a big
+         corner of the screen at all times. It's now a drawer: closed by
+         default, opened via #menu-toggle, sitting above a dimmed
+         backdrop that closes it again on tap-outside. Same glass
+         treatment as the rest of the mobile HUD instead of the flat
+         bordered box the desktop version still uses. */
+      #arsenal-panel {
+        display: none; top: 80px; left: 8px; right: auto; min-width: 0; width: 150px;
+        max-width: 46vw; padding: 8px 9px; font-size: 10px; max-height: 50vh; overflow-y: auto;
+        z-index: 20; border: 1px solid rgba(255,204,0,.55); border-radius: 9px;
+        background: rgba(8,8,10,.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 8px 28px rgba(0,0,0,.5);
+      }
+      #arsenal-panel.open { display: block; }
+      #arsenal-panel h4 { font-size: 10px; margin-bottom: 5px; }
+      .arsenal-row { padding: 2px 0; }
     }
     @media (max-width: 380px) {
       .touch-btn { width: 50px; height: 50px; font-size: 10px; }
@@ -168,6 +197,47 @@
 
     #minimap-wrap { position: absolute; top: 16px; right: 16px; width: 150px; height: 150px; border: 2px solid #ffcc00; background: rgba(0,0,0,.6); z-index: 11; }
     #level-indicator { position: absolute; top: 16px; left: 16px; z-index: 11; background: rgba(0,0,0,.6); border: 2px solid #ffcc00; padding: 6px 12px; font-size: 13px; color: #ffcc00; letter-spacing: 1px; }
+
+    /* Speaker toggle: explicit manual control for the case where iOS's
+       first-gesture auto-unlock (see unlockAudioOnFirstGesture in the
+       script) doesn't visibly seem to have worked - tapping it always
+       re-resumes the context and kicks a silent buffer through it, and
+       doubles as a normal mute/unmute. Shown on both desktop and mobile;
+       small and out of the way either way. */
+    #audio-toggle {
+      position: absolute; top: 16px; right: 174px; z-index: 13;
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 1px solid rgba(255,204,0,.55); background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      color: #ffcc00; display: flex; align-items: center; justify-content: center;
+      pointer-events: auto; cursor: pointer;
+    }
+    #audio-toggle svg { width: 18px; height: 18px; }
+    #audio-toggle .icon-off { display: none; }
+    #audio-toggle.muted .icon-on { display: none; }
+    #audio-toggle.muted .icon-off { display: block; }
+    #audio-toggle.muted { border-color: rgba(255,80,80,.55); color: #ff8888; }
+
+    /* Burger toggle for the arsenal/shop drawer - desktop keeps the panel
+       always visible (see the base #arsenal-panel rule), so this stays
+       hidden there and only appears inside the mobile media query. */
+    #menu-toggle {
+      display: none; position: absolute; top: 44px; left: 8px; z-index: 13;
+      width: 100%; max-width: 118px; padding: 6px 8px;
+      border-radius: 7px; border: 1px solid rgba(255,204,0,.5);
+      background: rgba(10,10,10,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      color: #ffcc00; font: 700 10px monospace; letter-spacing: .5px;
+      align-items: center; justify-content: space-between;
+      pointer-events: auto; cursor: pointer;
+    }
+    #menu-toggle .chev { transition: transform .2s ease; }
+    #menu-toggle.open .chev { transform: rotate(180deg); }
+    #menu-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 19;
+      background: rgba(0,0,0,.45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      pointer-events: auto;
+    }
+    #menu-backdrop.open { display: block; }
 
     button.action-btn {
       margin-top: 22px; padding: 10px 26px; background: #ffcc00; color: #111; border: none;
@@ -200,7 +270,21 @@
   <div id="canvas-container"></div>
   <div id="damage-flash"></div>
   <div id="level-indicator">WELLE 1/20</div>
+  <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
+  <button id="audio-toggle" type="button" aria-label="Ton">
+    <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+    </svg>
+    <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <line x1="23" y1="9" x2="17" y2="15"></line>
+      <line x1="17" y1="9" x2="23" y2="15"></line>
+    </svg>
+  </button>
   <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+  <div id="menu-backdrop"></div>
 
   <div id="ui-layer">
     <div id="msg-box">WELLE 1 NÄHERT SICH...</div>
@@ -264,11 +348,40 @@
       };
       ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.addEventListener(type, unlock, { passive: true }));
     })();
+    // Every sound routes through this instead of straight to
+    // audioCtx.destination, so the speaker toggle can mute everything at
+    // once with a single gain ramp instead of hunting down every playing
+    // node individually.
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(audioCtx.destination);
+    let audioMuted = false;
+    const audioToggleBtn = document.getElementById('audio-toggle');
+    function setAudioMuted(muted) {
+      audioMuted = muted;
+      masterGain.gain.setTargetAtTime(muted ? 0 : 1, audioCtx.currentTime, 0.01);
+      audioToggleBtn.classList.toggle('muted', muted);
+      audioToggleBtn.setAttribute('aria-label', muted ? 'Ton stumm — antippen zum Aktivieren' : 'Ton an — antippen zum Stummschalten');
+    }
+    audioToggleBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      // Belt-and-suspenders: some iOS builds want an actual sound to
+      // start playing (even silent) inside the gesture, not just a bare
+      // .resume() call, to fully unlock. This is the explicit manual
+      // fallback for whenever the automatic first-gesture unlock hasn't
+      // visibly worked.
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const kick = audioCtx.createBufferSource();
+      kick.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+      kick.connect(masterGain);
+      kick.start(0);
+      setAudioMuted(!audioMuted);
+    });
     function playSound(type) {
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.connect(gain); gain.connect(masterGain);
       const now = audioCtx.currentTime;
 
       const presets = {
@@ -312,7 +425,7 @@
       const g = audioCtx.createGain();
       g.gain.value = volume;
       src.buffer = buf;
-      src.connect(g); g.connect(audioCtx.destination);
+      src.connect(g); g.connect(masterGain);
       src.start();
       return src;
     }
@@ -341,7 +454,7 @@
       g.gain.value = 0.22;
       src.buffer = REAL_SFX['combat-loop'];
       src.loop = true;
-      src.connect(g); g.connect(audioCtx.destination);
+      src.connect(g); g.connect(masterGain);
       src.start();
       combatLoopSource = src;
     }
@@ -371,7 +484,7 @@
       g.gain.value = 0.45;
       src.buffer = buf;
       src.loop = true;
-      src.connect(g); g.connect(audioCtx.destination);
+      src.connect(g); g.connect(masterGain);
       src.start();
       weaponLoopSource = src;
       weaponLoopId = sfxId;
@@ -1792,6 +1905,28 @@
       const panel = document.getElementById('arsenal-panel');
       panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
     }
+    // Mobile-only shop drawer. On desktop the arsenal panel is just
+    // always visible (#menu-toggle stays display:none there via CSS), so
+    // this only matters on touch layouts, where the panel used to
+    // permanently occupy a big corner of the screen.
+    (function setupArsenalDrawer() {
+      const toggle = document.getElementById('menu-toggle');
+      const panel = document.getElementById('arsenal-panel');
+      const backdrop = document.getElementById('menu-backdrop');
+      function closeDrawer() {
+        toggle.classList.remove('open');
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+      }
+      toggle.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const opening = !panel.classList.contains('open');
+        toggle.classList.toggle('open', opening);
+        panel.classList.toggle('open', opening);
+        backdrop.classList.toggle('open', opening);
+      });
+      backdrop.addEventListener('pointerdown', e => { e.preventDefault(); closeDrawer(); });
+    })();
     // Buys the next locked weapon in WEAPON_ORDER — same unlock effects as
     // picking up its wave-clear crate (full mag, reserve grant, auto-equip)
     // so scrap becomes a second path to the full arsenal, not just a
