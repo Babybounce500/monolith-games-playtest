@@ -165,7 +165,7 @@
        positioned elements they always were, as if the wrappers weren't
        there. The mobile media query below turns these into a real flex
        layout instead, which is the only place the wrapping matters. */
-    #mobile-topbar, #topbar-left, #topbar-right { display: contents; }
+    #mobile-topbar, #topbar-left, #topbar-right, #topbar-row1 { display: contents; }
 
     button.action-btn {
       margin-top: 22px; padding: 10px 26px; background: #ffcc00; color: #111; border: none;
@@ -204,6 +204,9 @@
       }
       #topbar-left { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
       #topbar-right { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; flex-shrink: 0; }
+      /* WELLE + ARSENAL sit in one tidy inline row instead of stacked as
+         two separate lines; the speaker stays on its own row underneath. */
+      #topbar-row1 { display: flex; flex-direction: row; align-items: center; gap: 8px; }
 
       /* No more pill backgrounds on the top-left cluster - just bare
          text/icons with a drop shadow for legibility, so they read as a
@@ -309,8 +312,10 @@
   <div id="damage-flash"></div>
   <div id="mobile-topbar">
     <div id="topbar-left">
-      <div id="level-indicator">WELLE 1/20</div>
-      <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
+      <div id="topbar-row1">
+        <div id="level-indicator">WELLE 1/20</div>
+        <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
+      </div>
       <button id="audio-toggle" type="button" aria-label="Ton">
         <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
