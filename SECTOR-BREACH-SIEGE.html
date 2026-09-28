@@ -418,9 +418,42 @@
       kick.connect(masterGain);
       kick.start(0);
     }
+    // Background music playlist. Hosted on a different Replit project of
+    // the user's, not this project's own assets/ folder, and that host
+    // sends no Access-Control-Allow-Origin header (confirmed by hand) -
+    // so fetch()+decodeAudioData() into the masterGain graph (how every
+    // other sound in this file works) would silently fail on CORS.
+    // Plain HTMLAudioElement playback doesn't need CORS at all (only
+    // reading raw sample data does), so this plays as an independent
+    // <audio> element outside the Web Audio graph instead, with its own
+    // volume and its own mute linkage into setAudioMuted() below.
+    const BG_TRACKS = [
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Climbing%20Clear.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Deep%20Sonar.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Haupt-Exploration.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Marimba%20Grid.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Neon%20Velocity.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Sandal%20Tide.mp3',
+      'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/Whiteout%20Discovery.mp3'
+    ];
+    let bgTrackIndex = Math.floor(Math.random() * BG_TRACKS.length);
+    const bgMusic = new Audio();
+    bgMusic.volume = 0.28;
+    bgMusic.preload = 'auto';
+    bgMusic.addEventListener('ended', () => {
+      bgTrackIndex = (bgTrackIndex + 1) % BG_TRACKS.length;
+      bgMusic.src = BG_TRACKS[bgTrackIndex];
+      bgMusic.play().catch(() => {});
+    });
+    function startBgMusic() {
+      if (bgMusic.src) return; // already started this session
+      bgMusic.src = BG_TRACKS[bgTrackIndex];
+      bgMusic.play().catch(() => {});
+    }
     (function unlockAudioOnFirstGesture() {
       const unlock = () => {
         kickAudio();
+        startBgMusic();
         ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.removeEventListener(type, unlock));
       };
       ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.addEventListener(type, unlock, { passive: true }));
@@ -430,6 +463,7 @@
     function setAudioMuted(muted) {
       audioMuted = muted;
       masterGain.gain.setTargetAtTime(muted ? 0 : 1, audioCtx.currentTime, 0.01);
+      bgMusic.muted = muted;
       audioToggleBtn.classList.toggle('muted', muted);
       audioToggleBtn.setAttribute('aria-label', muted ? 'Ton stumm — antippen zum Aktivieren' : 'Ton an — antippen zum Stummschalten');
     }
@@ -515,6 +549,7 @@
     // stopped once it clears/ends.
     let combatLoopSource = null;
     function startCombatLoop() {
+      bgMusic.volume = 0.08; // ducked, not stopped, so the ambient playlist doesn't clash with combat-loop
       if (combatLoopSource || !REAL_SFX['combat-loop']) return;
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const src = audioCtx.createBufferSource();
@@ -527,6 +562,7 @@
       combatLoopSource = src;
     }
     function stopCombatLoop() {
+      bgMusic.volume = 0.28;
       if (!combatLoopSource) return;
       try { combatLoopSource.stop(); } catch (_) {}
       combatLoopSource = null;
