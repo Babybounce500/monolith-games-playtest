@@ -1499,8 +1499,9 @@
       document.getElementById('weapon-val').innerText = def.name;
       updateAmmoHud();
       drawWeapon();
-      // MAG+ cost on the touch shop button depends on currentWeapon; keep
-      // it live if that's the action currently queued up.
+      // selectWeapon() is also how a weapon unlock resolves (shop buy or
+      // wave-drop pickup both call it) - keep the touch SHOP button's
+      // "next weapon to buy" label live for either path.
       if (typeof updateTouchShopLabel === 'function') updateTouchShopLabel();
     }
 
@@ -1879,26 +1880,17 @@
      });
      ['pointerup', 'pointercancel'].forEach(type => touchLook.addEventListener(type, () => { touchState.look = null; }));
      const touchFire = document.getElementById('touch-fire');
-     let touchShopIndex = 0;
-     // The single round SHOP button has to stand in for 5 separate actions
-     // on touch (no room for 5 more buttons) - it used to just say "SHOP"
-     // always, cycling silently underneath, so a tap did something the
-     // player had no way to predict. Each entry's label (with live cost)
-     // is written onto the button before every tap resolves, so what you
-     // see is what the next tap actually buys.
-     const TOUCH_SHOP_ACTIONS = [
-       { fn: buyRepairBarricades, label: () => 'BARR 20' },
-       { fn: buyRepairTerminal, label: () => 'TERM 25' },
-       { fn: buyAmmo, label: () => 'AMMO 10' },
-       { fn: buyMagUpgrade, label: () => `MAG+ ${magUpgradeCost[currentWeapon] || 40}` },
-       { fn: buyWeapon, label: () => {
-           const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
-           return nextId ? `KAUFEN ${WEAPON_BUY_COST[nextId]}` : 'ALLE FREI';
-         } }
-     ];
+     // Mobile's single round SHOP button used to cycle blindly through 5
+     // different shop actions (repair barricades/terminal, buy ammo, mag
+     // upgrade, buy weapon) - confusing even once labeled, since a tap
+     // could land on almost anything. Restricted to weapon buying only,
+     // the one action that matters most and the one every mobile player
+     // actually wants from this button; B/T/M/U repair/ammo/upgrade stay
+     // keyboard-only shop actions, same as before.
      const touchInteractBtn = document.getElementById('touch-interact');
      function updateTouchShopLabel() {
-       touchInteractBtn.textContent = TOUCH_SHOP_ACTIONS[touchShopIndex].label();
+       const nextId = WEAPON_ORDER.find(id => !WEAPON_DEFS[id].unlocked);
+       touchInteractBtn.textContent = nextId ? `KAUFEN ${WEAPON_BUY_COST[nextId]}` : 'ALLE FREI';
      }
      updateTouchShopLabel();
      touchFire.addEventListener('pointerdown', e => { e.preventDefault(); setFireInput('touch', true); });
@@ -1912,10 +1904,8 @@
      });
      touchInteractBtn.addEventListener('pointerdown', e => {
        e.preventDefault();
-       const action = TOUCH_SHOP_ACTIONS[touchShopIndex].fn;
-       touchShopIndex = (touchShopIndex + 1) % TOUCH_SHOP_ACTIONS.length;
+       buyWeapon();
        updateTouchShopLabel();
-       if (action === buyWeapon || inPrep) action();
      });
 
     function damagePlayer(amount) {
