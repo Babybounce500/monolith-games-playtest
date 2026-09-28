@@ -150,7 +150,7 @@
 
   <div id="canvas-container"></div>
   <div id="damage-flash"></div>
-  <div id="level-indicator">WELLE 1/10</div>
+  <div id="level-indicator">WELLE 1/20</div>
   <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
 
   <div id="ui-layer">
@@ -490,7 +490,12 @@
     let map = [];
     const MAX_GRID = 24; // fixed floor/ceiling size
 
-    const ARENA = {
+    // ARENA/CORRIDORS are `let`, not `const` — Sektor 2 (waves 11-20)
+    // reassigns both to a differently-shaped layout at the wave-10
+    // transition (see switchToSector2()) while every function that reads
+    // ARENA.xxx/CORRIDORS.xxx keeps working unchanged, since they still
+    // resolve the same variable names.
+    let ARENA = {
       accent: '#33ddff',
       carve: [
         [9, 9, 15, 15],    // HUB
@@ -505,6 +510,26 @@
       weaponSpawns: [[13, 13], [13, 11], [14, 12], [12, 13]]
     };
 
+    // Sektor 2 — same hub-and-3-corridors topology (the barricade/corridor
+    // AI logic depends on exactly this shape), but a wider, offset hub and
+    // different corridor proportions/accent so it visually reads as a new
+    // zone rather than a wave-count reset. Player keeps everything
+    // (weapons/scrap/health) when this loads — see switchToSector2().
+    const ARENA_SECTOR2 = {
+      accent: '#ff8833',
+      carve: [
+        [10, 9, 14, 16],   // HUB (wider, east-west)
+        [2, 12, 10, 13],   // Corridor North
+        [11, 16, 13, 21],  // Corridor East
+        [11, 2, 13, 9]     // Corridor West
+      ],
+      start: [12, 14],
+      terminal: [12, 12],
+      ammoSpawns: [[11, 10], [13, 15]],
+      medkitSpawns: [[13, 10]],
+      weaponSpawns: [[12, 13], [11, 13], [13, 13], [12, 11]]
+    };
+
     // Each corridor: where enemies spawn (far end), where its barricade
     // sits (at the hub mouth), which world axis it runs along, and which
     // direction along that axis counts as "toward the hub" (+1 or -1) —
@@ -513,10 +538,15 @@
     // existing enemy AI never collided with geometry even in the maze
     // campaign, it only ever walked straight at the player — this keeps
     // that same simple model instead of bolting on new physics).
-    const CORRIDORS = {
+    let CORRIDORS = {
       north: { spawn: [3, 12], barricadeCell: [9, 12], axis: 'z', sign: 1 },
       east:  { spawn: [12, 20], barricadeCell: [12, 15], axis: 'x', sign: -1 },
       west:  { spawn: [12, 4], barricadeCell: [12, 9], axis: 'x', sign: 1 }
+    };
+    const CORRIDORS_SECTOR2 = {
+      north: { spawn: [2, 12], barricadeCell: [10, 12], axis: 'z', sign: 1 },
+      east:  { spawn: [12, 21], barricadeCell: [12, 16], axis: 'x', sign: -1 },
+      west:  { spawn: [12, 2], barricadeCell: [12, 9], axis: 'x', sign: 1 }
     };
     const CORRIDOR_NAMES = Object.keys(CORRIDORS);
 
@@ -524,6 +554,12 @@
     // opener, gunner from wave 3, ambusher from wave 5, the buffed hybrid
     // guardian (already the toughest type in the engine) from wave 8, wave
     // 10 is the heaviest mixed "boss wave".
+    // Waves 1-10 = Sektor 1 (original campaign). Waves 11-20 = Sektor 2 —
+    // same engine/economy/enemy roster, a differently-shaped arena (see
+    // ARENA_SECTOR2 below), continuing the exact same difficulty curve
+    // rather than resetting it, so a player who already beat wave 10
+    // keeps their weapons/scrap/health and steps straight into a harder
+    // continuation instead of starting over.
     const WAVES = [
       { grunt: 4 },
       { grunt: 5 },
@@ -534,7 +570,17 @@
       { grunt: 5, gunner: 3, ambusher: 3 },
       { grunt: 5, gunner: 3, ambusher: 3, guardian: 1 },
       { grunt: 6, gunner: 4, ambusher: 3, guardian: 2 },
-      { grunt: 7, gunner: 5, ambusher: 4, guardian: 3 }
+      { grunt: 7, gunner: 5, ambusher: 4, guardian: 3 },
+      { grunt: 8, gunner: 5, ambusher: 4, guardian: 2 },
+      { grunt: 8, gunner: 6, ambusher: 5, guardian: 2 },
+      { grunt: 9, gunner: 6, ambusher: 5, guardian: 3 },
+      { grunt: 9, gunner: 7, ambusher: 5, guardian: 3 },
+      { grunt: 10, gunner: 7, ambusher: 6, guardian: 3 },
+      { grunt: 10, gunner: 8, ambusher: 6, guardian: 4 },
+      { grunt: 11, gunner: 8, ambusher: 6, guardian: 4 },
+      { grunt: 11, gunner: 9, ambusher: 7, guardian: 4 },
+      { grunt: 12, gunner: 9, ambusher: 7, guardian: 5 },
+      { grunt: 14, gunner: 10, ambusher: 8, guardian: 6 }
     ];
     const SCRAP_VALUE = { grunt: 5, gunner: 8, ambusher: 8, guardian: 20 };
 
@@ -885,6 +931,28 @@
       const [sr, sc] = ARENA.start;
       player.pos.set(sc * CELL, 2.5, sr * CELL);
       camera.position.copy(player.pos);
+    }
+
+    // Called once, exactly at the wave-10 -> wave-11 transition (see
+    // onWaveCleared). Tears down every sector-1 mesh/collider/barricade
+    // — this arena was genuinely "built once, never torn down" until
+    // now — then rebuilds fresh from ARENA_SECTOR2/CORRIDORS_SECTOR2.
+    // Player health/scrap/weapons/ammo are untouched: this is a
+    // continuation of the same run, not a restart. The terminal gets a
+    // full-health reset since it's a new objective in a new sector.
+    function switchToSector2() {
+      levelObjects.forEach(obj => scene.remove(obj));
+      levelObjects.length = 0;
+      colliders.length = 0;
+      Object.keys(barricades).forEach(name => delete barricades[name]);
+      pickups.forEach(p => scene.remove(p.mesh));
+      pickups.length = 0;
+
+      ARENA = ARENA_SECTOR2;
+      CORRIDORS = CORRIDORS_SECTOR2;
+      buildArena();
+      terminal.hp = terminal.maxHp;
+      document.getElementById('terminal-val').innerText = '100%';
     }
 
     // =========================================================
@@ -1742,7 +1810,7 @@
       const stats = document.getElementById(won ? 'victory-stats' : 'gameover-stats');
       const failCause = reason === 'terminal' ? 'Das Terminal wurde zerstört' : 'Du wurdest überrannt';
       stats.innerText = won
-        ? `10/10 WELLEN // ${totalKillsCampaign} Gegner eliminiert // ${scrap} Schrott übrig`
+        ? `${WAVES.length}/${WAVES.length} WELLEN // ${totalKillsCampaign} Gegner eliminiert // ${scrap} Schrott übrig`
         : `${failCause} in Welle ${currentWave + 1}/${WAVES.length} // ${totalKillsCampaign} Gegner eliminiert`;
       screen.style.display = 'flex';
       stopCombatLoop();
@@ -1752,7 +1820,9 @@
 
     // Called once a wave's spawn queue is empty AND every enemy from it is
     // dead — see the check in animate(). Either starts the between-wave
-    // prep countdown, or ends the run in victory if that was wave 10.
+    // prep countdown, ends the run in victory if that was the final wave,
+    // or — exactly at wave 10 — transitions into Sektor 2 for waves 11-20
+    // instead of ending the game, carrying the run forward unchanged.
     function onWaveCleared() {
       waveActive = false;
       stopCombatLoop();
@@ -1765,6 +1835,13 @@
       currentWave++;
       inPrep = true;
       prepTimer = 15;
+      if (clearedWave === 10) {
+        switchToSector2();
+        playSound('levelup');
+        document.getElementById('msg-box').innerText =
+          'SEKTOR 1 GESICHERT — VERLEGUNG ZU SEKTOR 2 // WELLE 11 IN VORBEREITUNG';
+        return;
+      }
       refreshPickups();
       playSound('levelup');
       const newWeapon = WEAPON_DROP_ORDER[clearedWave - 1];
