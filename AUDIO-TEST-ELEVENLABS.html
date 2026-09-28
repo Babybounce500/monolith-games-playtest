@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>ELEVENLABS AUDIO TEST // MONOLITH GAMES</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0d12; color: #e6edf3; font-family: ui-monospace, monospace; padding: clamp(16px, 4vw, 40px); }
+  h1 { color: #7beaff; font-size: 24px; letter-spacing: .08em; margin-bottom: 6px; }
+  .intro { color: #9fb2c0; font-size: 13px; max-width: 780px; line-height: 1.6; margin-bottom: 20px; }
+  .intro b { color: #ffcc66; }
+  .warn { background: rgba(255,102,102,.08); border: 1px solid rgba(255,102,102,.35); color: #ff9999; font-size: 12px; padding: 10px 14px; border-radius: 8px; max-width: 780px; margin-bottom: 28px; line-height: 1.6; }
+  .warn b { color: #ffcccc; }
+  section { margin-bottom: 32px; }
+  h2 { color: #ffcc66; font-size: 15px; letter-spacing: .1em; border-bottom: 1px solid rgba(255,204,102,.3); padding-bottom: 6px; margin-bottom: 12px; }
+  h2 small { color: #6d7f8f; font-size: 11px; letter-spacing: 0; text-transform: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .card { background: #111722; border: 1px solid rgba(123,234,255,.2); border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+  .card.playing { border-color: #7beaff; background: #142030; }
+  .card.wired { border-color: rgba(119,255,153,.5); }
+  .card.unclear { border-color: rgba(255,204,102,.5); }
+  .play-btn { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #7beaff; background: rgba(123,234,255,.08); color: #7beaff; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .play-btn:hover { background: rgba(123,234,255,.2); }
+  .meta { flex: 1; min-width: 0; }
+  .meta .name { font-size: 12.5px; color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .src { font-size: 10px; color: #6d7f8f; }
+  .badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; letter-spacing: .05em; }
+  .badge.wired { background: rgba(119,255,153,.18); color: #77ff99; }
+  .badge.cat { background: rgba(102,204,255,.15); color: #66ccff; }
+  .badge.unclear { background: rgba(255,204,102,.18); color: #ffcc66; }
+  footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(123,234,255,.15); color: #6d7f8f; font-size: 11px; line-height: 1.7; }
+  footer a { color: #7beaff; }
+</style>
+</head>
+<body>
+  <h1>ELEVENLABS AUDIO TEST // MONOLITH GAMES</h1>
+  <p class="intro">
+    37 selbst per ElevenLabs Sound Effects generierte Audiodateien, sortiert nach Zielspiel.
+    <b>WIRED</b> = bereits fest in Alien Breach bzw. GNS Frag Arena eingebaut und dort aktiv.
+    <b>KATALOG</b> = hochgeladen und hier anhörbar, aber noch nicht ins jeweilige Spiel verdrahtet.
+  </p>
+  <div class="warn">
+    <b>Wichtig:</b> Die Original-Dateinamen aus dem ElevenLabs-Export waren auf ~20 Zeichen
+    abgeschnitten (z.B. "Mechanical_warrior_f_..."). Die Zuordnung unten basiert auf dem
+    abgeschnittenen Namen + der Dateigröße, nicht auf tatsächlichem Anhören durch mich —
+    ich habe hier keine Audiowiedergabe. Zwei Dateien ("gns-mechanical-warrior-*") konnte ich
+    keinem meiner ursprünglichen Prompts zuordnen und sind nur katalogisiert, nicht verdrahtet.
+    Bitte kurz reinhören und Bescheid geben, falls irgendwo eine Fehlzuordnung drin ist.
+  </div>
+
+  <section>
+    <h2>ALIEN BREACH — Waffen <small>(WIRED: smg, assault_rifle, lmg, shotgun)</small></h2>
+    <div class="grid" id="grp-ab-weapons"></div>
+  </section>
+
+  <section>
+    <h2>ALIEN BREACH — Musik, Ambient, Gegner <small>(WIRED: Guardian-Brüllen, Sieg, Kampf-Loop)</small></h2>
+    <div class="grid" id="grp-ab-music"></div>
+  </section>
+
+  <section>
+    <h2>GNS FRAG ARENA — Waffen <small>(WIRED: laser-carbine, particle-beam, siege-gatling)</small></h2>
+    <div class="grid" id="grp-gns-weapons"></div>
+  </section>
+
+  <section>
+    <h2>GNS FRAG ARENA — Musik, Ambient, Bots <small>(WIRED: Bot-Tod)</small></h2>
+    <div class="grid" id="grp-gns-music"></div>
+  </section>
+
+  <section>
+    <h2>UNKLAR / NICHT VERDRAHTET</h2>
+    <div class="grid" id="grp-unclear"></div>
+  </section>
+
+  <section>
+    <h2>ANDERE SPIELE — nur katalogisiert (noch nicht verdrahtet)</h2>
+    <div class="grid" id="grp-other"></div>
+  </section>
+
+  <footer>
+    Fehlende Abdeckung, die noch nachgereicht werden könnte: <b>Pistole</b> und <b>Revolver</b>
+    (Alien Breach) sowie <b>Ion SMG</b> (GNS) haben aktuell keine dedizierte generierte Datei —
+    diese drei laufen weiter mit dem alten prozeduralen Oszillator-Sound.
+    Zurück zur <a href="index.html">Spiele-Übersicht</a> oder zum
+    <a href="AUDIO-TEST.html">Kenney/CC0-Sound-Test</a>.
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+  const BASE = 'assets/audio-test/elevenlabs/';
+  const GROUPS = {
+    'grp-ab-weapons': [
+      ['alien-breach-smg-1.mp3', 'MP/SMG — Compact automatic SMG burst (Take 1)', 'wired'],
+      ['alien-breach-smg-2.mp3', 'MP/SMG (Take 2)', 'cat'],
+      ['alien-breach-smg-3.mp3', 'MP/SMG (Take 3)', 'cat'],
+      ['alien-breach-assault-rifle-1.mp3', 'Sturmgewehr — Military assault rifle burst (Take 1)', 'wired'],
+      ['alien-breach-assault-rifle-2.mp3', 'Sturmgewehr (Take 2)', 'cat'],
+      ['alien-breach-shotgun-1.mp3', 'Schrotflinte — Heavy pump-action blast (Take 1)', 'wired'],
+      ['alien-breach-shotgun-2.mp3', 'Schrotflinte (Take 2)', 'cat'],
+      ['alien-breach-lmg-1.mp3', 'MG/LMG — machine gun sounds (Take 1)', 'wired'],
+      ['alien-breach-lmg-2.mp3', 'MG/LMG (Take 2)', 'cat'],
+      ['alien-breach-lmg-3.mp3', 'MG/LMG (Take 3)', 'cat'],
+      ['alien-breach-lmg-4.mp3', 'MG/LMG (Take 4)', 'cat']
+    ],
+    'grp-ab-music': [
+      ['alien-breach-guardian-roar-1.mp3', 'Guardian-Boss-Brüllen (Take 1)', 'wired'],
+      ['alien-breach-guardian-roar-2.mp3', 'Guardian-Brüllen (Take 2)', 'cat'],
+      ['alien-breach-guardian-roar-3.mp3', 'Guardian-Brüllen (Take 3)', 'cat'],
+      ['alien-breach-guardian-roar-4.mp3', 'Guardian-Brüllen (Take 4)', 'cat'],
+      ['alien-breach-victory-1.mp3', 'Sieg-Outro (Take 1)', 'wired'],
+      ['alien-breach-victory-2.mp3', 'Sieg-Outro (Take 2)', 'cat'],
+      ['alien-breach-victory-3.mp3', 'Sieg-Outro (Take 3)', 'cat'],
+      ['alien-breach-combat-loop-1.mp3', 'Kampf-Loop / Wellenkampf-Musik (Take 1)', 'wired'],
+      ['alien-breach-combat-loop-2.mp3', 'Kampf-Loop (Take 2)', 'cat'],
+      ['alien-breach-menu-theme.mp3', 'Titel/Menü-Theme', 'cat'],
+      ['alien-breach-ambient-loop-1.mp3', 'Seamless Ambient-Loop, lang (Take 1)', 'cat'],
+      ['alien-breach-ambient-loop-2.mp3', 'Seamless Ambient-Loop, lang (Take 2)', 'cat']
+    ],
+    'grp-gns-weapons': [
+      ['gns-laser-carbine-1.mp3', 'Laser Carbine (Take 1)', 'wired'],
+      ['gns-laser-carbine-2.mp3', 'Laser Carbine (Take 2)', 'cat'],
+      ['gns-particle-beam-1.mp3', 'Particle Beam Rifle (Take 1)', 'wired'],
+      ['gns-particle-beam-2.mp3', 'Particle Beam Rifle (Take 2)', 'cat'],
+      ['gns-siege-gatling-1.mp3', 'Siege Gatling (Take 1)', 'wired'],
+      ['gns-siege-gatling-2.mp3', 'Siege Gatling (Take 2)', 'cat']
+    ],
+    'grp-gns-music': [
+      ['gns-bot-death.mp3', 'Bot-Tod — Robotic combat drone destruction', 'wired'],
+      ['gns-arena-battle-theme.mp3', 'Arena-Battle-Theme (Match-Musik)', 'cat'],
+      ['gns-arena-hum-1.mp3', 'Arena-Ambient-Hum (Take 1)', 'cat'],
+      ['gns-arena-hum-2.mp3', 'Arena-Ambient-Hum (Take 2)', 'cat']
+    ],
+    'grp-unclear': [
+      ['gns-mechanical-warrior-1-UNCLEAR.mp3', 'Unklar — "Mechanical warrior f..." (Take 1)', 'unclear'],
+      ['gns-mechanical-warrior-2-UNCLEAR.mp3', 'Unklar — "Mechanical warrior f..." (Take 2)', 'unclear']
+    ],
+    'grp-other': [
+      ['whiteout-truck-engine.mp3', 'Whiteout Pursuit — Truck-Motor', 'cat'],
+      ['lastbus-taxi-bus-engine.mp3', 'Last Bus Home — Bus-Diesel-Motor', 'cat'],
+      ['lastbus-rain-loop.mp3', 'Last Bus Home — Regen-Loop', 'cat']
+    ]
+  };
+
+  let currentAudio = null, currentCard = null;
+  function makeCard(src, label, kind) {
+    const card = document.createElement('div');
+    card.className = 'card' + (kind === 'wired' ? ' wired' : kind === 'unclear' ? ' unclear' : '');
+    const btn = document.createElement('button');
+    btn.className = 'play-btn';
+    btn.textContent = '▶';
+    btn.addEventListener('click', () => {
+      if (currentAudio) { currentAudio.pause(); if (currentCard) currentCard.classList.remove('playing'); }
+      const audio = new Audio(BASE + src);
+      audio.play().catch(() => {});
+      currentAudio = audio; currentCard = card;
+      card.classList.add('playing');
+      audio.addEventListener('ended', () => card.classList.remove('playing'));
+    });
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = label;
+    const srcLine = document.createElement('div');
+    srcLine.className = 'src';
+    const badgeLabel = { wired: 'WIRED', cat: 'KATALOG', unclear: 'UNKLAR' }[kind];
+    srcLine.innerHTML = `<span class="badge ${kind}">${badgeLabel}</span> ${src}`;
+    meta.appendChild(name); meta.appendChild(srcLine);
+    card.appendChild(btn); card.appendChild(meta);
+    return card;
+  }
+
+  Object.entries(GROUPS).forEach(([groupId, items]) => {
+    const container = document.getElementById(groupId);
+    items.forEach(([src, label, kind]) => container.appendChild(makeCard(src, label, kind)));
+  });
+})();
+</script>
+</body>
+</html>

@@ -90,6 +90,70 @@
   const WEAPON_VIEW_ROOT = 'assets/gns-deathmatch/weapons/';
   const MATCH_DEFAULT_SECONDS = 180;
   const STEP = 1 / 60;
+
+  // =========================================================
+  // AUDIO — GNS had no sound at all before this (confirmed by an
+  // earlier audit pass). ElevenLabs-generated SFX loaded as
+  // AudioBuffers (not <audio> elements) so rapid automatic-weapon
+  // fire triggers overlapping BufferSource instances instead of
+  // cutting itself off. Falls back silently to no sound for any
+  // weapon without a dedicated buffer (only 4 of 10 weapons are
+  // active in this build; ion-smg has no dedicated SFX yet).
+  // =========================================================
+  const SFX_BASE = 'assets/gns-deathmatch/sfx/';
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const REAL_SFX = {};
+  function loadRealSfx(id, url) {
+    fetch(url).then(r => r.arrayBuffer()).then(buf => audioCtx.decodeAudioData(buf)).then(decoded => { REAL_SFX[id] = decoded; }).catch(() => {});
+  }
+  function playRealSfx(id, volume = 0.5) {
+    const buf = REAL_SFX[id];
+    if (!buf) return false;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    gain.gain.value = volume;
+    src.buffer = buf;
+    src.connect(gain); gain.connect(audioCtx.destination);
+    src.start();
+    return true;
+  }
+  const WEAPON_SFX_ID = { 'laser-carbine': 'weapon-laser-carbine', 'particle-beam': 'weapon-particle-beam', 'siege-gatling': 'weapon-siege-gatling' };
+  loadRealSfx('weapon-laser-carbine', SFX_BASE + 'weapon-laser-carbine.mp3');
+  loadRealSfx('weapon-particle-beam', SFX_BASE + 'weapon-particle-beam.mp3');
+  loadRealSfx('weapon-siege-gatling', SFX_BASE + 'weapon-siege-gatling.mp3');
+  loadRealSfx('bot-death', SFX_BASE + 'bot-death.mp3');
+  loadRealSfx('arena-hum', SFX_BASE + 'arena-hum.mp3');
+  loadRealSfx('arena-battle-theme', SFX_BASE + 'arena-battle-theme.mp3');
+  let arenaHumSource = null, battleThemeSource = null;
+  function startArenaAudio() {
+    stopArenaAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (REAL_SFX['arena-hum']) {
+      const src = audioCtx.createBufferSource();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.18;
+      src.buffer = REAL_SFX['arena-hum'];
+      src.loop = true;
+      src.connect(gain); gain.connect(audioCtx.destination);
+      src.start();
+      arenaHumSource = src;
+    }
+    if (REAL_SFX['arena-battle-theme']) {
+      const src = audioCtx.createBufferSource();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.22;
+      src.buffer = REAL_SFX['arena-battle-theme'];
+      src.loop = true;
+      src.connect(gain); gain.connect(audioCtx.destination);
+      src.start();
+      battleThemeSource = src;
+    }
+  }
+  function stopArenaAudio() {
+    if (arenaHumSource) { try { arenaHumSource.stop(); } catch (_) {} arenaHumSource = null; }
+    if (battleThemeSource) { try { battleThemeSource.stop(); } catch (_) {} battleThemeSource = null; }
+  }
   const WORLD_EDGE = 41;
 
   const ui = {
@@ -696,12 +760,14 @@
     if (options.lockPointer !== false && !('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
       getInputSurface()?.requestPointerLock?.();
     }
+    startArenaAudio();
     return true;
   }
 
   function finishMatch() {
     if (gameState === 'finished') return;
     gameState = 'finished';
+    stopArenaAudio();
     mouseFiring = false;
     touchFiring = false;
     document.exitPointerLock?.();
@@ -998,6 +1064,11 @@
     const weapon = WEAPONS[bot.weaponIndex];
     const accuracy = Math.max(0.22, bot.archetype.skill - distance * 0.009);
     const hits = Math.random() < accuracy;
+    // Quieter than the player's own shots and softly distance-attenuated
+    // so a firefight across the map doesn't sound as loud as one right
+    // next to the camera.
+    const botSfxId = WEAPON_SFX_ID[weapon.id];
+    if (botSfxId) playRealSfx(botSfxId, Math.max(0.08, 0.3 - distance * 0.006));
     if (fallbackMode) {
       createFallbackBeam(bot.x, bot.z, target.x, target.z, weapon.color, 0.2);
       bot.nextShotAt = now + (bot.weaponIndex === 3 ? 310 : 680 + Math.random() * 480);
@@ -1082,6 +1153,8 @@
       weapon.id === 'laser-carbine' ? 0.105 : weapon.id === 'railgun' || weapon.id === 'photon-lance' ? 0.16 : 0.075,
       weapon.id === 'laser-carbine' ? 0.19 : 0.13
     );
+    const sfxId = WEAPON_SFX_ID[weapon.id];
+    if (sfxId) playRealSfx(sfxId, 0.45);
     animateWeaponShot(weapon);
     if (hitAny) pulseHitmarker();
     updateHud(true);
@@ -1134,6 +1207,8 @@
       }
     }
     createFallbackBeam(player.x, player.z, endX, endZ, weapon.color, weapon.id === 'laser-carbine' ? 0.2 : 0.14);
+    const sfxId2D = WEAPON_SFX_ID[weapon.id];
+    if (sfxId2D) playRealSfx(sfxId2D, 0.45);
     animateWeaponShot(weapon);
     if (hitAny) pulseHitmarker();
     updateHud(true);
@@ -1197,6 +1272,7 @@
     target.deaths++;
     target.respawnAt = performance.now() + 2400;
     if (target.sprite) target.sprite.visible = false;
+    if (target !== player) playRealSfx('bot-death', 0.5);
     if (attacker && attacker !== target) {
       attacker.frags++;
       appendKillFeed(attacker.name, target.name, 'FRAG');

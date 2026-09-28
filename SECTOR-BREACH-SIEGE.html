@@ -227,6 +227,58 @@
       osc.start(); osc.stop(now + p.d);
     }
 
+    // Real (ElevenLabs-generated) SFX layer on top of the procedural
+    // oscillator sounds above. Loaded as AudioBuffers (not <audio>
+    // elements) specifically so rapid automatic-weapon fire can trigger
+    // overlapping BufferSource instances instead of cutting itself off.
+    // Falls back to the matching procedural preset above whenever a real
+    // buffer isn't loaded yet or doesn't exist for a given weapon.
+    const REAL_SFX = {};
+    function loadRealSfx(id, url) {
+      fetch(url).then(r => r.arrayBuffer()).then(buf => audioCtx.decodeAudioData(buf)).then(decoded => { REAL_SFX[id] = decoded; }).catch(() => {});
+    }
+    function playRealSfx(id, volume) {
+      const buf = REAL_SFX[id];
+      if (!buf) return false;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const src = audioCtx.createBufferSource();
+      const g = audioCtx.createGain();
+      g.gain.value = volume;
+      src.buffer = buf;
+      src.connect(g); g.connect(audioCtx.destination);
+      src.start();
+      return src;
+    }
+    const SFX_BASE = 'assets/sector-breach-siege/sfx/';
+    loadRealSfx('weapon-smg', SFX_BASE + 'weapon-smg.mp3');
+    loadRealSfx('weapon-assault_rifle', SFX_BASE + 'weapon-assault-rifle.mp3');
+    loadRealSfx('weapon-lmg', SFX_BASE + 'weapon-lmg.mp3');
+    loadRealSfx('weapon-shotgun', SFX_BASE + 'weapon-shotgun.mp3');
+    loadRealSfx('guardian-roar', SFX_BASE + 'guardian-roar.mp3');
+    loadRealSfx('victory', SFX_BASE + 'victory.mp3');
+    loadRealSfx('combat-loop', SFX_BASE + 'combat-loop.mp3');
+    // The combat-loop music needs a single reusable looping source rather
+    // than one-shot BufferSources, started once a wave goes active and
+    // stopped once it clears/ends.
+    let combatLoopSource = null;
+    function startCombatLoop() {
+      if (combatLoopSource || !REAL_SFX['combat-loop']) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const src = audioCtx.createBufferSource();
+      const g = audioCtx.createGain();
+      g.gain.value = 0.22;
+      src.buffer = REAL_SFX['combat-loop'];
+      src.loop = true;
+      src.connect(g); g.connect(audioCtx.destination);
+      src.start();
+      combatLoopSource = src;
+    }
+    function stopCombatLoop() {
+      if (!combatLoopSource) return;
+      try { combatLoopSource.stop(); } catch (_) {}
+      combatLoopSource = null;
+    }
+
     // =========================================================
     // LOCAL CUSTOM ART AND OPTIONAL REMOTE SPRITES
     // Local images load directly; the remaining OpenGameArt sprites are routed
@@ -887,6 +939,7 @@
       sprite.visible = !cfg.hides;
       scene.add(sprite);
       enemies.push(sprite);
+      if (type === 'guardian') playRealSfx('guardian-roar', 0.55);
       return sprite;
     }
 
@@ -1351,7 +1404,7 @@
       }
       player.magazine[currentWeapon]--;
       updateAmmoHud();
-      playSound('shot');
+      if (!playRealSfx('weapon-' + currentWeapon, 0.5)) playSound('shot');
       triggerMuzzleFlash();
 
        const aimDirection = getMobileAimDirection();
@@ -1637,6 +1690,8 @@
         ? `10/10 WELLEN // ${totalKillsCampaign} Gegner eliminiert // ${scrap} Schrott übrig`
         : `${failCause} in Welle ${currentWave + 1}/${WAVES.length} // ${totalKillsCampaign} Gegner eliminiert`;
       screen.style.display = 'flex';
+      stopCombatLoop();
+      if (won) playRealSfx('victory', 0.6);
       playSound(won ? 'win' : 'hit');
     }
 
@@ -1645,6 +1700,7 @@
     // prep countdown, or ends the run in victory if that was wave 10.
     function onWaveCleared() {
       waveActive = false;
+      stopCombatLoop();
       const clearedWave = currentWave + 1;
       if (clearedWave >= WAVES.length) {
         addScrap(50);
@@ -1694,6 +1750,7 @@
       document.getElementById('level-indicator').innerText = `WELLE ${waveIdx + 1}/${WAVES.length}`;
       document.getElementById('msg-box').innerText = `WELLE ${waveIdx + 1} — HALTET DIE STELLUNG!`;
       playSound('door');
+      startCombatLoop();
     }
 
     // --- COLLISION ---
