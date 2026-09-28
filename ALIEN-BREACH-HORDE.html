@@ -403,6 +403,14 @@
   }
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
+  // Collider meshes cached once per chapter load instead of rebuilt via
+  // .map() on every single hasLineOfSight() call — with a horde-sized
+  // enemy count (10-15+) all checking LOS every frame against a
+  // grid-sized collider list (100+ walls), rebuilding that array per
+  // call per enemy per frame was the actual cause of the severe frame
+  // drops ("hängt") a player reported during horde fights.
+  let colliderMeshCache = [];
+  function refreshColliderMeshCache() { colliderMeshCache = colliders.map(c => c.mesh); }
   function hasLineOfSight(from, to) {
     const dir = to.clone().sub(from);
     const dist = dir.length();
@@ -410,7 +418,7 @@
     dir.normalize();
     raycaster.set(from, dir);
     raycaster.far = dist;
-    const hits = raycaster.intersectObjects(colliders.map(c => c.mesh), false);
+    const hits = raycaster.intersectObjects(colliderMeshCache, false);
     return hits.length === 0;
   }
 
@@ -427,8 +435,13 @@
       if (ud.painTimer > 0) { ud.painTimer -= dt; e.lookAt(player.pos); return; }
 
       const dist = e.position.distanceTo(player.pos);
-      const los = dist < effAggro && hasLineOfSight(e.position, player.pos);
-      const aware = ud.charging || los;
+      // Charging (horde-burst/finale) enemies already know where the
+      // player is by design — skip the expensive raycast entirely
+      // instead of computing and discarding it every frame. This was
+      // the main hot path: during a horde every one of 10-20 charging
+      // enemies was still paying for a full LOS raycast every frame
+      // even though `ud.charging || los` threw the result away.
+      const aware = ud.charging || (dist < effAggro && hasLineOfSight(e.position, player.pos));
 
       if (cfg.hides) {
         ud.cycleTimer -= dt;
@@ -806,6 +819,7 @@
     colliders.push(doorCollider);
     safeRoomDoorMesh = doorMesh;
     safeRoomEntry = doorCollider;
+    refreshColliderMeshCache();
 
     if (ch.weaponPickup) spawnPickup('weapon', ch.weaponPickup.pos[0], ch.weaponPickup.pos[1], ch.weaponPickup.id);
     ch.ammo.forEach(([r, c]) => spawnPickup('ammo', r, c));
@@ -923,6 +937,7 @@
       const idx = colliders.indexOf(safeRoomEntry);
       if (idx !== -1) colliders.splice(idx, 1);
       scene.remove(safeRoomDoorMesh);
+      refreshColliderMeshCache();
     }
     document.getElementById('msg-box').innerText = 'TÜR OFFEN — GEHT IN DEN SICHEREN RAUM';
     if (chapterIndex >= CHAPTERS.length - 1) {
