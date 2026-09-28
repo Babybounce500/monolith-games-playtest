@@ -205,20 +205,34 @@
       #topbar-left { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
       #topbar-right { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; flex-shrink: 0; }
 
+      /* No more pill backgrounds on the top-left cluster - just bare
+         text/icons with a drop shadow for legibility, so they read as a
+         thin HUD readout instead of a stack of boxes blocking the view
+         of the arena behind them. The radar keeps its frame (a map with
+         no visible boundary is hard to read), everything else goes
+         transparent. */
       #level-indicator {
-        position: static; flex-shrink: 0; font-size: 10px; padding: 5px 8px;
-        border: 1px solid rgba(255,204,0,.5); border-radius: 7px;
-        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        position: static; flex-shrink: 0; font-size: 11px; padding: 0;
+        background: none; border: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+        text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,.8);
       }
-      #menu-toggle { display: flex; position: static; width: auto; max-width: none; }
-      #audio-toggle { position: static; flex-shrink: 0; width: 28px; height: 28px; }
+      #menu-toggle {
+        display: flex; position: static; width: auto; max-width: none;
+        background: none; border: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+        padding: 0; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,.8);
+      }
+      #audio-toggle {
+        position: static; flex-shrink: 0; width: 22px; height: 22px;
+        background: none; border: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+        filter: drop-shadow(0 1px 3px #000) drop-shadow(0 0 4px rgba(0,0,0,.8));
+      }
       #audio-toggle svg { width: 15px; height: 15px; }
       #minimap-wrap {
-        position: static; flex-shrink: 0; width: 68px; height: 68px;
-        border: 1px solid rgba(255,204,0,.5); border-radius: 8px;
-        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        position: static; flex-shrink: 0; width: 60px; height: 60px;
+        border: 1px solid rgba(255,204,0,.4); border-radius: 8px;
+        background: rgba(0,0,0,.35); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
       }
-      #minimap { width: 68px; height: 68px; border-radius: 7px; }
+      #minimap { width: 60px; height: 60px; border-radius: 7px; }
 
       /* Sits below the topbar instead of squeezed between two floating
          side clusters - simpler and correct regardless of exactly how
