@@ -103,6 +103,20 @@
   // =========================================================
   const SFX_BASE = 'assets/gns-deathmatch/sfx/';
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // iOS Safari only unlocks a suspended AudioContext when .resume() is
+  // CALLED synchronously inside a trusted user-gesture event handler
+  // (touchstart/pointerdown/click/keydown) - every other resume() call in
+  // this file lives inside playRealSfx()/etc., reached only from the game
+  // loop on a touch device, never from inside a gesture handler's own
+  // call stack, so it never actually unlocks audio on iOS. This is the
+  // one call guaranteed to run inside a real gesture.
+  (function unlockAudioOnFirstGesture() {
+    const unlock = () => {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.removeEventListener(type, unlock));
+    };
+    ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.addEventListener(type, unlock, { passive: true }));
+  })();
   const REAL_SFX = {};
   function loadRealSfx(id, url) {
     fetch(url).then(r => r.arrayBuffer()).then(buf => audioCtx.decodeAudioData(buf)).then(decoded => { REAL_SFX[id] = decoded; }).catch(() => {});
