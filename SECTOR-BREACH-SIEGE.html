@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link rel="icon" href="data:,">
   <title>ALIEN BREACH // SIEGE</title>
   <style>
@@ -14,6 +14,17 @@
          separate, Safari-specific property that does. */
       -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
+      /* Per-element touch-action:none on individual touch buttons left
+         gaps (any HUD element or bare canvas area without its own rule)
+         where rapid/repeated taps could still be read as a double-tap-
+         zoom gesture by the browser - reported as "zooms in so far you
+         can't keep playing". viewport-meta's maximum-scale/user-scalable
+         alone isn't reliable either (iOS Safari has ignored it for
+         accessibility since ~iOS 10). Blanket touch-action:none here is
+         the actual fix - nothing on this page uses a native scroll/pan/
+         zoom gesture anyway, every control is custom pointer-event
+         handling already. */
+      touch-action: none;
     }
     body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Impact', sans-serif; color: #fcc000; }
     #canvas-container { width: 100%; height: 100%; position: absolute; }
@@ -76,6 +87,11 @@
       position: absolute; top: 16px; right: 174px; z-index: 11; min-width: 178px;
       background: rgba(0,0,0,.72); border: 2px solid #ffcc00; padding: 8px 10px;
       font: 700 11px monospace; color: #ffcc00; letter-spacing: .4px;
+      /* Only element on the page that actually needs a native gesture -
+         its mobile drawer scrolls (overflow-y:auto) through 13 weapon
+         rows. pan-y allows that vertical scroll while still blocking
+         zoom, instead of the blanket touch-action:none on * above. */
+      touch-action: pan-y;
     }
     #arsenal-panel h4 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; display: flex; justify-content: space-between; }
     #arsenal-panel h4 span { color: #fff; }
