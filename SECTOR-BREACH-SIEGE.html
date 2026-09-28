@@ -251,6 +251,13 @@
         border: none; border-right: 1px solid rgba(255,255,255,.1);
       }
       .hud-box:last-child { border-right: none; }
+      /* Weapon name ("MASCHINENPISTOLE", "SCHARFSCHÜTZENGEWEHR", ...) is
+         too long for a sixth of this bar at mobile width, and it's
+         redundant with the weapon viewmodel already on screen. Dropped
+         on mobile only; the other five boxes are already flex:1, so
+         they evenly reclaim the space with no other change needed. */
+      .hud-box:has(#weapon-val) { display: none; }
+      .hud-box:has(#kills-val) { border-right: none; }
       .hud-value { font-size: 14px; }
       .hud-label { font-size: 7px; letter-spacing: .5px; }
       #interact-prompt { bottom: 148px; max-width: 74vw; font-size: 11px; }
