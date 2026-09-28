@@ -14,6 +14,16 @@ Generated source images are kept in `attached_assets/generated_images/`. The gam
 - Game asset: `forcefield-portal.jpg` (768 × 768, JPEG quality 90)
 - Prompt: “Create a square 1:1 game texture for a barricade forcefield in a gritty-but-clean science-fiction orbital station FPS. Front-facing orthographic surface, no perspective, no environment: a luminous translucent cyan-blue energy shield filling the center, subtle fine hexagonal energy mesh, brighter electric-cyan vertical edge glows, restrained soft bloom, surrounded by a narrow light silver-gray modular metal frame with small bolts and inset seams. Match the attached reference screenshot's pale gray industrial wall panels and clear cyan portal color. Readable at small in-game size, balanced contrast, believable game texture, no text, no logos, no characters. The complete framed panel must fill the square and be suitable for mapping onto a cube face.”
 
+## Sector-2 enemy roster (Siege 20)
+
+- Game assets: `enemy-stalker.webp`, `enemy-brute.webp`, `enemy-scout.webp` (768 × 768, transparent WebP, lossless VP8L)
+- Generated to fill out the wave 11-20 roster added alongside Siege 20 (see `ENEMY_TYPES` in `SECTOR-BREACH-SIEGE.html`): a fast low-health flanker, a mid-tier melee tank, and a long-range hiding glass cannon.
+
+## Sector-2 weapon roster (Siege 20)
+
+- Game assets: `weapon-plasma-pistol.png`, `weapon-ion-thrower.png`, `weapon-arc-smg.png`, `weapon-sniper-rifle.png`, `weapon-gatling.png`, `weapon-shock-cannon.png`, `weapon-plasma-shotgun.png` (1024 × 1024, transparent PNG)
+- Generated to fill the wave 5+ weapon-drop gap added alongside Siege 20 (see `WEAPON_DEFS`/`WEAPON_DROP_ORDER`). Shipped as PNG rather than WebP (no local WebP encoder was available at integration time); `WEAPON_DEFS` overrides each entry's viewmodel `scale` to 0.225 (down from the original six's 0.3) to compensate for the larger 1024px source relative to the original 768px renders, so all thirteen weapons read at the same size on the HUD.
+
 ## Station wall
 
 - Source: `attached_assets/generated_images/alien-breach-wall-source.png`
