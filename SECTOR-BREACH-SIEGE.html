@@ -1126,6 +1126,17 @@
       }
       ARENA.ammoSpawns.forEach(([r, c]) => spawnPickup('ammo', r, c));
       ARENA.medkitSpawns.forEach(([r, c]) => spawnPickup('medkit', r, c));
+      // One extra medkit at each corridor's enemy-spawn point, every prep
+      // phase - clearing all 20 waves off just ARENA.medkitSpawns' single
+      // fixed crate was too punishing. This is a risk/reward pickup: the
+      // corridor mouths are the most dangerous ground once a wave goes
+      // live, but they're safe to walk out to during prep, so a player
+      // low on health has a real reason to push out to all three corners
+      // before the next wave starts instead of turtling at the hub.
+      CORRIDOR_NAMES.forEach(name => {
+        const [r, c] = CORRIDORS[name].spawn;
+        spawnPickup('medkit', r, c);
+      });
     }
 
     // Built once at startup — no teardown/rebuild between waves, this is a
