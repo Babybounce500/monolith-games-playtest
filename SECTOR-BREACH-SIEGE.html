@@ -118,80 +118,6 @@
     #touch-reload { right: 124px; bottom: 92px; }
     #touch-weapon { right: 122px; bottom: 162px; }
     #touch-interact { right: 24px; bottom: 184px; font-size: 9px; }
-    #rotate-hint { display: none; }
-    @media (max-width: 800px), (pointer: coarse) {
-      #touch-controls { display: block; }
-      #control-hints { display: none; }
-      /* Radar: smaller, and a softer glass treatment (thin translucent
-         border + blur + rounded corners) instead of the same heavy
-         2px solid block used on desktop. */
-      #minimap-wrap {
-        top: 8px; right: 8px; width: 68px; height: 68px;
-        border: 1px solid rgba(255,204,0,.5); border-radius: 8px;
-        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      }
-      #minimap { width: 68px; height: 68px; border-radius: 7px; }
-      #audio-toggle { top: 8px; right: 84px; width: 28px; height: 28px; }
-      #audio-toggle svg { width: 15px; height: 15px; }
-      /* Same glass treatment on the WELLE pill and stat row instead of
-         the desktop's flat black boxes with hard yellow borders. */
-      #level-indicator {
-        top: 8px; left: 8px; font-size: 10px; padding: 5px 8px;
-        border: 1px solid rgba(255,204,0,.5); border-radius: 7px;
-        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      }
-      #msg-box { top: 8px; font-size: 13px; padding: 0 100px; }
-      #weapon { bottom: 0; transform: translateX(-50%) scale(.85); }
-      #status-bar {
-        height: auto; gap: 4px; padding: 4px 6px; margin: 0 6px;
-        background: rgba(10,10,10,.55); border-radius: 9px;
-        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-        border: 1px solid rgba(255,255,255,.08);
-      }
-      .hud-box {
-        min-width: 0; flex: 1; padding: 3px 2px; background: transparent;
-        border: none; border-right: 1px solid rgba(255,255,255,.1);
-      }
-      .hud-box:last-child { border-right: none; }
-      .hud-value { font-size: 14px; }
-      .hud-label { font-size: 7px; letter-spacing: .5px; }
-      #interact-prompt { bottom: 148px; max-width: 74vw; font-size: 11px; }
-      #menu-toggle { display: flex; }
-      /* The shop panel used to be permanently visible, eating a big
-         corner of the screen at all times. It's now a drawer: closed by
-         default, opened via #menu-toggle, sitting above a dimmed
-         backdrop that closes it again on tap-outside. Same glass
-         treatment as the rest of the mobile HUD instead of the flat
-         bordered box the desktop version still uses. */
-      #arsenal-panel {
-        display: none; top: 80px; left: 8px; right: auto; min-width: 0; width: 150px;
-        max-width: 46vw; padding: 8px 9px; font-size: 10px; max-height: 50vh; overflow-y: auto;
-        z-index: 20; border: 1px solid rgba(255,204,0,.55); border-radius: 9px;
-        background: rgba(8,8,10,.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-        box-shadow: 0 8px 28px rgba(0,0,0,.5);
-      }
-      #arsenal-panel.open { display: block; }
-      #arsenal-panel h4 { font-size: 10px; margin-bottom: 5px; }
-      .arsenal-row { padding: 2px 0; }
-    }
-    @media (max-width: 380px) {
-      .touch-btn { width: 50px; height: 50px; font-size: 10px; }
-      #touch-fire { width: 72px; height: 72px; }
-      #touch-move { width: 108px; height: 108px; }
-    }
-    /* Purely informational, non-blocking: this is an FPS control scheme
-       (drag-to-look + thumb move-stick + fire), which only really works
-       in landscape. Disappears automatically on rotation - CSS-driven,
-       no JS orientation listener needed. */
-    @media (orientation: portrait) and (pointer: coarse) {
-      #rotate-hint {
-        display: block; position: absolute; top: 0; left: 0; width: 100%;
-        background: rgba(255,60,0,.9); color: #fff; text-align: center;
-        font: 700 11px monospace; letter-spacing: .5px; padding: 6px 4px;
-        padding-top: calc(6px + env(safe-area-inset-top));
-        z-index: 25; pointer-events: none;
-      }
-    }
 
     #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0); pointer-events: none; z-index: 12; transition: background 0.1s; }
 
@@ -239,9 +165,106 @@
     }
     #menu-backdrop.open { display: block; }
 
+    /* display:contents makes these wrapper divs invisible to the layout
+       engine - on desktop, level-indicator/menu-toggle/audio-toggle/
+       minimap-wrap keep behaving exactly like the independent absolutely-
+       positioned elements they always were, as if the wrappers weren't
+       there. The mobile media query below turns these into a real flex
+       layout instead, which is the only place the wrapping matters. */
+    #mobile-topbar, #topbar-left, #topbar-right { display: contents; }
+
     button.action-btn {
       margin-top: 22px; padding: 10px 26px; background: #ffcc00; color: #111; border: none;
       font: 700 15px Impact, sans-serif; letter-spacing: 2px; cursor: pointer;
+    }
+
+    /* =========================================================
+       MOBILE OVERRIDES - kept as the LAST rules in this stylesheet on
+       purpose. A prior version of this file had some of these mixed in
+       earlier, before certain elements' own base rules - since a media
+       query adds no specificity, a later plain rule with equal
+       specificity wins the cascade tie regardless of the media
+       condition, which silently undid several mobile-only overrides
+       (wrong minimap size/position, wrong audio-toggle position, the
+       burger button never actually showing) and was the real cause of
+       the reported overlapping/broken mobile HUD. Keeping every
+       override below the last non-conditional rule in the file makes
+       that class of bug impossible to reintroduce by accident.
+       ========================================================= */
+    @media (max-width: 800px), (pointer: coarse) {
+      #touch-controls { display: block; }
+      #control-hints { display: none; }
+
+      /* Top HUD: one fixed flex row instead of four independently
+         absolutely-positioned pieces with guessed pixel offsets. Left
+         column stacks WELLE + the ARSENAL toggle; right column sits the
+         speaker button beside the (now smaller) radar. The browser
+         computes every position from actual content size - nothing here
+         is a guess anymore. */
+      #mobile-topbar {
+        display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 13;
+        justify-content: space-between; align-items: flex-start; gap: 8px;
+        padding: calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 8px)
+                 0 calc(env(safe-area-inset-left) + 8px);
+        pointer-events: none;
+      }
+      #topbar-left { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+      #topbar-right { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; flex-shrink: 0; }
+
+      #level-indicator {
+        position: static; flex-shrink: 0; font-size: 10px; padding: 5px 8px;
+        border: 1px solid rgba(255,204,0,.5); border-radius: 7px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      #menu-toggle { display: flex; position: static; width: auto; max-width: none; }
+      #audio-toggle { position: static; flex-shrink: 0; width: 28px; height: 28px; }
+      #audio-toggle svg { width: 15px; height: 15px; }
+      #minimap-wrap {
+        position: static; flex-shrink: 0; width: 68px; height: 68px;
+        border: 1px solid rgba(255,204,0,.5); border-radius: 8px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      #minimap { width: 68px; height: 68px; border-radius: 7px; }
+
+      /* Sits below the topbar instead of squeezed between two floating
+         side clusters - simpler and correct regardless of exactly how
+         wide either cluster renders. */
+      #msg-box { top: calc(env(safe-area-inset-top) + 86px); font-size: 13px; padding: 0 12px; }
+
+      #weapon { bottom: 0; transform: translateX(-50%) scale(.85); }
+      #status-bar {
+        height: auto; gap: 4px; padding: 4px 6px; margin: 0 6px;
+        background: rgba(10,10,10,.55); border-radius: 9px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,.08);
+      }
+      .hud-box {
+        min-width: 0; flex: 1; padding: 3px 2px; background: transparent;
+        border: none; border-right: 1px solid rgba(255,255,255,.1);
+      }
+      .hud-box:last-child { border-right: none; }
+      .hud-value { font-size: 14px; }
+      .hud-label { font-size: 7px; letter-spacing: .5px; }
+      #interact-prompt { bottom: 148px; max-width: 74vw; font-size: 11px; }
+
+      /* Shop drawer: closed by default, opened via #menu-toggle, sits
+         above a dimmed backdrop that closes it again on tap-outside. */
+      #arsenal-panel {
+        display: none; position: fixed; top: calc(env(safe-area-inset-top) + 80px); left: 8px;
+        right: auto; min-width: 0; width: 150px; max-width: 46vw;
+        padding: 8px 9px; font-size: 10px; max-height: 50vh; overflow-y: auto;
+        z-index: 20; border: 1px solid rgba(255,204,0,.55); border-radius: 9px;
+        background: rgba(8,8,10,.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 8px 28px rgba(0,0,0,.5);
+      }
+      #arsenal-panel.open { display: block; }
+      #arsenal-panel h4 { font-size: 10px; margin-bottom: 5px; }
+      .arsenal-row { padding: 2px 0; }
+    }
+    @media (max-width: 380px) {
+      .touch-btn { width: 50px; height: 50px; font-size: 10px; }
+      #touch-fire { width: 72px; height: 72px; }
+      #touch-move { width: 108px; height: 108px; }
     }
   </style>
 
@@ -269,21 +292,27 @@
 
   <div id="canvas-container"></div>
   <div id="damage-flash"></div>
-  <div id="level-indicator">WELLE 1/20</div>
-  <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
-  <button id="audio-toggle" type="button" aria-label="Ton">
-    <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-    </svg>
-    <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-      <line x1="23" y1="9" x2="17" y2="15"></line>
-      <line x1="17" y1="9" x2="23" y2="15"></line>
-    </svg>
-  </button>
-  <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+  <div id="mobile-topbar">
+    <div id="topbar-left">
+      <div id="level-indicator">WELLE 1/20</div>
+      <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
+    </div>
+    <div id="topbar-right">
+      <button id="audio-toggle" type="button" aria-label="Ton">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+      <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+    </div>
+  </div>
   <div id="menu-backdrop"></div>
 
   <div id="ui-layer">
@@ -291,7 +320,6 @@
     <div id="crosshair"></div>
     <div id="reload-indicator">NACHLADEN...</div>
     <div id="interact-prompt"></div>
-    <div id="rotate-hint">QUERFORMAT EMPFOHLEN FÜR BESTE STEUERUNG</div>
     <canvas id="weapon"></canvas>
       <div id="touch-controls" aria-label="Touch controls">
         <div id="touch-look" aria-label="Look"></div>
@@ -330,24 +358,6 @@
     // AUDIO
     // =========================================================
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // iOS Safari only unlocks a suspended AudioContext when .resume() is
-    // CALLED synchronously inside a trusted user-gesture event handler
-    // (touchstart/pointerdown/click/keydown) - not merely called at some
-    // point after one. Every other audioCtx.resume() call in this file
-    // lives inside playSound()/playRealSfx()/etc., which on a touch
-    // device are only ever reached via the game loop (requestAnimationFrame
-    // reading fireInputs each frame), never directly inside the touch
-    // handler's own call stack - so on iOS that resume() call never
-    // counts, the context stays suspended forever, and every sound in
-    // the game is silent for the whole session. This is the one resume()
-    // call that's guaranteed to run inside a real gesture.
-    (function unlockAudioOnFirstGesture() {
-      const unlock = () => {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.removeEventListener(type, unlock));
-      };
-      ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.addEventListener(type, unlock, { passive: true }));
-    })();
     // Every sound routes through this instead of straight to
     // audioCtx.destination, so the speaker toggle can mute everything at
     // once with a single gain ramp instead of hunting down every playing
@@ -355,6 +365,31 @@
     const masterGain = audioCtx.createGain();
     masterGain.gain.value = 1;
     masterGain.connect(audioCtx.destination);
+    // iOS Safari specifically (confirmed - Android browsers were fine)
+    // only unlocks a suspended AudioContext when a real audio action is
+    // CALLED synchronously inside a trusted user-gesture event handler
+    // (touchstart/pointerdown/click/keydown) - not merely called at some
+    // point after one, and on some iOS builds a bare .resume() isn't
+    // enough on its own either; it wants an actual node to start playing,
+    // even a silent one, in that same call stack. Every other
+    // audioCtx.resume() call in this file lives inside playSound()/
+    // playRealSfx()/etc., which on a touch device are only ever reached
+    // via the game loop (requestAnimationFrame reading fireInputs each
+    // frame), never directly inside a touch handler's own call stack.
+    function kickAudio() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const kick = audioCtx.createBufferSource();
+      kick.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+      kick.connect(masterGain);
+      kick.start(0);
+    }
+    (function unlockAudioOnFirstGesture() {
+      const unlock = () => {
+        kickAudio();
+        ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.removeEventListener(type, unlock));
+      };
+      ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(type => window.addEventListener(type, unlock, { passive: true }));
+    })();
     let audioMuted = false;
     const audioToggleBtn = document.getElementById('audio-toggle');
     function setAudioMuted(muted) {
@@ -365,17 +400,15 @@
     }
     audioToggleBtn.addEventListener('pointerdown', e => {
       e.preventDefault();
-      // Belt-and-suspenders: some iOS builds want an actual sound to
-      // start playing (even silent) inside the gesture, not just a bare
-      // .resume() call, to fully unlock. This is the explicit manual
-      // fallback for whenever the automatic first-gesture unlock hasn't
-      // visibly worked.
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const kick = audioCtx.createBufferSource();
-      kick.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-      kick.connect(masterGain);
-      kick.start(0);
-      setAudioMuted(!audioMuted);
+      kickAudio();
+      // State-aware, not a blind toggle: if the context was still
+      // suspended (auto-unlock never fired/worked) or already muted,
+      // this tap's job is to make sound audible, full stop - it must
+      // never itself be the thing that mutes a player who's trying to
+      // turn sound ON. Only mutes when audio was actually already
+      // running and unmuted.
+      const wasWorking = audioCtx.state === 'running' && !audioMuted;
+      setAudioMuted(wasWorking);
     });
     function playSound(type) {
       if (audioCtx.state === 'suspended') audioCtx.resume();
