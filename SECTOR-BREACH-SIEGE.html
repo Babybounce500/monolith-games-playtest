@@ -158,12 +158,6 @@
     }
     #menu-toggle .chev { transition: transform .2s ease; }
     #menu-toggle.open .chev { transform: rotate(180deg); }
-    #menu-backdrop {
-      display: none; position: fixed; inset: 0; z-index: 19;
-      background: rgba(0,0,0,.45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
-      pointer-events: auto;
-    }
-    #menu-backdrop.open { display: block; }
 
     /* display:contents makes these wrapper divs invisible to the layout
        engine - on desktop, level-indicator/menu-toggle/audio-toggle/
@@ -296,8 +290,6 @@
     <div id="topbar-left">
       <div id="level-indicator">WELLE 1/20</div>
       <button id="menu-toggle" type="button" aria-label="Arsenal öffnen">ARSENAL <span class="chev">▾</span></button>
-    </div>
-    <div id="topbar-right">
       <button id="audio-toggle" type="button" aria-label="Ton">
         <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -310,10 +302,11 @@
           <line x1="17" y1="9" x2="23" y2="15"></line>
         </svg>
       </button>
+    </div>
+    <div id="topbar-right">
       <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
     </div>
   </div>
-  <div id="menu-backdrop"></div>
 
   <div id="ui-layer">
     <div id="msg-box">WELLE 1 NÄHERT SICH...</div>
@@ -1945,20 +1938,12 @@
     (function setupArsenalDrawer() {
       const toggle = document.getElementById('menu-toggle');
       const panel = document.getElementById('arsenal-panel');
-      const backdrop = document.getElementById('menu-backdrop');
-      function closeDrawer() {
-        toggle.classList.remove('open');
-        panel.classList.remove('open');
-        backdrop.classList.remove('open');
-      }
       toggle.addEventListener('pointerdown', e => {
         e.preventDefault();
         const opening = !panel.classList.contains('open');
         toggle.classList.toggle('open', opening);
         panel.classList.toggle('open', opening);
-        backdrop.classList.toggle('open', opening);
       });
-      backdrop.addEventListener('pointerdown', e => { e.preventDefault(); closeDrawer(); });
     })();
     // Buys the next locked weapon in WEAPON_ORDER — same unlock effects as
     // picking up its wave-clear crate (full mag, reserve grant, auto-equip)
