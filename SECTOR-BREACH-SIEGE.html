@@ -334,7 +334,10 @@
       grunt: LOCAL_ASSETS + 'enemy-grunt.webp',
       guardian: LOCAL_ASSETS + 'enemy-guardian.webp',
       firecaster: LOCAL_ASSETS + 'enemy-gunner-firecaster.webp',
-      ambusher: LOCAL_ASSETS + 'enemy-ambusher.webp'
+      ambusher: LOCAL_ASSETS + 'enemy-ambusher.webp',
+      stalker: LOCAL_ASSETS + 'enemy-stalker.webp',
+      brute: LOCAL_ASSETS + 'enemy-brute.webp',
+      scout: LOCAL_ASSETS + 'enemy-scout.webp'
     };
     const imgLoader = new THREE.ImageLoader();
     function loadRealTexture(url, onReady) {
@@ -590,18 +593,18 @@
       { grunt: 5, gunner: 3, ambusher: 3, guardian: 1 },
       { grunt: 6, gunner: 4, ambusher: 3, guardian: 2 },
       { grunt: 7, gunner: 5, ambusher: 4, guardian: 3 },
-      { grunt: 8, gunner: 5, ambusher: 4, guardian: 2 },
-      { grunt: 8, gunner: 6, ambusher: 5, guardian: 2 },
-      { grunt: 9, gunner: 6, ambusher: 5, guardian: 3 },
-      { grunt: 9, gunner: 7, ambusher: 5, guardian: 3 },
-      { grunt: 10, gunner: 7, ambusher: 6, guardian: 3 },
-      { grunt: 10, gunner: 8, ambusher: 6, guardian: 4 },
-      { grunt: 11, gunner: 8, ambusher: 6, guardian: 4 },
-      { grunt: 11, gunner: 9, ambusher: 7, guardian: 4 },
-      { grunt: 12, gunner: 9, ambusher: 7, guardian: 5 },
-      { grunt: 14, gunner: 10, ambusher: 8, guardian: 6 }
+      { grunt: 6, stalker: 3, gunner: 4, ambusher: 3, guardian: 2 },
+      { grunt: 6, stalker: 4, gunner: 5, ambusher: 4, guardian: 2 },
+      { grunt: 6, stalker: 4, brute: 2, gunner: 5, ambusher: 4, guardian: 3 },
+      { grunt: 6, stalker: 5, brute: 2, gunner: 5, ambusher: 5, guardian: 3 },
+      { grunt: 6, stalker: 5, brute: 3, gunner: 5, ambusher: 4, scout: 3, guardian: 3 },
+      { grunt: 6, stalker: 5, brute: 3, gunner: 6, ambusher: 4, scout: 3, guardian: 4 },
+      { grunt: 7, stalker: 6, brute: 3, gunner: 6, ambusher: 4, scout: 4, guardian: 4 },
+      { grunt: 7, stalker: 6, brute: 4, gunner: 6, ambusher: 5, scout: 4, guardian: 4 },
+      { grunt: 7, stalker: 6, brute: 4, gunner: 7, ambusher: 5, scout: 5, guardian: 5 },
+      { grunt: 8, stalker: 7, brute: 5, gunner: 7, ambusher: 5, scout: 5, guardian: 6 }
     ];
-    const SCRAP_VALUE = { grunt: 5, gunner: 8, ambusher: 8, guardian: 20 };
+    const SCRAP_VALUE = { grunt: 5, gunner: 8, ambusher: 8, guardian: 20, stalker: 6, brute: 14, scout: 10 };
 
     // =========================================================
     // THREE.JS SCENE SETUP
@@ -997,6 +1000,9 @@
     const guardianTex = createMonsterPlaceholderTex('#886633', '#ffaa00');
     const gunnerTex = createMonsterPlaceholderTex('#6b2417', '#ffbb35');
     const ambusherTex = createMonsterPlaceholderTex('#aa22cc', '#00ffff');
+    const stalkerTex = createMonsterPlaceholderTex('#2244ff', '#ffffff');
+    const bruteTex = createMonsterPlaceholderTex('#553311', '#ff3300');
+    const scoutTex = createMonsterPlaceholderTex('#118855', '#ffff00');
 
     function swapMonsterTexture(url, targetTex, typeName) {
       loadRealTexture(url, img => {
@@ -1016,6 +1022,9 @@
     swapMonsterTexture(ASSET_URLS.guardian, guardianTex, 'guardian');
     swapMonsterTexture(ASSET_URLS.firecaster, gunnerTex, 'gunner');
     swapMonsterTexture(ASSET_URLS.ambusher, ambusherTex, 'ambusher');
+    swapMonsterTexture(ASSET_URLS.stalker, stalkerTex, 'stalker');
+    swapMonsterTexture(ASSET_URLS.brute, bruteTex, 'brute');
+    swapMonsterTexture(ASSET_URLS.scout, scoutTex, 'scout');
 
     // meleeRange/fireRange in world units; speed in units/second (player is
     // 11, so melee types are a bit slower — outrunnable if you're smart
@@ -1027,7 +1036,14 @@
       // melee once you're close instead of just standing there.
       guardian: { health: 10, speed: 4.8, scale: 5.8, tex: guardianTex, ranged: true, hybrid: true, hides: false, aggro: 28, meleeRange: 2.8, fireRange: 16, dmg: 17, rangedDmg: 9, cooldown: 0.85 },
       gunner:   { health: 3, speed: 4.0, scale: 4,   tex: gunnerTex,   ranged: true,  hybrid: false, hides: false, aggro: 26, fireRange: 16,   dmg: 6,  cooldown: 1.4, projectileStyle: 'fireball' },
-      ambusher: { health: 2, speed: 2.8, scale: 3.6, tex: ambusherTex, ranged: true,  hybrid: false, hides: true,  aggro: 20, fireRange: 14,   dmg: 7,  cooldown: 1.2 }
+      ambusher: { health: 2, speed: 2.8, scale: 3.6, tex: ambusherTex, ranged: true,  hybrid: false, hides: true,  aggro: 20, fireRange: 14,   dmg: 7,  cooldown: 1.2 },
+      // Sector-2 roster (waves 11+) — fills gaps the original four didn't
+      // cover: a faster/cheaper flanker, a mid-tier melee tank below the
+      // guardian, and a long-range glass cannon that hits harder than the
+      // ambusher but far less often.
+      stalker:  { health: 2, speed: 7.2, scale: 3.8, tex: stalkerTex,  ranged: false, hybrid: false, hides: false, aggro: 26, meleeRange: 2.0, dmg: 9,  cooldown: 0.8 },
+      brute:    { health: 6, speed: 3.6, scale: 5,   tex: bruteTex,    ranged: false, hybrid: false, hides: false, aggro: 24, meleeRange: 2.6, dmg: 14, cooldown: 1.1 },
+      scout:    { health: 2, speed: 3.0, scale: 3.6, tex: scoutTex,    ranged: true,  hybrid: false, hides: true,  aggro: 24, fireRange: 20,   dmg: 12, cooldown: 1.8 }
     };
 
     // Later waves hit harder: 1.0 on wave 1 up to ~1.81 on wave 10. Cached
