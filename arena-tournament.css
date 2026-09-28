@@ -1,4 +1,13 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+  /* Standard user-select alone doesn't stop iOS Safari's long-press
+     "Copy/Look Up" callout bubble on touch controls - this is the
+     separate, Safari-specific property that does. Also had no
+     user-select rule at all before this. */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
 :root {
   color-scheme: dark;
   --cyan: #65f5e5;

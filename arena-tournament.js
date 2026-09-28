@@ -2,6 +2,7 @@
   'use strict';
 
   const $ = selector => document.querySelector(selector);
+  const isTouchDevice = () => ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   const arenaCards = [...document.querySelectorAll('[data-arena]')];
   const ARENAS = {
     'core-forge': {
@@ -1787,6 +1788,13 @@
     document.addEventListener('pointerlockchange', () => {
       if (gameState === 'playing' && document.pointerLockElement !== inputSurface && !('ontouchstart' in window)) pauseMatch();
     });
+    // A long-press on a touch control can summon the browser's native
+    // "Copy/Select" callout independent of the CSS user-select/
+    // touch-callout suppression on some Android builds; this stops it
+    // at the event level too, touch devices only (desktop right-click
+    // and any native selection stay untouched).
+    window.addEventListener('contextmenu', event => { if (isTouchDevice()) event.preventDefault(); });
+    window.addEventListener('selectstart', event => { if (isTouchDevice()) event.preventDefault(); });
     $('#mouse-sensitivity')?.addEventListener('change', event => {
       mouseSensitivity = Number(event.target.value) || 0.0026;
     });

@@ -6,7 +6,15 @@
   <link rel="icon" href="data:,">
   <title>ALIEN BREACH // SIEGE</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    * {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+      /* Standard user-select alone doesn't stop iOS Safari's long-press
+         "Copy/Look Up" callout bubble on touch controls - this is the
+         separate, Safari-specific property that does. */
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
     body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Impact', sans-serif; color: #fcc000; }
     #canvas-container { width: 100%; height: 100%; position: absolute; }
 
@@ -1838,8 +1846,14 @@
     window.addEventListener('blur', clearFireInputs);
      window.addEventListener('pointercancel', clearFireInputs);
     window.addEventListener('contextmenu', (e) => {
-      if (document.pointerLockElement === document.body) e.preventDefault();
+      // Was gated to pointer-locked desktop only, so a mobile long-press
+      // on a touch control (which can dispatch its own contextmenu event
+      // independent of the CSS user-select/touch-callout suppression)
+      // still summoned the browser's native menu. isTouchDevice() is
+      // never pointer-locked, so this simply adds that case.
+      if (document.pointerLockElement === document.body || isTouchDevice()) e.preventDefault();
     });
+    window.addEventListener('selectstart', (e) => { if (isTouchDevice()) e.preventDefault(); });
 
      // Touch uses two independent surfaces: a left virtual stick for movement
      // and the right half for free look. Buttons are intentionally separate so
@@ -1898,9 +1912,18 @@
      document.getElementById('touch-reload').addEventListener('pointerdown', e => { e.preventDefault(); reload(); });
      document.getElementById('touch-weapon').addEventListener('pointerdown', e => {
        e.preventDefault();
+       // Was a single +1 step with no unlocked-check - the moment a locked
+       // slot came next in rotation (true almost the whole game, since you
+       // rarely own everything), selectWeapon() would silently no-op on
+       // it (just an "empty" sound) and currentWeapon never advanced past
+       // it, so every further tap landed on that same locked slot forever.
+       // Walk forward until an owned weapon is found instead.
        const hotbar = weaponHotbar();
-       const index = (hotbar.indexOf(currentWeapon) + 1) % hotbar.length;
-       selectWeapon(hotbar[index]);
+       let index = hotbar.indexOf(currentWeapon);
+       for (let i = 0; i < hotbar.length; i++) {
+         index = (index + 1) % hotbar.length;
+         if (WEAPON_DEFS[hotbar[index]].unlocked) { selectWeapon(hotbar[index]); break; }
+       }
      });
      touchInteractBtn.addEventListener('pointerdown', e => {
        e.preventDefault();
