@@ -478,9 +478,20 @@
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 3.6), bodyMat);
     body.position.y = 0.55;
     g.add(body);
+    // Forward is world (sin(heading), 0, cos(heading)) everywhere in this
+    // file (movement, AI steering, camera). A THREE.Object3D's local +Z
+    // maps to exactly that world direction once rotation.y = heading, so
+    // the nose has to sit at local +Z to actually point where the kart
+    // is driving. It was built at -2.1 (i.e. pointing backward relative
+    // to travel) - with the chase camera sitting behind the kart along
+    // -forward looking toward +forward, that put the "nose" facing the
+    // camera and the flat rear facing the direction of travel: looked
+    // like the kart was always driving backward, confusing enough to
+    // read as "steering doesn't work" even though the underlying heading
+    // math was correct the whole time.
     const nose = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.4, 4), bodyMat);
     nose.rotation.x = Math.PI / 2; nose.rotation.y = Math.PI / 4;
-    nose.position.set(0, 0.55, -2.1);
+    nose.position.set(0, 0.55, 2.1);
     g.add(nose);
     const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.55, roughness: 0.1 });
     const glass = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.55, 1.1), glassMat);
@@ -494,8 +505,8 @@
       w.position.set(sx * 1.15, 0.5, sz * 1.35);
       g.add(w);
     });
-    const glow = new THREE.PointLight(color, 0.6, 8);
-    glow.position.set(0, 0.6, 1.9);
+    const glow = new THREE.PointLight(color, 0.6, 8); // tail-light glow, rear of the kart
+    glow.position.set(0, 0.6, -1.9);
     g.add(glow);
     return g;
   }
@@ -524,10 +535,16 @@
   const SPIN_DURATION = 1.15;
 
   function makeRacer(i) {
-    const startIdx = (START_IDX - i * 3 + N) % N; // stagger the grid behind the line
+    // Tight 3x2 starting grid, staggered just enough to not overlap -
+    // was i*3 samples back with a max 7.8-unit side offset against a
+    // 7.5-unit track half-width, which put the two outermost racers
+    // spawning just off the track edge. Tightened both so every racer
+    // starts on-track and close enough to actually be visible to the
+    // player at the green light, not strung out behind the camera.
+    const startIdx = Math.floor((START_IDX - i * 1.4 + N) % N);
     const startPos = trackPoints[startIdx].clone();
     const side = trackNormals[startIdx];
-    startPos.addScaledVector(side, (i % 2 === 0 ? 1 : -1) * ((Math.floor(i / 2) + 1) * 2.6));
+    startPos.addScaledVector(side, (i % 2 === 0 ? 1 : -1) * ((Math.floor(i / 2) + 1) * 2.2));
     const mesh = buildKartMesh(RACER_COLORS[i]);
     mesh.position.copy(startPos);
     scene.add(mesh);
@@ -872,12 +889,15 @@
     while (diff < -Math.PI) diff += Math.PI * 2;
     const steer = Math.max(-1, Math.min(1, diff * 1.6));
     const drift = Math.abs(diff) > 0.4 && Math.abs(r.speed) > BASE_MAX_SPEED * 0.4;
-    // rubber-banding: trailing AI pushes harder, leading AI eases off
-    const rankGap = r.rank - 2.5;
-    const accelBoost = rankGap > 0 ? Math.min(1, rankGap * 0.08) : 0;
-    const accel = Math.random() < r.aiSkill + accelBoost ? 1 : 0.7;
+    // updateKartPhysics only ever checks `if (accel)`, a boolean gate -
+    // this used to compute a 1-vs-0.7 value meant to make AI "ease off"
+    // sometimes, but 0.7 is just as truthy as 1, so that branch never
+    // actually did anything; AI always held full throttle regardless.
+    // Simplified to match what was actually happening: AI always
+    // accelerates, same as any real kart-racer AI. Rubber-banding still
+    // works, just entirely through aiSkill/steering precision instead.
     if (r.item && r.itemCooldown <= 0 && Math.random() < 0.02) useItem(r);
-    return { accel, brake: 0, steer, drift };
+    return { accel: 1, brake: 0, steer, drift };
   }
 
   // =========================================================
