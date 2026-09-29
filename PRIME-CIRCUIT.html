@@ -269,43 +269,115 @@
     const wasWorking = audioCtx.state === 'running' && !audioMuted;
     setAudioMuted(wasWorking);
   });
-  function playSound(type, opts) {
-    opts = opts || {};
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(masterGain);
-    const now = audioCtx.currentTime;
-    const presets = {
-      countdown: { type: 'square', f0: 440, f1: 440, g: 0.3, d: 0.12 },
-      go:        { type: 'sawtooth', f0: 300, f1: 900, g: 0.4, d: 0.35 },
-      boost:     { type: 'sawtooth', f0: 200, f1: 900, g: 0.35, d: 0.3 },
-      drift1:    { type: 'square', f0: 260, f1: 340, g: 0.12, d: 0.08 },
-      drift2:    { type: 'square', f0: 340, f1: 460, g: 0.14, d: 0.08 },
-      drift3:    { type: 'square', f0: 460, f1: 640, g: 0.16, d: 0.08 },
-      item:      { type: 'sine', f0: 500, f1: 1000, g: 0.3, d: 0.18 },
-      hit:       { type: 'sawtooth', f0: 180, f1: 30, g: 0.4, d: 0.25 },
-      lap:       { type: 'triangle', f0: 300, f1: 700, g: 0.3, d: 0.4 },
-      finish:    { type: 'triangle', f0: 260, f1: 900, g: 0.4, d: 0.7 },
-      fire:      { type: 'square', f0: 700, f1: 200, g: 0.2, d: 0.15 }
-    };
-    const p = presets[type];
-    if (!p) return;
-    osc.type = p.type;
-    osc.frequency.setValueAtTime(opts.f0 || p.f0, now);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, opts.f1 || p.f1), now + p.d);
-    gain.gain.setValueAtTime(p.g, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + p.d);
-    osc.start(); osc.stop(now + p.d);
+  // Small reusable synthesis helpers, layered together per sound type
+  // below instead of one bare oscillator+linear-ramp per effect (which
+  // is what made everything sound thin/"weak" - a single sine or saw
+  // sweep with no filtering or texture reads as a placeholder beep, not
+  // a produced game sound).
+  function makeNoiseBuffer(duration) {
+    const buf = audioCtx.createBuffer(1, Math.max(1, Math.floor(audioCtx.sampleRate * duration)), audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
   }
-  // Continuous engine hum - one oscillator, pitch/gain driven by speed
-  // each frame instead of retriggering a new node (would click/pop).
-  const engineOsc = audioCtx.createOscillator();
+  const noiseBuffer = makeNoiseBuffer(1.2);
+  function playTone(waveType, f0, f1, duration, gainVal, detuneCents) {
+    const osc = audioCtx.createOscillator();
+    osc.type = waveType;
+    if (detuneCents) osc.detune.value = detuneCents;
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), now + duration);
+    gain.gain.setValueAtTime(gainVal, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(); osc.stop(now + duration);
+    return { osc, gain };
+  }
+  function playNoise(duration, gainVal, filterFreq0, filterFreq1, filterType) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = filterType || 'bandpass';
+    filter.Q.value = 0.9;
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+    filter.frequency.setValueAtTime(filterFreq0, now);
+    if (filterFreq1 !== undefined) filter.frequency.exponentialRampToValueAtTime(Math.max(1, filterFreq1), now + duration);
+    gain.gain.setValueAtTime(gainVal, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    src.connect(filter); filter.connect(gain); gain.connect(masterGain);
+    src.start(); src.stop(now + duration);
+  }
+  function playSound(type) {
+    switch (type) {
+      case 'countdown':
+        playTone('square', 440, 440, 0.1, 0.22);
+        playTone('sine', 880, 880, 0.1, 0.1);
+        break;
+      case 'go':
+        playTone('sawtooth', 220, 1100, 0.4, 0.32);
+        playTone('sawtooth', 220, 1100, 0.4, 0.2, 7);
+        playNoise(0.3, 0.18, 400, 3500);
+        break;
+      case 'boost':
+        playTone('sawtooth', 160, 1000, 0.32, 0.3);
+        playTone('square', 160, 1000, 0.32, 0.14, 12);
+        playNoise(0.28, 0.22, 300, 4500);
+        break;
+      case 'drift1':
+        playTone('square', 260, 330, 0.08, 0.14);
+        break;
+      case 'drift2':
+        playTone('square', 340, 460, 0.08, 0.16);
+        playTone('square', 680, 920, 0.08, 0.05);
+        break;
+      case 'drift3':
+        playTone('square', 460, 680, 0.09, 0.18);
+        playTone('square', 920, 1360, 0.09, 0.08);
+        break;
+      case 'item':
+        playTone('sine', 660, 660, 0.1, 0.28);
+        setTimeout(() => playTone('sine', 990, 990, 0.16, 0.26), 70);
+        break;
+      case 'hit':
+        playNoise(0.22, 0.32, 900, 100, 'lowpass');
+        playTone('sine', 160, 40, 0.22, 0.35);
+        break;
+      case 'lap':
+        playTone('triangle', 440, 440, 0.13, 0.26);
+        setTimeout(() => playTone('triangle', 660, 660, 0.18, 0.28), 100);
+        break;
+      case 'finish':
+        playTone('triangle', 440, 440, 0.16, 0.3);
+        setTimeout(() => playTone('triangle', 660, 660, 0.16, 0.3), 130);
+        setTimeout(() => playTone('triangle', 880, 880, 0.5, 0.34), 260);
+        break;
+      case 'fire':
+        playNoise(0.12, 0.2, 2500, 500);
+        playTone('square', 700, 150, 0.12, 0.16);
+        break;
+    }
+  }
+  // Continuous engine hum: two slightly-detuned sawtooths through a
+  // shared lowpass filter (beating between them + filter sweep reads as
+  // a real engine instead of a single thin tone), pitch/cutoff driven by
+  // speed each frame rather than retriggering nodes (would click/pop).
+  const engineOsc1 = audioCtx.createOscillator();
+  const engineOsc2 = audioCtx.createOscillator();
+  const engineFilter = audioCtx.createBiquadFilter();
   const engineGain = audioCtx.createGain();
-  engineOsc.type = 'sawtooth';
-  engineOsc.frequency.value = 60;
+  engineOsc1.type = 'sawtooth'; engineOsc2.type = 'sawtooth';
+  engineOsc2.detune.value = 11;
+  engineOsc1.frequency.value = 55; engineOsc2.frequency.value = 55;
+  engineFilter.type = 'lowpass';
+  engineFilter.frequency.value = 300;
+  engineFilter.Q.value = 1.1;
   engineGain.gain.value = 0;
-  engineOsc.connect(engineGain); engineGain.connect(masterGain);
-  engineOsc.start();
+  engineOsc1.connect(engineFilter); engineOsc2.connect(engineFilter);
+  engineFilter.connect(engineGain); engineGain.connect(masterGain);
+  engineOsc1.start(); engineOsc2.start();
 
   // =========================================================
   // THREE.JS SCENE
@@ -456,6 +528,47 @@
   const CHECKPOINT_COUNT = 10;
   const checkpointIdx = Array.from({ length: CHECKPOINT_COUNT }, (_, i) => Math.floor(i / CHECKPOINT_COUNT * N));
   const START_IDX = checkpointIdx[0];
+
+  // Start/finish gate - a checkered banner across the track plus two
+  // support posts. There was previously no visual marker for the start
+  // line at all, a notable missing piece for a track that's supposed to
+  // read as a finished race circuit rather than a looping test ribbon.
+  (function buildStartFinishGate() {
+    const p = trackPoints[START_IDX], side = trackNormals[START_IDX];
+    const heading = Math.atan2(trackTangents[START_IDX].x, trackTangents[START_IDX].z);
+    const checkerCanvas = document.createElement('canvas');
+    checkerCanvas.width = 64; checkerCanvas.height = 16;
+    const ctx = checkerCanvas.getContext('2d');
+    const cell = 8;
+    for (let cy = 0; cy < checkerCanvas.height / cell; cy++) {
+      for (let cx = 0; cx < checkerCanvas.width / cell; cx++) {
+        ctx.fillStyle = (cx + cy) % 2 === 0 ? '#0c1420' : '#f2f6fa';
+        ctx.fillRect(cx * cell, cy * cell, cell, cell);
+      }
+    }
+    const checkerTex = new THREE.CanvasTexture(checkerCanvas);
+    checkerTex.magFilter = THREE.NearestFilter;
+    const bannerMat = new THREE.MeshBasicMaterial({ map: checkerTex, side: THREE.DoubleSide });
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(TRACK_WIDTH + 3, 2.2), bannerMat);
+    banner.position.set(p.x, p.y + 6.5, p.z);
+    banner.rotation.y = heading;
+    scene.add(banner);
+    const postMat = new THREE.MeshStandardMaterial({ color: 0xdfe8f2, roughness: 0.4, metalness: 0.5 });
+    [1, -1].forEach(dir => {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 8, 8), postMat);
+      const pos = p.clone().addScaledVector(side, dir * (TRACK_WIDTH / 2 + 1.5));
+      post.position.set(pos.x, pos.y + 4, pos.z);
+      scene.add(post);
+    });
+    // Ground-level start stripe, painted straight onto the road so it
+    // reads clearly from the driving camera too, not just from afar.
+    const stripeMat = new THREE.MeshBasicMaterial({ map: checkerTex, side: THREE.DoubleSide });
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(TRACK_WIDTH, 2.4), stripeMat);
+    stripe.rotation.x = -Math.PI / 2;
+    stripe.rotation.z = heading;
+    stripe.position.set(p.x, p.y + 0.03, p.z);
+    scene.add(stripe);
+  })();
 
   function nearestTrackIndex(pos) {
     // Linear scan over ~480 samples, 6 karts, once/frame - cheap enough
@@ -777,10 +890,16 @@
   function readAccel() { return (keys['KeyW'] || keys['ArrowUp'] || touchInput.accel) ? 1 : 0; }
   function readBrake() { return (keys['KeyS'] || keys['ArrowDown'] || touchInput.brake) ? 1 : 0; }
   function readSteer() {
+    // User-confirmed: A/D (and touch, which shares this same steer sign
+    // - dragging right also produced positive s below) were inverted -
+    // pressing D turned the kart left. aiInputFor() computes its own
+    // steer independently from desiredHeading - r.heading and is
+    // self-consistent regardless of this convention, so only the
+    // player's input needs flipping, not the physics formula itself.
     let s = touchInput.steer;
     if (keys['KeyA'] || keys['ArrowLeft']) s -= 1;
     if (keys['KeyD'] || keys['ArrowRight']) s += 1;
-    return Math.max(-1, Math.min(1, s));
+    return -Math.max(-1, Math.min(1, s));
   }
   function readDrift() { return !!(keys['Space'] || touchInput.drift); }
 
@@ -1043,8 +1162,14 @@
         if (box.respawnTimer <= 0) { box.active = true; box.mesh.visible = true; }
       });
 
-      engineGain.gain.setTargetAtTime(Math.min(0.16, 0.04 + Math.abs(player.speed) / BASE_MAX_SPEED * 0.14), audioCtx.currentTime, 0.05);
-      engineOsc.frequency.setTargetAtTime(55 + Math.abs(player.speed) * 4.2, audioCtx.currentTime, 0.05);
+      const speedRatio = Math.abs(player.speed) / BASE_MAX_SPEED;
+      const engineFreq = 55 + Math.abs(player.speed) * 4.2;
+      engineGain.gain.setTargetAtTime(Math.min(0.17, 0.04 + speedRatio * 0.15), audioCtx.currentTime, 0.05);
+      engineOsc1.frequency.setTargetAtTime(engineFreq, audioCtx.currentTime, 0.05);
+      engineOsc2.frequency.setTargetAtTime(engineFreq, audioCtx.currentTime, 0.05);
+      // Filter opens up at higher RPM, like a real engine getting brighter
+      // under load instead of just getting louder.
+      engineFilter.frequency.setTargetAtTime(280 + speedRatio * 1400, audioCtx.currentTime, 0.08);
 
       updateHud();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) document.getElementById('msg-toast').classList.remove('show'); }
