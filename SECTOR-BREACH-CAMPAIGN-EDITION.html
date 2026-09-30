@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SECTOR BREACH // SALVAGE RUN</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Impact', sans-serif; color: #fcc000; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; }
+
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
+
+    #start-screen, #gameover-screen, #victory-screen, #lock-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.88); z-index: 30; display: flex;
+      flex-direction: column; justify-content: center; align-items: center;
+      cursor: pointer; pointer-events: auto; text-align: center;
+    }
+    #gameover-screen, #victory-screen, #lock-screen { display: none; }
+    #start-screen h1, #gameover-screen h1, #victory-screen h1 { font-size: 46px; letter-spacing: 3px; text-shadow: 4px 4px 0 #000, 0 0 20px currentColor; }
+    #start-screen h1 { color: #ff8800; }
+    #gameover-screen h1 { color: #ff2200; }
+    #victory-screen h1 { color: #22ff88; }
+    #start-screen p, #gameover-screen p, #victory-screen p, #lock-screen p { font-size: 16px; color: #ffcc00; margin-top: 12px; max-width: 600px; }
+    #lock-screen h2 { color: #ffcc00; font-size: 28px; }
+
+    #weapon { position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%) scale(1.6); transform-origin: bottom center; pointer-events: none; z-index: 15; }
+
+    #status-bar {
+      height: 60px; background: #1a1a1a; border-top: 4px solid #ffcc00;
+      display: flex; justify-content: space-around; align-items: center; z-index: 20;
+    }
+    .hud-box { background: #000; border: 2px solid #555; padding: 4px 12px; text-align: center; min-width: 90px; }
+    .hud-label { font-size: 10px; color: #888; }
+    .hud-value { font-size: 22px; color: #ff0000; text-shadow: 0 0 6px #ff0000; }
+
+    #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: #ff1a1a; transform: translate(-50%, -50%); box-shadow: 0 0 8px #ff1a1a, 0 0 2px #fff; z-index: 16; }
+    #crosshair.pulse { animation: crosshairPulse .12s ease-out; }
+    @keyframes crosshairPulse { 0% { transform: translate(-50%, -50%) scale(2.4); opacity: .35; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+    .hud-value.flash-empty { animation: emptyFlash .3s ease-out; }
+    @keyframes emptyFlash { 0% { color: #fff; text-shadow: 0 0 14px #fff; } 100% { color: #ff0000; text-shadow: 0 0 6px #ff0000; } }
+    #msg-box { position: absolute; top: 20px; width: 100%; text-align: center; font-size: 22px; color: #ffcc00; text-shadow: 2px 2px 0 #000; }
+
+    #reload-indicator {
+      display: none; position: absolute; top: 58%; left: 50%; transform: translate(-50%, 0);
+      background: rgba(0,0,0,.7); border: 1px solid #ff8800; color: #ff8800;
+      font: 700 12px monospace; letter-spacing: 2px; padding: 4px 12px; z-index: 16;
+    }
+    #interact-prompt {
+      display: none; position: absolute; bottom: 132px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,14,24,.8); border: 2px solid #33ccff; border-radius: 6px;
+      padding: 8px 18px; font: 700 14px 'Impact', sans-serif; letter-spacing: 1.5px;
+      color: #66eeff; text-shadow: 0 0 8px #33ccff; z-index: 16; white-space: nowrap;
+      animation: promptPulse 1.1s ease-in-out infinite;
+    }
+    #interact-prompt.locked {
+      border-color: #ff4444; color: #ff9999; text-shadow: 0 0 8px #ff2222; animation: none;
+      box-shadow: 0 0 14px rgba(255,68,68,.5);
+    }
+    @keyframes promptPulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(51,204,255,.45); }
+      50% { box-shadow: 0 0 22px rgba(51,204,255,.95); }
+    }
+    #control-hints { position: absolute; bottom: 68px; left: 16px; z-index: 11; display: flex; flex-wrap: wrap; gap: 6px; max-width: 340px; }
+    .hint-pill {
+      background: rgba(0,0,0,.65); border: 1px solid #ffcc00; border-radius: 12px;
+      padding: 3px 10px; font: 700 10px monospace; letter-spacing: .5px; color: #ffcc00; white-space: nowrap;
+    }
+    .hint-pill b { color: #fff; }
+
+    #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0); pointer-events: none; z-index: 12; transition: background 0.1s; }
+
+    #minimap-wrap { position: absolute; top: 16px; right: 16px; width: 150px; height: 150px; border: 2px solid #ffcc00; background: rgba(0,0,0,.6); z-index: 11; }
+    #level-indicator { position: absolute; top: 16px; left: 16px; z-index: 11; background: rgba(0,0,0,.6); border: 2px solid #ffcc00; padding: 6px 12px; font-size: 13px; color: #ffcc00; letter-spacing: 1px; }
+
+    button.action-btn {
+      margin-top: 22px; padding: 10px 26px; background: #ffcc00; color: #111; border: none;
+      font: 700 15px Impact, sans-serif; letter-spacing: 2px; cursor: pointer;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="start-screen">
+    <h1>SECTOR BREACH</h1>
+    <p>10 Level. Finde in jedem die Schlüsselkarte — ihre Farbe passt zur Tür, die sie öffnet — räum die Wachen aus dem Weg und erreiche den Extraktionspunkt.
+    Manche Gegner stürmen dich, manche halten Abstand und schießen, manche verstecken sich und feuern nur, wenn sie dich sehen — bleib wachsam.</p>
+    <p style="font-size: 12px; color: #999; margin-top: 10px;">1 / 2 &mdash; Pistole / Schrotflinte wechseln</p>
+    <p style="font-size: 13px; color: #aaa; margin-top: 14px;">[KLICKEN ZUM STARTEN]</p>
+    <p style="font-size: 10px; color: #666; margin-top: 26px; max-width: 520px;">
+      Art credits: wall texture "Sci-Fi Rusted Metal Wall" by knittel/Frudelsoft Games (CC-BY 3.0) ·
+      pistol &amp; shotgun weapon art custom-generated (AI) ·
+      monster (Harkubus/Wargrin/Droid/Bug), door, floor &amp; item sprites CC0. Via opengameart.org.
+    </p>
+  </div>
+
+  <div id="gameover-screen">
+    <h1>KIA</h1>
+    <p id="gameover-stats"></p>
+    <button class="action-btn" id="restart-btn">NEUSTART</button>
+  </div>
+
+  <div id="victory-screen">
+    <h1>SEKTOR GESICHERT</h1>
+    <p id="victory-stats"></p>
+    <button class="action-btn" id="restart-btn-2">NOCHMAL SPIELEN</button>
+  </div>
+
+  <div id="lock-screen">
+    <h2>PAUSIERT // KLICKEN ZUM WEITERSPIELEN</h2>
+    <p>Pointer Lock wurde verlassen (z. B. durch ESC). Ein Klick reicht, um zurückzukehren.</p>
+  </div>
+
+  <div id="canvas-container"></div>
+  <div id="damage-flash"></div>
+  <div id="level-indicator">LEVEL 1/10</div>
+  <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+
+  <div id="ui-layer">
+    <div id="msg-box">FINDE DIE SCHLÜSSELKARTE</div>
+    <div id="crosshair"></div>
+    <div id="reload-indicator">NACHLADEN...</div>
+    <div id="interact-prompt"></div>
+    <canvas id="weapon"></canvas>
+
+    <div id="control-hints">
+      <span class="hint-pill"><b>LMB / LEERTASTE</b> SCHIESSEN</span>
+      <span class="hint-pill"><b>RMB / R</b> NACHLADEN</span>
+      <span class="hint-pill"><b>1 / 2</b> WAFFE</span>
+      <span class="hint-pill"><b>WASD</b> BEWEGEN</span>
+      <span class="hint-pill"><b>E</b> INTERAGIEREN</span>
+    </div>
+
+    <div id="status-bar">
+      <div class="hud-box"><div class="hud-label">HEALTH</div><div class="hud-value" id="health-val">100%</div></div>
+      <div class="hud-box"><div class="hud-label">AMMO</div><div class="hud-value" style="font-size:18px;" id="ammo-val">7/17</div></div>
+      <div class="hud-box"><div class="hud-label">KEYS</div><div class="hud-value" id="key-val" style="color:#555;">NONE</div></div>
+      <div class="hud-box"><div class="hud-label">KILLS</div><div class="hud-value" style="color:#00ff00" id="kills-val">0/5</div></div>
+      <div class="hud-box"><div class="hud-label">WAFFE</div><div class="hud-value" style="color:#88bbff; font-size:15px;" id="weapon-val">PISTOLE</div></div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // AUDIO
+    // =========================================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      const presets = {
+        shot:  { type: 'sawtooth', f0: 280, f1: 10,  g: 0.4, d: 0.12 },
+        hit:   { type: 'square',   f0: 150, f1: 20,  g: 0.3, d: 0.10 },
+        item:  { type: 'sine',     f0: 400, f1: 800, g: 0.3, d: 0.20 },
+        door:  { type: 'triangle', f0: 80,  f1: 200, g: 0.4, d: 0.40 },
+        hurt:  { type: 'sawtooth', f0: 200, f1: 40,  g: 0.5, d: 0.18 },
+        empty: { type: 'square',   f0: 90,  f1: 60,  g: 0.15,d: 0.06 },
+        reload:{ type: 'square',   f0: 500, f1: 300, g: 0.18,d: 0.08 },
+        win:   { type: 'sine',     f0: 300, f1: 900, g: 0.4, d: 0.6 },
+        enemyshot: { type: 'square', f0: 220, f1: 70, g: 0.22, d: 0.11 },
+        levelup:   { type: 'triangle', f0: 220, f1: 660, g: 0.35, d: 0.5 }
+      };
+      const p = presets[type];
+      if (!p) return;
+      osc.type = p.type;
+      osc.frequency.setValueAtTime(p.f0, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(1, p.f1), now + p.d);
+      gain.gain.setValueAtTime(p.g, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + p.d);
+      osc.start(); osc.stop(now + p.d);
+    }
+
+    // =========================================================
+    // REAL PHOTO/SPRITE ASSETS (free, licensed, via opengameart.org)
+    // Routed through images.weserv.nl so the source's missing CORS headers
+    // don't taint the WebGL texture — same trick the rest of this project uses.
+    // =========================================================
+    function proxied(url) {
+      return 'https://images.weserv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, ''));
+    }
+    const ASSET_URLS = {
+      wall: 'https://opengameart.org/sites/default/files/diffuse.png',
+      floor: 'https://opengameart.org/sites/default/files/styles/texture_browse_preview/public/oga-textures/84866/floortilesdeffuse.png',
+      door: 'https://opengameart.org/sites/default/files/Scifi%20Spritesheet_0.png',
+      monster: 'https://opengameart.org/sites/default/files/styles/medium/public/hark_preview.png',
+      items: 'https://opengameart.org/sites/default/files/items_paletted.png',
+      // Custom FPS weapon sprites (pistol + shotgun), generated via Replit
+      // AI agent by the user and hosted on GitHub for a stable absolute
+      // URL. Both are already framed dead-on and vertical, unlike the
+      // earlier sourced photos — no rotation calibration needed this time.
+      pistol: 'https://raw.githubusercontent.com/Babybounce500/monolith-games-assets/main/pistol-fps.png',
+      shotgun: 'https://raw.githubusercontent.com/Babybounce500/monolith-games-assets/main/shotgun-fps.jpg',
+      wargrin: 'https://opengameart.org/sites/default/files/styles/medium/public/wargrin_preview_0.png',
+      droid: 'https://opengameart.org/sites/default/files/styles/medium/public/droid_preview_0.png',
+      bug: 'https://opengameart.org/sites/default/files/styles/medium/public/bug_preview_1.png'
+    };
+    const imgLoader = new THREE.ImageLoader();
+    imgLoader.setCrossOrigin('anonymous');
+    function loadRealTexture(url, onReady) {
+      imgLoader.load(proxied(url), img => onReady(img), undefined, () => {
+        // Silent fallback — the procedural texture already drawn stays in place.
+      });
+    }
+
+    // =========================================================
+    // WEAPON SPRITES — custom AI-generated FPS weapon art (pistol +
+    // shotgun), both already framed dead-on/vertical (gun pointing
+    // straight up at the camera, hands gripping symmetrically below) —
+    // unlike the earlier sourced photos, no rotation calibration is needed
+    // at all, just a pivot point (grip, as a fraction of the image) and a
+    // draw-time scale. Verified locally by simulating this exact draw call
+    // against a rendered crosshair marker before wiring it in. A small
+    // dynamic sway is layered on top, driven by recent mouse movement, so
+    // the sight keeps tracking roughly where you're looking instead of
+    // sitting dead-static. Muzzle flash is drawn procedurally on top since
+    // neither source image has a baked-in flash frame.
+    // =========================================================
+    const WEAPON_PIVOT = { x: 0.5, y: 0.85 }; // grip location, fraction of the image — same for both, same source composition
+    const WEAPON_SCALE = 0.3;
+    const WEAPON_OUT_PIVOT_Y = 0.85; // fraction of the weapon canvas height
+    let pistolImg = null, shotgunImg = null;
+    let currentRecoil = 0;
+    let weaponSway = 0; // degrees, decays back to 0; nudged by mousemove
+    let currentWeapon = 'pistol'; // 'pistol' | 'shotgun', switched with 1/2
+    (() => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { pistolImg = img; };
+      img.src = proxied(ASSET_URLS.pistol);
+    })();
+    (() => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Source is a JPEG with a flat grey studio background (no alpha
+        // channel) — stripped the same way the monster/item sprites strip
+        // their matte color, via a canvas threshold pass.
+        const cvs = document.createElement('canvas');
+        cvs.width = img.width; cvs.height = img.height;
+        const cctx = cvs.getContext('2d');
+        cctx.drawImage(img, 0, 0);
+        const data = cctx.getImageData(0, 0, cvs.width, cvs.height);
+        const px = data.data;
+        for (let i = 0; i < px.length; i += 4) {
+          if (Math.abs(px[i] - 184) < 22 && Math.abs(px[i + 1] - 185) < 22 && Math.abs(px[i + 2] - 179) < 22) px[i + 3] = 0;
+        }
+        cctx.putImageData(data, 0, 0);
+        shotgunImg = cvs;
+      };
+      img.src = proxied(ASSET_URLS.shotgun);
+    })();
+
+    function drawWeaponSprite(ctx, img, recoil) {
+      const outPivotX = 110, outPivotY = 220 * WEAPON_OUT_PIVOT_Y;
+      ctx.save();
+      ctx.translate(outPivotX, outPivotY - recoil * 14);
+      ctx.rotate(weaponSway * Math.PI / 180);
+      if (recoil > 0) {
+        const flash = ctx.createRadialGradient(0, -170, 2, 0, -170, 42);
+        flash.addColorStop(0, 'rgba(255,240,200,1)');
+        flash.addColorStop(.4, 'rgba(255,150,0,.85)');
+        flash.addColorStop(1, 'rgba(255,150,0,0)');
+        ctx.fillStyle = flash;
+        ctx.beginPath(); ctx.arc(0, -170, 42, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.scale(WEAPON_SCALE, WEAPON_SCALE);
+      ctx.drawImage(img, -img.width * WEAPON_PIVOT.x, -img.height * WEAPON_PIVOT.y, img.width, img.height);
+      ctx.restore();
+    }
+
+    function drawWeapon(recoil = 0) {
+      const cvs = document.getElementById('weapon'); const ctx = cvs.getContext('2d');
+      const S = 220;
+      cvs.width = S; cvs.height = S; ctx.clearRect(0, 0, S, S);
+
+      const img = currentWeapon === 'shotgun' ? shotgunImg : pistolImg;
+      if (img) {
+        drawWeaponSprite(ctx, img, recoil);
+        return;
+      }
+
+      // Placeholder until the sprite loads — same pivot/rotation so it
+      // doesn't visually jump once the real sprite swaps in.
+      ctx.save();
+      ctx.translate(S * 0.5, S * WEAPON_OUT_PIVOT_Y - recoil * 14);
+      ctx.rotate(weaponSway * Math.PI / 180);
+      ctx.fillStyle = '#111'; ctx.fillRect(-8, -70, 16, 70);
+      ctx.fillStyle = '#d29a66'; ctx.fillRect(-20, -6, 40, 34);
+      ctx.restore();
+    }
+    drawWeapon();
+
+    // =========================================================
+    // LEVELS: each is data only — a room list (carve rectangles, the same
+    // verified-by-construction technique the single level used: every
+    // rectangle is a room/corridor, connectivity is readable straight from
+    // the list), special tiles, and enemy placements. loadLevel() (below,
+    // once materials/colliders infra exists) turns LEVELS[i] into the
+    // actual scene. Coordinates are grid [row, col]; carve rectangles are
+    // inclusive [r0, c0, r1, c1]. 0 floor / 1 wall / 2 door / 3 key /
+    // 4 exit / 5 ammo / 6 medkit (baked from the special-tile lists below).
+    // =========================================================
+    const CELL = 8;
+    let GRID = 14;
+    let map = [];
+    const MAX_GRID = 20; // fixed floor/ceiling size, big enough for every level below
+    const LEVELS = [
+      {
+        title: 'BREACH POINT', grid: 14, accent: '#88bbff',
+        start: [2, 2],
+        carve: [
+          [1, 1, 3, 4], [2, 4, 2, 8], [1, 8, 4, 11], [2, 2, 9, 2],
+          [9, 1, 11, 5], [10, 5, 10, 8], [4, 8, 10, 8], [8, 10, 12, 12]
+        ],
+        door: [10, 9], key: [2, 10], exit: [11, 11],
+        ammo: [[1, 3], [10, 3], [3, 9]], medkit: [[9, 4]],
+        enemies: [
+          { type: 'grunt', r: 2, c: 9 }, { type: 'grunt', r: 10, c: 2 },
+          { type: 'grunt', r: 9, c: 4 }, { type: 'grunt', r: 5, c: 8 },
+          { type: 'guardian', r: 10, c: 11 }
+        ]
+      },
+      {
+        title: 'MOTOR POOL', grid: 14, accent: '#ffaa44', start: [2, 2],
+        carve: [
+          [1, 1, 3, 3], [2, 3, 2, 8], [1, 8, 3, 11], [3, 3, 8, 3],
+          [8, 1, 10, 4], [9, 4, 9, 9], [5, 9, 11, 9], [9, 6, 11, 9],
+          [9, 11, 12, 12]
+        ],
+        door: [11, 10], key: [2, 10], exit: [10, 12],
+        ammo: [[1, 2], [6, 3], [9, 7]], medkit: [[10, 7]],
+        enemies: [
+          { type: 'grunt', r: 2, c: 7 }, { type: 'grunt', r: 8, c: 2 },
+          { type: 'grunt', r: 5, c: 3 }, { type: 'grunt', r: 9, c: 8 },
+          { type: 'grunt', r: 5, c: 9 }, { type: 'guardian', r: 11, c: 11 }
+        ]
+      },
+      {
+        title: 'SIGNAL RELAY', grid: 15, accent: '#66ff99', start: [2, 2],
+        carve: [
+          [1, 1, 4, 4], [2, 4, 3, 9], [1, 7, 4, 10], [4, 9, 9, 9],
+          [9, 7, 12, 10], [10, 2, 11, 7], [9, 1, 13, 3], [9, 12, 12, 13]
+        ],
+        door: [10, 11], key: [2, 10], exit: [10, 13],
+        ammo: [[2, 8], [8, 9], [12, 3]], medkit: [[11, 9]],
+        enemies: [
+          { type: 'grunt', r: 4, c: 3 }, { type: 'grunt', r: 3, c: 6 },
+          { type: 'grunt', r: 12, c: 2 }, { type: 'gunner', r: 6, c: 9 },
+          { type: 'gunner', r: 10, c: 4 }, { type: 'gunner', r: 10, c: 8 }
+        ]
+      },
+      {
+        title: 'REACTOR CORE', grid: 15, accent: '#ff5566', start: [2, 2],
+        carve: [
+          [1, 1, 4, 4], [2, 4, 2, 9], [1, 9, 5, 13], [5, 10, 9, 10],
+          [9, 8, 12, 10], [10, 3, 10, 8], [8, 1, 12, 3], [9, 12, 12, 13]
+        ],
+        door: [10, 11], key: [11, 9], exit: [11, 13],
+        ammo: [[3, 3], [3, 11], [10, 5]], medkit: [[12, 2], [10, 9]],
+        enemies: [
+          { type: 'grunt', r: 2, c: 11 }, { type: 'grunt', r: 10, c: 2 },
+          { type: 'gunner', r: 4, c: 12 }, { type: 'gunner', r: 2, c: 8 },
+          { type: 'gunner', r: 10, c: 4 }, { type: 'guardian', r: 11, c: 12 }
+        ]
+      },
+      {
+        title: 'MAINTENANCE SHAFT', grid: 16, accent: '#cc66ff', start: [2, 2],
+        carve: [
+          [1, 1, 3, 3], [2, 3, 2, 7], [2, 7, 5, 9], [5, 4, 5, 9],
+          [6, 2, 9, 5], [3, 2, 9, 2], [5, 9, 9, 9], [9, 9, 9, 11],
+          [8, 13, 11, 14]
+        ],
+        door: [9, 12], key: [6, 4], exit: [10, 14],
+        ammo: [[3, 2], [4, 8], [9, 10]], medkit: [[8, 4], [9, 14]],
+        enemies: [
+          { type: 'gunner', r: 2, c: 5 }, { type: 'ambusher', r: 3, c: 8 },
+          { type: 'grunt', r: 7, c: 4 }, { type: 'grunt', r: 8, c: 3 },
+          { type: 'gunner', r: 7, c: 9 }, { type: 'ambusher', r: 9, c: 11 }
+        ]
+      },
+      {
+        title: 'COMMAND DECK', grid: 16, accent: '#ffdd33', start: [2, 2],
+        carve: [
+          [1, 1, 4, 4], [2, 4, 2, 7], [1, 7, 4, 10], [4, 8, 7, 9],
+          [7, 6, 11, 10], [8, 2, 9, 6], [6, 1, 11, 3], [11, 8, 13, 9],
+          [12, 11, 14, 13]
+        ],
+        door: [13, 10], key: [2, 9], exit: [13, 12],
+        ammo: [[3, 2], [7, 2], [9, 7]], medkit: [[8, 3], [10, 9]],
+        enemies: [
+          { type: 'grunt', r: 4, c: 3 }, { type: 'grunt', r: 6, c: 8 },
+          { type: 'gunner', r: 2, c: 6 }, { type: 'gunner', r: 9, c: 9 },
+          { type: 'ambusher', r: 1, c: 9 }, { type: 'ambusher', r: 10, c: 7 },
+          { type: 'guardian', r: 3, c: 8 }, { type: 'guardian', r: 14, c: 12 }
+        ]
+      },
+      {
+        title: 'ARMORY WING', grid: 15, accent: '#33ddff', start: [2, 2],
+        carve: [
+          [1, 1, 3, 3], [2, 3, 2, 5], [1, 5, 3, 7], [3, 6, 5, 6],
+          [5, 5, 7, 8], [6, 8, 6, 10], [5, 10, 8, 12], [3, 2, 5, 2],
+          [5, 1, 7, 3], [7, 3, 7, 5], [7, 5, 9, 7], [8, 11, 10, 11],
+          [10, 9, 12, 12], [9, 6, 11, 6], [11, 5, 13, 7], [1, 10, 3, 13]
+        ],
+        door: [4, 11], key: [6, 2], exit: [2, 12],
+        ammo: [[1, 2], [1, 6], [12, 10]], medkit: [[6, 3], [1, 11]],
+        enemies: [
+          { type: 'grunt', r: 7, c: 2 }, { type: 'grunt', r: 11, c: 10 },
+          { type: 'gunner', r: 6, c: 7 }, { type: 'gunner', r: 2, c: 6 },
+          { type: 'ambusher', r: 7, c: 4 }, { type: 'ambusher', r: 9, c: 11 },
+          { type: 'ambusher', r: 12, c: 6 }, { type: 'guardian', r: 3, c: 11 }
+        ]
+      },
+      {
+        title: 'DATA VAULT', grid: 18, accent: '#ff8833', start: [2, 2],
+        carve: [
+          [1, 1, 4, 4], [2, 4, 3, 9], [1, 9, 6, 13], [6, 10, 11, 12],
+          [11, 7, 15, 14], [4, 2, 9, 3], [9, 1, 13, 6], [14, 1, 16, 6],
+          [14, 9, 16, 14], [1, 15, 5, 16]
+        ],
+        door: [2, 14], key: [10, 3], exit: [3, 15],
+        ammo: [[15, 3], [15, 12]], medkit: [[6, 2], [13, 10]],
+        enemies: [
+          { type: 'grunt', r: 5, c: 2 }, { type: 'grunt', r: 13, c: 9 },
+          { type: 'grunt', r: 15, c: 4 }, { type: 'gunner', r: 2, c: 6 },
+          { type: 'gunner', r: 8, c: 11 }, { type: 'ambusher', r: 4, c: 11 },
+          { type: 'ambusher', r: 15, c: 11 }, { type: 'guardian', r: 10, c: 5 },
+          { type: 'guardian', r: 2, c: 16 }
+        ]
+      },
+      {
+        title: 'LAST CHECKPOINT', grid: 17, accent: '#ff3366', start: [2, 2],
+        carve: [
+          [1, 1, 3, 3], [2, 3, 2, 7], [1, 7, 4, 10], [3, 2, 8, 2],
+          [8, 1, 11, 4], [9, 4, 9, 9], [7, 9, 11, 12], [4, 9, 7, 9],
+          [9, 11, 11, 11], [13, 10, 15, 13]
+        ],
+        door: [12, 11], key: [10, 3], exit: [14, 12],
+        ammo: [[2, 4], [10, 10], [14, 13]], medkit: [[9, 5]],
+        enemies: [
+          { type: 'grunt', r: 3, c: 7 }, { type: 'grunt', r: 9, c: 7 },
+          { type: 'gunner', r: 5, c: 2 }, { type: 'gunner', r: 9, c: 6 },
+          { type: 'ambusher', r: 2, c: 9 }, { type: 'ambusher', r: 13, c: 12 },
+          { type: 'guardian', r: 9, c: 2 }, { type: 'guardian', r: 8, c: 11 },
+          { type: 'guardian', r: 14, c: 11 }
+        ]
+      },
+      {
+        title: 'THE CITADEL', grid: 14, accent: '#ffffff', start: [2, 2],
+        carve: [
+          [1, 1, 4, 5], [2, 5, 3, 7], [1, 7, 9, 12], [11, 9, 12, 11]
+        ],
+        door: [10, 10], key: [2, 10], exit: [12, 10],
+        ammo: [[2, 3], [5, 8], [8, 12], [12, 11]],
+        medkit: [[3, 4], [6, 9]],
+        enemies: [
+          { type: 'grunt', r: 3, c: 2 }, { type: 'grunt', r: 6, c: 10 },
+          { type: 'gunner', r: 2, c: 11 }, { type: 'gunner', r: 8, c: 8 },
+          { type: 'guardian', r: 4, c: 9 }, { type: 'guardian', r: 7, c: 11 },
+          { type: 'guardian', r: 11, c: 9 }
+        ]
+      }
+    ];
+
+    // =========================================================
+    // THREE.JS SCENE SETUP
+    // =========================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.FogExp2(0x1a1a2e, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.rotation.order = 'YXZ'; // fixes look-tilt when turning + pitching at once
+
+    // Full resolution, not the half-res pixelated mode: real photo textures
+    // need it to read as crisp/nicer instead of blurry-then-blocky.
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    function renderFrame() {
+      renderer.render(scene, camera);
+    }
+    function applyRendererSize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    applyRendererSize();
+    container.appendChild(renderer.domElement);
+    window.addEventListener('resize', applyRendererSize);
+
+    // --- LIGHTING ---
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const hemiLight = new THREE.HemisphereLight(0xffeedd, 0x444466, 0.4);
+    scene.add(hemiLight);
+    const flashLight = new THREE.PointLight(0xffaa00, 0, 30);
+    scene.add(flashLight);
+
+    // --- TEXTURES ---
+    // Procedural fallback (used instantly, and kept if a real image fails to load).
+    function makeTex(type) {
+      const cvs = document.createElement('canvas'); cvs.width = 64; cvs.height = 64;
+      const ctx = cvs.getContext('2d');
+      if (type === 'wall') {
+        ctx.fillStyle = '#666688'; ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#444466'; ctx.fillRect(0, 0, 62, 62);
+        ctx.fillStyle = '#222244'; ctx.fillRect(2, 2, 58, 58);
+      } else if (type === 'door') {
+        ctx.fillStyle = '#0055ff'; ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#00ffff'; ctx.fillRect(8, 8, 48, 48);
+      } else if (type === 'floor') {
+        ctx.fillStyle = '#333344'; ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#555566'; ctx.fillRect(0, 0, 32, 32); ctx.fillRect(32, 32, 32, 32);
+      } else if (type === 'vault') {
+        ctx.fillStyle = '#224422'; ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#33ff66'; ctx.fillRect(0, 0, 62, 62);
+        ctx.fillStyle = '#113311'; ctx.fillRect(3, 3, 58, 58);
+      }
+      const t = new THREE.CanvasTexture(cvs);
+      t.magFilter = THREE.NearestFilter;
+      return t;
+    }
+    const wallMat = new THREE.MeshLambertMaterial({ map: makeTex('wall') });
+    const doorMat = new THREE.MeshLambertMaterial({
+      map: makeTex('door'), color: 0x88bbff, emissive: 0x224466, emissiveIntensity: 0.9
+    });
+    const floorMat = new THREE.MeshLambertMaterial({ map: makeTex('floor') });
+    const vaultMat = new THREE.MeshLambertMaterial({ map: makeTex('vault') });
+    const ceilMat = new THREE.MeshBasicMaterial({ color: 0x333344 });
+
+    loadRealTexture(ASSET_URLS.wall, img => {
+      const t = new THREE.Texture(img);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = renderer.capabilities ? renderer.capabilities.getMaxAnisotropy() : 1;
+      t.needsUpdate = true;
+      wallMat.map = t; wallMat.needsUpdate = true;
+    });
+    loadRealTexture(ASSET_URLS.floor, img => {
+      const t = new THREE.Texture(img);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(MAX_GRID, MAX_GRID); // tile the small photo across the whole floor plane
+      t.needsUpdate = true;
+      floorMat.map = t; floorMat.needsUpdate = true;
+    });
+    loadRealTexture(ASSET_URLS.door, img => {
+      // Top-left cell of a 4x3 "door opening" sprite sheet = the closed door
+      // frame, but it's portrait (1:2) and the door mesh is a square cube
+      // face — take the vertical center square instead of squashing it.
+      const fw = img.width / 4, fh = img.height / 3;
+      const cropH = fw;
+      const cvs = document.createElement('canvas'); cvs.width = fw; cvs.height = cropH;
+      cvs.getContext('2d').drawImage(img, 0, (fh - cropH) / 2, fw, cropH, 0, 0, fw, cropH);
+      const t = new THREE.CanvasTexture(cvs);
+      doorMat.map = t; doorMat.needsUpdate = true; // material.color (blue) tints the grey sprite
+    });
+
+    // Pickup icons (ammo/medkit): flat-color placeholder now, swapped for
+    // real cropped icons from a CC0 item sheet once it loads.
+    function makeIconTex(color) {
+      const cvs = document.createElement('canvas'); cvs.width = 32; cvs.height = 32;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = color; ctx.fillRect(4, 4, 24, 24);
+      ctx.fillStyle = '#fff'; ctx.fillRect(14, 8, 4, 16); ctx.fillRect(8, 14, 16, 4);
+      const t = new THREE.CanvasTexture(cvs); t.magFilter = THREE.NearestFilter;
+      return t;
+    }
+    const ammoTex = makeIconTex('#cc5500');
+    const medkitTex = makeIconTex('#2266cc');
+    loadRealTexture(ASSET_URLS.items, img => {
+      function cropIcon(sx, sy, sw, sh, targetTex) {
+        const cvs = document.createElement('canvas'); cvs.width = sw; cvs.height = sh;
+        const ctx = cvs.getContext('2d');
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        const data = ctx.getImageData(0, 0, sw, sh);
+        const px = data.data;
+        for (let i = 0; i < px.length; i += 4) {
+          if (px[i] < 110 && px[i + 1] > 140 && px[i + 2] > 140) px[i + 3] = 0; // strip cyan matte
+        }
+        ctx.putImageData(data, 0, 0);
+        targetTex.image = cvs;
+        targetTex.magFilter = THREE.LinearFilter;
+        targetTex.needsUpdate = true;
+      }
+      cropIcon(170, 94, 47, 27, medkitTex);
+      cropIcon(272, 94, 38, 27, ammoTex);
+    });
+
+    const wallGeo = new THREE.BoxGeometry(CELL, CELL, CELL);
+    // Fixed at MAX_GRID regardless of each level's actual size, so floor/
+    // ceiling never need rebuilding on a level switch — every level's own
+    // perimeter wall still blocks movement at its real (smaller) edge.
+    const planeGeo = new THREE.PlaneGeometry(MAX_GRID * CELL, MAX_GRID * CELL);
+
+    const floor = new THREE.Mesh(planeGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set((MAX_GRID * CELL) / 2 - CELL / 2, 0, (MAX_GRID * CELL) / 2 - CELL / 2);
+    scene.add(floor);
+
+    const ceiling = new THREE.Mesh(planeGeo, ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set((MAX_GRID * CELL) / 2 - CELL / 2, CELL, (MAX_GRID * CELL) / 2 - CELL / 2);
+    scene.add(ceiling);
+
+    const colliders = [];      // { box, mesh } for every solid wall/door
+    let doorEntry = null;      // explicit reference, no more guess-and-splice
+    let doorOpening = false;   // true while the slide-up animation plays
+    let doorOpenT = 0;
+    let doorFlashLight = null;
+    let interactPressed = false; // edge-triggered by the E keydown handler, consumed once per frame
+    const doorBaseEmissive = new THREE.Color(); // this level's static accent tint, restored when out of E-range
+    const DOOR_OPEN_DURATION = 0.7;
+    let keyMesh = null;
+    const pickups = [];        // { mesh, kind: 'ammo'|'medkit' }
+    let exitMarker = null;
+    const levelObjects = [];   // static level geometry (walls/door/key/exit/lights), torn down between levels
+    let currentLevelIndex = 0;
+
+    // clearLevel()/loadLevel() are defined here (where the map used to be
+    // hardcoded) but only ever CALLED once, at the very end of the script,
+    // after enemies/pickups/projectiles below are all declared — function
+    // bodies aren't evaluated until called, so the forward references are
+    // fine.
+    function clearLevel() {
+      levelObjects.forEach(obj => scene.remove(obj));
+      levelObjects.length = 0;
+      enemies.forEach(e => scene.remove(e));
+      enemies.length = 0;
+      pickups.forEach(p => scene.remove(p.mesh));
+      pickups.length = 0;
+      projectiles.forEach(p => scene.remove(p.mesh));
+      projectiles.length = 0;
+      hitSparks.forEach(p => scene.remove(p.sprite));
+      hitSparks.length = 0;
+      colliders.length = 0;
+      doorEntry = null;
+      // A door mid-slide-up when the level ends (player opened it, then hit
+      // the exit before the 0.7s animation finished) would otherwise leave
+      // its flash light orphaned in the old scene forever.
+      doorOpening = false;
+      doorOpenT = 0;
+      if (doorFlashLight) { scene.remove(doorFlashLight); doorFlashLight = null; }
+      interactPressed = false;
+      document.getElementById('interact-prompt').style.display = 'none';
+      keyMesh = null;
+      exitMarker = null;
+    }
+
+    function loadLevel(levelData) {
+      clearLevel();
+      GRID = levelData.grid;
+      map = [];
+      for (let r = 0; r < GRID; r++) map.push(new Array(GRID).fill(1));
+      levelData.carve.forEach(([r0, c0, r1, c1]) => {
+        for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) map[r][c] = 0;
+      });
+      map[levelData.door[0]][levelData.door[1]] = 2;
+      map[levelData.key[0]][levelData.key[1]] = 3;
+      map[levelData.exit[0]][levelData.exit[1]] = 4;
+      levelData.ammo.forEach(([r, c]) => { map[r][c] = 5; });
+      levelData.medkit.forEach(([r, c]) => { map[r][c] = 6; });
+
+      doorMat.color.setHex(parseInt(levelData.accent.replace('#', ''), 16));
+      doorBaseEmissive.setHex(parseInt(levelData.accent.replace('#', ''), 16));
+      doorMat.emissive.copy(doorBaseEmissive);
+
+      // Each level's accent now actually colors the world, not just the
+      // door: a dark, moody version tints the fog/background, and the sky
+      // half of the hemisphere light picks up a lighter version of it — so
+      // all 10 levels read as visually distinct instead of the same grey-blue.
+      const accentHSL = {};
+      new THREE.Color(levelData.accent).getHSL(accentHSL);
+      const bgTint = new THREE.Color().setHSL(accentHSL.h, Math.min(0.6, accentHSL.s + 0.1), 0.07);
+      scene.background.copy(bgTint);
+      scene.fog.color.copy(bgTint);
+      hemiLight.color.setHSL(accentHSL.h, Math.min(0.5, accentHSL.s), 0.75);
+
+      for (let r = 0; r < GRID; r++) {
+        for (let c = 0; c < GRID; c++) {
+          const val = map[r][c];
+          const x = c * CELL, z = r * CELL;
+
+          if (val === 1) {
+            const wall = new THREE.Mesh(wallGeo, wallMat);
+            wall.position.set(x, CELL / 2, z);
+            scene.add(wall); levelObjects.push(wall);
+            colliders.push({ box: new THREE.Box3().setFromObject(wall), mesh: wall });
+          } else if (val === 2) {
+            const door = new THREE.Mesh(wallGeo, doorMat);
+            door.position.set(x, CELL / 2, z);
+            scene.add(door); levelObjects.push(door);
+            const entry = { box: new THREE.Box3().setFromObject(door), mesh: door };
+            colliders.push(entry);
+            doorEntry = entry; // exact reference — removal can never hit the wrong wall
+          } else if (val === 3) {
+            const kGeo = new THREE.BoxGeometry(1.2, 0.2, 1.2);
+            // Same color as this level's door/accent — the key visually
+            // tells you which door it opens instead of always reading cyan
+            // while doors vary per level.
+            const kMat = new THREE.MeshBasicMaterial({ color: doorMat.color.getHex() });
+            keyMesh = new THREE.Mesh(kGeo, kMat);
+            keyMesh.position.set(x, 1, z);
+            scene.add(keyMesh); levelObjects.push(keyMesh);
+          } else if (val === 4) {
+            const eGeo = new THREE.CylinderGeometry(1.4, 1.4, 3, 10);
+            const eMat = new THREE.MeshBasicMaterial({ color: 0x22ff88, transparent: true, opacity: .55 });
+            exitMarker = new THREE.Mesh(eGeo, eMat);
+            exitMarker.position.set(x, 1.5, z);
+            scene.add(exitMarker); levelObjects.push(exitMarker);
+            // Vault floor patch so the goal room reads visually distinct.
+            const patch = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), vaultMat);
+            patch.rotation.x = -Math.PI / 2;
+            patch.position.set(x, 0.02, z);
+            scene.add(patch); levelObjects.push(patch);
+          } else if (val === 5 || val === 6) {
+            const p = new THREE.Sprite(new THREE.SpriteMaterial({
+              map: val === 5 ? ammoTex : medkitTex, transparent: true
+            }));
+            p.scale.set(1.7, 1.1, 1);
+            p.position.set(x, 1.2, z);
+            scene.add(p);
+            pickups.push({ mesh: p, kind: val === 5 ? 'ammo' : 'medkit' });
+          }
+
+          if (val === 0 && (r + c) % 3 === 0) {
+            const corridorLight = new THREE.PointLight(0xffccaa, 1.3, 18);
+            corridorLight.position.set(x, CELL - 1, z);
+            scene.add(corridorLight); levelObjects.push(corridorLight);
+          }
+        }
+      }
+
+      levelData.enemies.forEach(ed => spawnEnemy(ed.type, ed.c * CELL, ed.r * CELL));
+      totalEnemies = levelData.enemies.length;
+      killCount = 0;
+      document.getElementById('kills-val').innerText = `0/${totalEnemies}`;
+
+      player.pos.set(levelData.start[1] * CELL, 2.5, levelData.start[0] * CELL);
+      player.hasKey = false;
+      const kv = document.getElementById('key-val');
+      kv.innerText = 'NONE'; kv.style.color = '#555';
+      document.getElementById('msg-box').innerText = 'FINDE DIE SCHLÜSSELKARTE';
+      document.getElementById('level-indicator').innerText =
+        `LEVEL ${currentLevelIndex + 1}/${LEVELS.length}: ${levelData.title}`;
+      camera.position.copy(player.pos);
+    }
+
+    // =========================================================
+    // ENEMIES — 4 types (Doom/Wolfenstein-style variety), each running a
+    // small state machine (idle/alert/chase-or-engage/attack/pain/dead) in
+    // the main loop. Sprites and textures follow the same pattern proven
+    // for the original single monster: procedural placeholder first, then
+    // a real CC0 sprite swapped in (chroma-keyed) once it loads.
+    // =========================================================
+    const enemies = [];
+    let killCount = 0;
+    let totalEnemies = 0;
+    let totalKillsCampaign = 0;
+
+    function createMonsterPlaceholderTex(body, eye) {
+      const cvs = document.createElement('canvas'); cvs.width = 32; cvs.height = 32;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = body; ctx.fillRect(8, 4, 16, 24);
+      ctx.fillStyle = eye; ctx.fillRect(10, 8, 4, 4); ctx.fillRect(18, 8, 4, 4);
+      const t = new THREE.CanvasTexture(cvs); t.magFilter = THREE.NearestFilter;
+      return t;
+    }
+    const gruntTex = createMonsterPlaceholderTex('#00ff33', '#ff0000');
+    const guardianTex = createMonsterPlaceholderTex('#886633', '#ffaa00');
+    const gunnerTex = createMonsterPlaceholderTex('#3388ff', '#ffff00');
+    const ambusherTex = createMonsterPlaceholderTex('#aa22cc', '#00ffff');
+
+    function swapMonsterTexture(url, targetTex, typeName) {
+      loadRealTexture(url, img => {
+        const cvs = document.createElement('canvas');
+        cvs.width = img.width; cvs.height = img.height;
+        const ctx = cvs.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, cvs.width, cvs.height);
+        const px = data.data;
+        for (let i = 0; i < px.length; i += 4) {
+          if (px[i] < 110 && px[i + 1] > 140 && px[i + 2] > 140) px[i + 3] = 0; // strip cyan matte
+        }
+        ctx.putImageData(data, 0, 0);
+        targetTex.image = cvs;
+        targetTex.magFilter = THREE.LinearFilter;
+        targetTex.needsUpdate = true;
+        const aspect = img.width / img.height;
+        enemies.filter(e => e.userData.type === typeName)
+          .forEach(e => e.scale.set(e.scale.y * aspect, e.scale.y, 1));
+      });
+    }
+    swapMonsterTexture(ASSET_URLS.monster, gruntTex, 'grunt');
+    swapMonsterTexture(ASSET_URLS.wargrin, guardianTex, 'guardian');
+    swapMonsterTexture(ASSET_URLS.droid, gunnerTex, 'gunner');
+    swapMonsterTexture(ASSET_URLS.bug, ambusherTex, 'ambusher');
+
+    // meleeRange/fireRange in world units; speed in units/second (player is
+    // 11, so melee types are a bit slower — outrunnable if you're smart
+    // about corners, ranged types hold distance instead of closing in).
+    const ENEMY_TYPES = {
+      grunt:    { health: 2, speed: 5.6, scale: 4,   tex: gruntTex,    ranged: false, hybrid: false, hides: false, aggro: 22, meleeRange: 2.2, dmg: 8,  cooldown: 1.0 },
+      // Vault guard — a real boss-tier fighter now: much tankier, closes
+      // distance while taking potshots at range, then switches to hard
+      // melee once you're close instead of just standing there.
+      guardian: { health: 10, speed: 4.8, scale: 5.8, tex: guardianTex, ranged: true, hybrid: true, hides: false, aggro: 28, meleeRange: 2.8, fireRange: 16, dmg: 17, rangedDmg: 9, cooldown: 0.85 },
+      gunner:   { health: 3, speed: 4.0, scale: 4,   tex: gunnerTex,   ranged: true,  hybrid: false, hides: false, aggro: 26, fireRange: 16,   dmg: 6,  cooldown: 1.4 },
+      ambusher: { health: 2, speed: 2.8, scale: 3.6, tex: ambusherTex, ranged: true,  hybrid: false, hides: true,  aggro: 20, fireRange: 14,   dmg: 7,  cooldown: 1.2 }
+    };
+
+    // Later levels hit harder: 1.0 on level 1 up to ~1.72 on level 10.
+    // Cached per-enemy at spawn (not re-read from currentLevelIndex every
+    // frame) since clearLevel() wipes all enemies before the next level's
+    // spawns run, so there's never a stale value to worry about.
+    function levelDifficulty() {
+      return 1 + currentLevelIndex * 0.08;
+    }
+
+    function spawnEnemy(type, x, z) {
+      const cfg = ENEMY_TYPES[type];
+      const diff = levelDifficulty();
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: cfg.tex, transparent: true }));
+      sprite.scale.set(cfg.scale, cfg.scale, 1);
+      sprite.position.set(x, 2, z);
+      sprite.userData = {
+        type, health: cfg.health, alive: true, attackCooldown: 0, painTimer: 0,
+        hidden: cfg.hides, cycleTimer: cfg.hides ? 0.6 + Math.random() * 1.2 : 0, diff
+      };
+      sprite.visible = !cfg.hides;
+      scene.add(sprite);
+      enemies.push(sprite);
+      return sprite;
+    }
+
+    const losRay = new THREE.Ray();
+    const scratchBox = new THREE.Box3();
+    function hasLineOfSight(from, to) {
+      const dir = new THREE.Vector3().subVectors(to, from);
+      const dist = dir.length();
+      dir.normalize();
+      losRay.origin.copy(from);
+      losRay.direction.copy(dir);
+      const hitPoint = new THREE.Vector3();
+      for (const c of colliders) {
+        if (losRay.intersectBox(c.box, hitPoint) && hitPoint.distanceTo(from) < dist - 1) return false;
+      }
+      return true;
+    }
+
+    // =========================================================
+    // ENEMY PROJECTILES — gunner/ambusher ranged attacks
+    // =========================================================
+    const projectiles = [];
+    const projectileTex = (() => {
+      const cvs = document.createElement('canvas'); cvs.width = 16; cvs.height = 16;
+      const ctx = cvs.getContext('2d');
+      const g = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(.4, 'rgba(255,90,40,.9)');
+      g.addColorStop(1, 'rgba(255,20,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(8, 8, 8, 0, Math.PI * 2); ctx.fill();
+      return new THREE.CanvasTexture(cvs);
+    })();
+    function fireProjectile(enemy, cfg) {
+      playSound('enemyshot');
+      const dir = player.pos.clone().sub(enemy.position).normalize();
+      const mesh = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: projectileTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+      }));
+      mesh.scale.set(1.1, 1.1, 1);
+      mesh.position.copy(enemy.position).addScaledVector(dir, 1.6);
+      mesh.position.y = 2;
+      scene.add(mesh);
+      projectiles.push({ mesh, vel: dir.multiplyScalar(24), dmg: cfg.rangedDmg || cfg.dmg, life: 3 });
+    }
+    function updateProjectiles(dt) {
+      const pBox = new THREE.Box3();
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.life -= dt;
+        p.mesh.position.addScaledVector(p.vel, dt);
+        let hit = false;
+        if (p.mesh.position.distanceTo(player.pos) < 1.7) { damagePlayer(p.dmg); hit = true; }
+        if (!hit) {
+          pBox.setFromCenterAndSize(p.mesh.position, new THREE.Vector3(.6, .6, .6));
+          for (const c of colliders) if (c.box.intersectsBox(pBox)) { hit = true; break; }
+        }
+        if (hit || p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); }
+      }
+    }
+
+    // --- HIT FEEDBACK: additive spark burst on every landed shot ---
+    const sparkTex = (() => {
+      const cvs = document.createElement('canvas'); cvs.width = 32; cvs.height = 32;
+      const ctx = cvs.getContext('2d');
+      const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(.4, 'rgba(255,120,40,.9)');
+      g.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(16, 16, 16, 0, Math.PI * 2); ctx.fill();
+      return new THREE.CanvasTexture(cvs);
+    })();
+    const hitSparks = [];
+    function spawnHitSpark(pos) {
+      for (let i = 0; i < 6; i++) {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: sparkTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+        }));
+        s.position.copy(pos);
+        s.scale.setScalar(0.5 + Math.random() * 0.4);
+        scene.add(s);
+        hitSparks.push({
+          sprite: s,
+          vel: new THREE.Vector3((Math.random() - .5) * 4, Math.random() * 3, (Math.random() - .5) * 4),
+          life: 0.3 + Math.random() * 0.15
+        });
+      }
+    }
+    function updateHitSparks(dt) {
+      for (let i = hitSparks.length - 1; i >= 0; i--) {
+        const p = hitSparks[i];
+        p.life -= dt;
+        if (p.life <= 0) { scene.remove(p.sprite); hitSparks.splice(i, 1); continue; }
+        p.vel.y -= 9 * dt;
+        p.sprite.position.addScaledVector(p.vel, dt);
+        p.sprite.material.opacity = Math.max(0, p.life / 0.45);
+      }
+    }
+
+    function applyHitToEnemy(e, dmg) {
+      if (!e.userData.alive) return;
+      e.userData.health -= dmg;
+      e.userData.painTimer = 0.15;
+      playSound('hit');
+      spawnHitSpark(e.position);
+      if (e.userData.health <= 0) {
+        e.userData.alive = false;
+        e.scale.set(e.scale.x, 1, 1); e.position.y = 0.5;
+        killCount++;
+        totalKillsCampaign++;
+        document.getElementById('kills-val').innerText = `${killCount}/${totalEnemies}`;
+      }
+    }
+
+    // =========================================================
+    // PLAYER & CONTROLS
+    // =========================================================
+    // Per-weapon magazine, shared reserve pool: switching weapon (1/2) does
+    // NOT reset the other gun's reload — each tracks its own reloading flag,
+    // so a reload started on one weapon just keeps running in the background
+    // if you switch away and back.
+    const MAG_SIZE = { pistol: 7, shotgun: 4 };
+    const player = {
+      pos: new THREE.Vector3(16, 2.5, 16),
+      rotY: 0, rotX: 0,
+      hasKey: false, reserveAmmo: 17, health: 100,
+      magazine: { pistol: MAG_SIZE.pistol, shotgun: MAG_SIZE.shotgun },
+      reloading: { pistol: false, shotgun: false },
+      sensitivity: 0.0036,
+      alive: true
+    };
+    function updateAmmoHud() {
+      document.getElementById('ammo-val').innerText = `${player.magazine[currentWeapon]}/${player.reserveAmmo}`;
+    }
+    updateAmmoHud();
+    let gameEnded = false;
+    const keys = {};
+    const raycaster = new THREE.Raycaster();
+
+    function lockPointer() { document.body.requestPointerLock(); }
+
+    document.getElementById('start-screen').addEventListener('click', () => {
+      document.getElementById('start-screen').style.display = 'none';
+      lockPointer();
+      playSound('door');
+    });
+    document.getElementById('lock-screen').addEventListener('click', () => {
+      if (!gameEnded) lockPointer();
+    });
+    document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+    document.getElementById('restart-btn-2').addEventListener('click', () => location.reload());
+
+    document.addEventListener('pointerlockchange', () => {
+      const locked = document.pointerLockElement === document.body;
+      document.getElementById('lock-screen').style.display = (!locked && !gameEnded) ? 'flex' : 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === document.body) {
+        player.rotY -= e.movementX * player.sensitivity;
+        player.rotX -= e.movementY * player.sensitivity;
+        player.rotX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, player.rotX));
+        // Weapon dynamically leans into the aim direction, then settles back.
+        weaponSway = Math.max(-16, Math.min(16, weaponSway - e.movementX * 0.18));
+      }
+    });
+
+    // LEFT CLICK / SPACE = shoot, RIGHT CLICK / R = reload. (The previous
+    // handler never checked e.button at all, so literally any mouse button
+    // fired a shot.)
+    function shoot() {
+      // Proves every registered click/press reached the handler, even one
+      // that fires no shot (reloading / empty mag).
+      const ch = document.getElementById('crosshair');
+      ch.classList.remove('pulse'); void ch.offsetWidth; ch.classList.add('pulse');
+
+      if (player.reloading[currentWeapon]) return;
+      if (player.magazine[currentWeapon] <= 0) {
+        playSound('empty');
+        const av = document.getElementById('ammo-val');
+        av.classList.remove('flash-empty'); void av.offsetWidth; av.classList.add('flash-empty');
+        return;
+      }
+      player.magazine[currentWeapon]--;
+      updateAmmoHud();
+      playSound('shot');
+      currentRecoil = 1;
+      flashLight.position.copy(player.pos); flashLight.intensity = 4;
+      setTimeout(() => { currentRecoil = 0; flashLight.intensity = 0; }, 80);
+
+      const pelletCount = currentWeapon === 'shotgun' ? 5 : 1;
+      const spread = currentWeapon === 'shotgun' ? 0.07 : 0;
+      const dmgPerHit = currentWeapon === 'shotgun' ? 1 : 2; // pistol one-shots a grunt's 2 HP; shotgun needs 2 pellets per HP
+      for (let i = 0; i < pelletCount; i++) {
+        const ndc = new THREE.Vector2((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread);
+        raycaster.setFromCamera(ndc, camera);
+        const hits = raycaster.intersectObjects(enemies.filter(e => e.userData.alive));
+        if (hits.length > 0) applyHitToEnemy(hits[0].object, dmgPerHit);
+      }
+    }
+
+    // Reload is per-weapon: switching weapons mid-reload doesn't cancel or
+    // reset it, it just keeps counting down in the background.
+    function reload() {
+      const w = currentWeapon;
+      if (player.reloading[w] || player.magazine[w] >= MAG_SIZE[w] || player.reserveAmmo <= 0) {
+        if (!player.reloading[w] && player.reserveAmmo <= 0 && player.magazine[w] < MAG_SIZE[w]) playSound('empty');
+        return;
+      }
+      player.reloading[w] = true;
+      playSound('reload');
+      setTimeout(() => playSound('reload'), 420);
+      setTimeout(() => {
+        const needed = MAG_SIZE[w] - player.magazine[w];
+        const take = Math.min(needed, player.reserveAmmo);
+        player.magazine[w] += take;
+        player.reserveAmmo -= take;
+        player.reloading[w] = false;
+        updateAmmoHud();
+      }, 850);
+    }
+
+    // E-press door open: unlocks the collider immediately (so the player can
+    // walk through mid-animation) and kicks off the slide-up + blue flash
+    // handled per-frame in animate().
+    function openDoor() {
+      if (!doorEntry || doorOpening) return;
+      doorOpening = true;
+      doorOpenT = 0;
+      const idx = colliders.indexOf(doorEntry);
+      if (idx !== -1) colliders.splice(idx, 1);
+      playSound('door');
+      document.getElementById('msg-box').innerText = 'TÜR ENTRIEGELT — TRESORRAUM ERREICHEN!';
+      document.getElementById('interact-prompt').style.display = 'none';
+      doorFlashLight = new THREE.PointLight(0x33ccff, 3, 14);
+      doorFlashLight.position.copy(doorEntry.mesh.position);
+      scene.add(doorFlashLight);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'Digit1') { currentWeapon = 'pistol'; document.getElementById('weapon-val').innerText = 'PISTOLE'; updateAmmoHud(); }
+      if (e.code === 'Digit2') { currentWeapon = 'shotgun'; document.getElementById('weapon-val').innerText = 'SCHROTFLINTE'; updateAmmoHud(); }
+      if (e.code === 'KeyR' && !e.repeat && document.pointerLockElement === document.body && !gameEnded) reload();
+      if (e.code === 'KeyE' && !e.repeat && document.pointerLockElement === document.body && !gameEnded) interactPressed = true;
+      // Space = alternate fire button (one shot per press, no auto-fire on
+      // hold — same behavior as a mouse click). preventDefault stops the
+      // browser from scrolling the page on Space.
+      if (e.code === 'Space' && !e.repeat && document.pointerLockElement === document.body && !gameEnded) { e.preventDefault(); shoot(); }
+    });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+    window.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement !== document.body || gameEnded) return;
+      if (e.button === 0) shoot();
+      else if (e.button === 2) reload();
+    });
+    window.addEventListener('contextmenu', (e) => {
+      if (document.pointerLockElement === document.body) e.preventDefault();
+    });
+
+    function damagePlayer(amount) {
+      player.health = Math.max(0, player.health - amount);
+      document.getElementById('health-val').innerText = Math.round(player.health) + '%';
+      const flash = document.getElementById('damage-flash');
+      flash.style.background = 'rgba(255,0,0,.35)';
+      setTimeout(() => flash.style.background = 'rgba(255,0,0,0)', 120);
+      playSound('hurt');
+      if (player.health <= 0 && player.alive) {
+        player.alive = false;
+        endGame(false);
+      }
+    }
+
+    function endGame(won) {
+      gameEnded = true;
+      document.exitPointerLock();
+      document.getElementById('lock-screen').style.display = 'none';
+      const screen = document.getElementById(won ? 'victory-screen' : 'gameover-screen');
+      const stats = document.getElementById(won ? 'victory-stats' : 'gameover-stats');
+      stats.innerText = won
+        ? `KAMPAGNE ABGESCHLOSSEN // ${totalKillsCampaign} Wachen insgesamt ausgeschaltet // ${player.magazine.pistol + player.magazine.shotgun + player.reserveAmmo} Schuss übrig`
+        : `LEVEL ${currentLevelIndex + 1}/${LEVELS.length} // ${totalKillsCampaign} Wachen insgesamt ausgeschaltet, bevor es dich erwischt hat.`;
+      screen.style.display = 'flex';
+      playSound(won ? 'win' : 'hit');
+    }
+
+    function goToNextLevel() {
+      if (currentLevelIndex < LEVELS.length - 1) {
+        currentLevelIndex++;
+        loadLevel(LEVELS[currentLevelIndex]);
+        playSound('levelup');
+      } else {
+        endGame(true);
+      }
+    }
+
+    // --- COLLISION ---
+    function checkWallCollision(newPos) {
+      const pBox = new THREE.Box3().setFromCenterAndSize(newPos, new THREE.Vector3(1.5, 3, 1.5));
+      for (const c of colliders) {
+        if (c.box.intersectsBox(pBox)) return true;
+      }
+      return false;
+    }
+
+    // =========================================================
+    // MINIMAP
+    // =========================================================
+    const miniCtx = document.getElementById('minimap').getContext('2d');
+    function drawMinimap() {
+      const cell = 150 / GRID;
+      miniCtx.clearRect(0, 0, 150, 150);
+      for (let r = 0; r < GRID; r++) {
+        for (let c = 0; c < GRID; c++) {
+          const v = map[r][c];
+          miniCtx.fillStyle = v === 1 ? '#333' : v === 2 ? '#0055ff' : v === 4 ? '#22ff88' : '#111';
+          miniCtx.fillRect(c * cell, r * cell, cell - 0.5, cell - 0.5);
+        }
+      }
+      if (keyMesh) {
+        miniCtx.fillStyle = '#00ffff';
+        miniCtx.fillRect((keyMesh.position.x / CELL) * cell - 1, (keyMesh.position.z / CELL) * cell - 1, 3, 3);
+      }
+      enemies.forEach(e => {
+        if (!e.userData.alive) return;
+        miniCtx.fillStyle = '#ff2222';
+        miniCtx.fillRect((e.position.x / CELL) * cell - 1, (e.position.z / CELL) * cell - 1, 3, 3);
+      });
+      const px = (player.pos.x / CELL) * cell, pz = (player.pos.z / CELL) * cell;
+      miniCtx.save();
+      miniCtx.translate(px, pz);
+      miniCtx.rotate(player.rotY);
+      miniCtx.fillStyle = '#ffcc00';
+      miniCtx.beginPath();
+      miniCtx.moveTo(0, -4); miniCtx.lineTo(3, 3); miniCtx.lineTo(-3, 3);
+      miniCtx.closePath(); miniCtx.fill();
+      miniCtx.restore();
+    }
+
+    // =========================================================
+    // GAME LOOP
+    // =========================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      weaponSway += (0 - weaponSway) * Math.min(1, 6 * dt);
+      drawWeapon(currentRecoil);
+      if (gameEnded) { renderFrame(); return; }
+
+      // Door slide-up animation — advances every frame regardless of
+      // pointer lock so it never freezes mid-motion if the player alt-tabs.
+      if (doorOpening && doorEntry) {
+        doorOpenT += dt;
+        const t = Math.min(1, doorOpenT / DOOR_OPEN_DURATION);
+        const ease = t * t * (3 - 2 * t);
+        doorEntry.mesh.position.y = CELL / 2 + ease * CELL * 1.6;
+        if (doorFlashLight) doorFlashLight.intensity = 3 * (1 - ease);
+        if (t >= 1) {
+          scene.remove(doorEntry.mesh);
+          if (doorFlashLight) { scene.remove(doorFlashLight); doorFlashLight = null; }
+          doorEntry = null;
+          doorOpening = false;
+        }
+      }
+
+      // Reload indicator tracks whichever weapon is currently equipped —
+      // a reload started on the other weapon keeps running silently.
+      document.getElementById('reload-indicator').style.display = player.reloading[currentWeapon] ? 'block' : 'none';
+
+      if (document.pointerLockElement === document.body) {
+        const speed = 11;
+        const dir = new THREE.Vector3();
+        if (keys['KeyW']) dir.z -= 1;
+        if (keys['KeyS']) dir.z += 1;
+        if (keys['KeyA']) dir.x -= 1;
+        if (keys['KeyD']) dir.x += 1;
+
+        if (dir.lengthSq() > 0) {
+          dir.normalize();
+          dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotY);
+
+          const nextX = player.pos.clone().add(new THREE.Vector3(dir.x * speed * dt, 0, 0));
+          if (!checkWallCollision(nextX)) player.pos.x = nextX.x;
+
+          const nextZ = player.pos.clone().add(new THREE.Vector3(0, 0, dir.z * speed * dt));
+          if (!checkWallCollision(nextZ)) player.pos.z = nextZ.z;
+        }
+
+        // Key pickup
+        if (keyMesh && player.pos.distanceTo(keyMesh.position) < 2.5) {
+          player.hasKey = true;
+          scene.remove(keyMesh); keyMesh = null;
+          playSound('item');
+          const kv = document.getElementById('key-val');
+          kv.innerText = 'AKTIV'; kv.style.color = '#' + doorMat.color.getHexString();
+          document.getElementById('msg-box').innerText = 'SCHLÜSSELKARTE GEFUNDEN — ZUR TÜR!';
+        }
+
+        // Ammo / medkit pickups
+        for (let i = pickups.length - 1; i >= 0; i--) {
+          const pk = pickups[i];
+          if (player.pos.distanceTo(pk.mesh.position) < 2) {
+            if (pk.kind === 'ammo') {
+              player.reserveAmmo += 12;
+              updateAmmoHud();
+            } else {
+              player.health = Math.min(100, player.health + 40);
+              document.getElementById('health-val').innerText = Math.round(player.health) + '%';
+            }
+            playSound('item');
+            scene.remove(pk.mesh);
+            pickups.splice(i, 1);
+          }
+        }
+
+        // Door interaction — real E-press prompt with a pulsing blue glow
+        // added on top of the door's level-accent color, instead of
+        // auto-opening. Range is 7 (not 5): the door's own collider box has
+        // a half-extent of CELL/2=4, and the player's collision box a
+        // half-extent of 0.75, so the closest the player can physically get
+        // is a ~4.75 gap from the door's center — a <5 threshold left under
+        // half a unit of margin and, at low framerate, could stop the
+        // player just outside it entirely. 7 gives comfortable headroom.
+        const promptEl = document.getElementById('interact-prompt');
+        if (doorEntry && !doorOpening) {
+          const nearDoor = player.pos.distanceTo(doorEntry.mesh.position) < 7;
+          if (nearDoor) {
+            const pulse = 0.35 + Math.sin(clock.getElapsedTime() * 6) * 0.25;
+            doorMat.emissive.copy(doorBaseEmissive);
+            doorMat.emissive.g = Math.min(1, doorMat.emissive.g + pulse * 0.5);
+            doorMat.emissive.b = Math.min(1, doorMat.emissive.b + pulse);
+            promptEl.style.display = 'block';
+            if (player.hasKey) {
+              promptEl.className = '';
+              promptEl.innerText = '[E] TÜR ÖFFNEN';
+              if (interactPressed) openDoor();
+            } else {
+              promptEl.className = 'locked';
+              promptEl.innerText = 'BENÖTIGT BLAUE SCHLÜSSELKARTE';
+              if (interactPressed) document.getElementById('msg-box').innerText = 'BENÖTIGT BLAUE SCHLÜSSELKARTE!';
+            }
+          } else {
+            doorMat.emissive.copy(doorBaseEmissive);
+            promptEl.style.display = 'none';
+          }
+        } else {
+          promptEl.style.display = 'none';
+        }
+        interactPressed = false;
+
+        // Win condition — advance to the next level, or finish the campaign
+        if (exitMarker && player.pos.distanceTo(exitMarker.position) < 3) {
+          goToNextLevel();
+        }
+      }
+
+      // Camera
+      camera.position.copy(player.pos);
+      if (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']) {
+        camera.position.y = 2.5 + Math.sin(clock.getElapsedTime() * 12) * 0.08;
+      }
+      camera.rotation.y = player.rotY;
+      camera.rotation.x = player.rotX;
+      camera.rotation.z = 0;
+
+      // Enemies: per-type state machine (idle / alert / chase-or-engage /
+      // attack / pain / dead). Melee types (grunt) close to meleeRange and
+      // attack; ranged types (gunner/ambusher) hold at fireRange and shoot
+      // projectiles instead; ambushers additionally cycle hidden <->
+      // visible so they only expose themselves to fire; guardians are
+      // hybrid — they shoot AND advance while out of melee range, then
+      // switch to hard melee once you're close. Every stat scales with
+      // `ud.diff` (set once at spawn from the level index), so identical
+      // enemy types get sharper reflexes and quicker attacks on later
+      // levels instead of every level feeling the same.
+      enemies.forEach(e => {
+        if (!e.userData.alive) return;
+        const ud = e.userData;
+        const cfg = ENEMY_TYPES[ud.type];
+        const diff = ud.diff || 1;
+        const effAggro = cfg.aggro * Math.min(diff, 1.3);
+        const effSpeed = cfg.speed * Math.min(diff, 1.3);
+        const effCooldown = Math.max(cfg.cooldown / diff, cfg.cooldown * 0.55);
+
+        if (ud.painTimer > 0) {
+          ud.painTimer -= dt;
+          e.lookAt(player.pos);
+          return; // brief flinch — no movement or attack this frame
+        }
+
+        const dist = e.position.distanceTo(player.pos);
+        const los = dist < effAggro && hasLineOfSight(e.position, player.pos);
+
+        if (cfg.hides) {
+          ud.cycleTimer -= dt;
+          const inRange = los && dist < cfg.fireRange;
+          // Higher difficulty = shorter hide/peek cycle — they duck back
+          // down and pop up again faster instead of holding a long pose.
+          const peekCycle = Math.max(1.2 / diff, 0.6);
+          const hideCycle = Math.max(1.8 / diff, 0.9);
+          if (ud.hidden) {
+            e.visible = false;
+            // Only pop up if actually close enough to shoot — otherwise it
+            // used to peek at nothing from outside firing range and duck
+            // back down, which read as broken rather than "ambush".
+            if (inRange && ud.cycleTimer <= 0) { ud.hidden = false; e.visible = true; ud.cycleTimer = peekCycle; }
+            return;
+          }
+          e.visible = true;
+          e.lookAt(player.pos);
+          if (inRange) {
+            ud.attackCooldown -= dt;
+            if (ud.attackCooldown <= 0) { ud.attackCooldown = effCooldown; fireProjectile(e, cfg); }
+          }
+          if (ud.cycleTimer <= 0 || !inRange) { ud.hidden = true; ud.cycleTimer = hideCycle; }
+          return;
+        }
+
+        if (!los) return; // idle — hasn't spotted the player (or lost them)
+        e.lookAt(player.pos);
+
+        if (cfg.hybrid) {
+          if (dist > cfg.fireRange) {
+            e.position.addScaledVector(player.pos.clone().sub(e.position).normalize(), effSpeed * dt);
+          } else if (dist > cfg.meleeRange) {
+            // Still closing in (at half speed) while it peppers you at
+            // range — it doesn't turtle like a pure gunner, it hunts.
+            e.position.addScaledVector(player.pos.clone().sub(e.position).normalize(), effSpeed * 0.5 * dt);
+            ud.attackCooldown -= dt;
+            if (ud.attackCooldown <= 0) { ud.attackCooldown = effCooldown; fireProjectile(e, cfg); }
+          } else {
+            ud.attackCooldown -= dt;
+            if (ud.attackCooldown <= 0) { ud.attackCooldown = effCooldown; damagePlayer(cfg.dmg); }
+          }
+        } else if (cfg.ranged) {
+          if (dist > cfg.fireRange) {
+            e.position.addScaledVector(player.pos.clone().sub(e.position).normalize(), effSpeed * dt);
+          } else {
+            ud.attackCooldown -= dt;
+            if (ud.attackCooldown <= 0) { ud.attackCooldown = effCooldown; fireProjectile(e, cfg); }
+          }
+        } else {
+          if (dist > cfg.meleeRange) {
+            e.position.addScaledVector(player.pos.clone().sub(e.position).normalize(), effSpeed * dt);
+          } else {
+            ud.attackCooldown -= dt;
+            if (ud.attackCooldown <= 0) { ud.attackCooldown = effCooldown; damagePlayer(cfg.dmg); }
+          }
+        }
+      });
+
+      updateProjectiles(dt);
+      updateHitSparks(dt);
+      drawMinimap();
+      renderFrame();
+    }
+
+    loadLevel(LEVELS[0]);
+    animate();
+  </script>
+</body>
+</html>
