@@ -187,6 +187,7 @@
   let solidMeshes = [];
   let activeEffects = [];
   let ammoPickups = [];
+  let medkitPickups = [];
   let botTextures = {};
   let weaponImages = {};
   let assetsReady = null;
@@ -434,6 +435,26 @@
     ammoPickups.push({ x, z, mesh, ring, available: true, respawnAt: 0, phase: index * 1.4 });
   }
 
+  // Distinct green cross (not the ammo octahedron's diamond) so the two
+  // pickup types read differently from across the map, not just up close.
+  function createMedkitPickup(x, z, index) {
+    const group = new THREE.Group();
+    const barMat = new THREE.MeshBasicMaterial({ color: '#3dffa0', toneMapped: false });
+    const barH = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.14), barMat);
+    const barV = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.5, 0.14), barMat);
+    group.add(barH, barV);
+    group.position.set(x, 0.7, z);
+    arenaRoot.add(group);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.49, 0.035, 5, 14),
+      new THREE.MeshBasicMaterial({ color: '#3dffa0', toneMapped: false })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x, 0.14, z);
+    arenaRoot.add(ring);
+    medkitPickups.push({ x, z, mesh: group, ring, available: true, respawnAt: 0, phase: index * 1.4 });
+  }
+
   function addArenaSign(text, color, x, z, rotation = 0) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -496,6 +517,7 @@
     obstacles = [];
     solidMeshes = [];
     ammoPickups = [];
+    medkitPickups = [];
     clearActors();
     clearEffects();
 
@@ -582,6 +604,17 @@
       dais.material.emissiveIntensity = 0.22;
     }
     [[-34, 0], [34, 0], [0, -34], [0, 34]].forEach(([x, z], index) => createAmmoPickup(x, z, index));
+    if (IS_CTF) {
+      // One pair flanking each team's flag stand (close enough to matter
+      // during a contested capture attempt, offset so they don't overlap
+      // the flag standard mesh itself) plus one at midfield, where most
+      // of the actual fighting over flag runs happens - "hard to score"
+      // usually means dying on the way back more than dying at the base.
+      const blueBase = spec.ctf.blueBase, redBase = spec.ctf.redBase;
+      [[blueBase[0], blueBase[1] - 5], [blueBase[0], blueBase[1] + 5]].forEach(([x, z], i) => createMedkitPickup(x, z, i));
+      [[redBase[0], redBase[1] - 5], [redBase[0], redBase[1] + 5]].forEach(([x, z], i) => createMedkitPickup(x, z, i + 2));
+      createMedkitPickup(0, 0, 4);
+    }
     addArenaSign(spec.name + ' // FRAG ARENA', spec.accent, 0, -40.9, 0);
     ui.arena.textContent = spec.name;
     ui.arena.style.color = spec.accent;
@@ -633,10 +666,28 @@
     };
   }
 
+  // Player-team combat buff, applied by instance field rather than
+  // mutating bot.archetype - that object is a shared reference from
+  // BOT_ARCHETYPES (multiple bot instances of the same archetype, across
+  // both this match and any future deathmatch, point at the exact same
+  // object), so writing to it directly would leak the buff everywhere,
+  // permanently, not just onto this one blue-team instance.
+  const CTF_ALLY_SKILL_BONUS = 0.12;
+  const CTF_ALLY_HEALTH_BONUS = 35;
+  const CTF_ALLY_FIRE_RATE_MULT = 0.82; // <1 = shorter cooldown = fires more often
   function applyCTFTeamIdentity(bot) {
     const blue = bot.team === 'blue';
     const color = blue ? '#53dfff' : '#ff536a';
     bot.teamColor = color;
+    if (blue && bot !== player) {
+      bot.effectiveSkill = Math.min(0.95, bot.archetype.skill + CTF_ALLY_SKILL_BONUS);
+      bot.fireRateMult = CTF_ALLY_FIRE_RATE_MULT;
+      if (!bot.ctfBuffedMaxHealth) {
+        bot.maxHealth += CTF_ALLY_HEALTH_BONUS;
+        bot.health = bot.maxHealth;
+        bot.ctfBuffedMaxHealth = true;
+      }
+    }
     if (!bot.sprite?.material?.color) return;
     bot.sprite.material.color.set(blue ? '#c5f5ff' : '#ffd0d7');
     if (bot.teamMarker) return;
@@ -1083,11 +1134,13 @@
 
   function fireBot(bot, target, distance, now = performance.now()) {
     const weapon = WEAPONS[bot.weaponIndex];
-    const accuracy = Math.max(0.22, bot.archetype.skill - distance * 0.009);
+    const skill = bot.effectiveSkill ?? bot.archetype.skill;
+    const accuracy = Math.max(0.22, skill - distance * 0.009);
     const hits = Math.random() < accuracy;
+    const cooldown = (bot.weaponIndex === 3 ? 310 : 680 + Math.random() * 480) * (bot.fireRateMult ?? 1);
     if (fallbackMode) {
       createFallbackBeam(bot.x, bot.z, target.x, target.z, weapon.color, 0.2);
-      bot.nextShotAt = now + (bot.weaponIndex === 3 ? 310 : 680 + Math.random() * 480);
+      bot.nextShotAt = now + cooldown;
       playBotWeaponAudio(bot, weapon, now);
       if (hits) damageContestant(target, 9 + Math.round(weapon.damage * 0.09), bot);
       return;
@@ -1098,7 +1151,7 @@
       ? destination
       : destination.clone().add(new THREE.Vector3((Math.random() - .5) * distance * .35, (Math.random() - .5) * 2, (Math.random() - .5) * distance * .35));
     createBeam(origin, end, weapon.color, 0.12, 0.16);
-    bot.nextShotAt = now + (bot.weaponIndex === 3 ? 310 : 680 + Math.random() * 480);
+    bot.nextShotAt = now + cooldown;
     playBotWeaponAudio(bot, weapon, now);
     if (hits) damageContestant(target, 9 + Math.round(weapon.damage * 0.09), bot);
   }
@@ -1758,7 +1811,10 @@
 
     if (!actor.flag && target && !['RECOVER', 'INTERCEPT'].includes(actor.role)) {
       const d = Math.hypot(target.x - actor.x, target.z - actor.z);
-      if (d < 22) {
+      // Blue allies notice and break off to engage threats from further
+      // out than the baseline 22 - more alert, not just harder-hitting.
+      const engageRange = (actor.team === 'blue' && actor !== player) ? 27 : 22;
+      if (d < engageRange) {
         const angle = slot * Math.PI * 2 / 5 + (actor.team === 'blue' ? 0 : 0.28);
         tx = target.x + Math.cos(angle) * 7.2;
         tz = target.z + Math.sin(angle) * 7.2;
@@ -1785,6 +1841,12 @@
       } else finishCTFMatch();
     }
     updatePlayerCTF(dt);
+    // Deathmatch mode already ran this every frame; CTF's game loop never
+    // did, so the ammo crates arena-tournament builds into every arena
+    // (createAmmoPickup, unconditional on game mode) sat there rendered
+    // but inert in CTF - no animation, no pickup, ever. One missing call.
+    updateAmmoPickups(dt);
+    updateMedkitPickups(dt);
     const now = performance.now();
     for (const bot of bots) {
       if (!bot.alive) {
@@ -1887,6 +1949,33 @@
         restored += ammo.reserve - before;
       });
       if (restored) appendKillFeed('AMMO CACHE', 'ALL WEAPONS', 'RESUPPLIED');
+      pickup.available = false;
+      pickup.respawnAt = now + 18000;
+      pickup.mesh.visible = false;
+      pickup.ring.visible = false;
+      updateHud(true);
+    }
+  }
+
+  function updateMedkitPickups(dt) {
+    const now = performance.now();
+    for (const pickup of medkitPickups) {
+      pickup.phase += dt * 1.8;
+      if (!fallbackMode) {
+        pickup.mesh.rotation.y += dt * 1.6;
+        pickup.mesh.position.y = 0.7 + Math.sin(pickup.phase) * 0.12;
+      }
+      if (!pickup.available) {
+        if (now >= pickup.respawnAt) {
+          pickup.available = true;
+          pickup.mesh.visible = true;
+          pickup.ring.visible = true;
+        }
+        continue;
+      }
+      if (!player.alive || player.health >= player.maxHealth || Math.hypot(player.x - pickup.x, player.z - pickup.z) > 1.55) continue;
+      player.health = Math.min(player.maxHealth, player.health + 45);
+      appendKillFeed('MEDKIT', 'FIELD REPAIR', 'HEALTH RESTORED');
       pickup.available = false;
       pickup.respawnAt = now + 18000;
       pickup.mesh.visible = false;
