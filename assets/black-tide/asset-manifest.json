@@ -1,0 +1,133 @@
+{
+  "title": "GNS Black Tide original generated artwork",
+  "sourceDirectory": "attached_assets/generated_images/black-tide",
+  "runtimeDirectory": "MONOLITH-GAMES/assets/black-tide",
+  "promptRecoveryNote": "The original generation prompts were not retained in the workspace metadata or available project history. They are intentionally not reconstructed.",
+  "launcherCover": {
+    "source": "attached_assets/generated_images/black-tide-cover-cinematic.png",
+    "runtime": "MONOLITH-GAMES/assets/black-tide/black-tide-cover.webp",
+    "runtimeDimensions": "1280x720",
+    "transparent": false,
+    "description": "Cinematic storm-coast key art with an original Jaeger and deep-sea Kaiju.",
+    "originalPrompt": "Original cinematic science-fiction game key art for a storm-battered Japanese industrial coastline at night, one enormous weathered steel Jaeger mech in the foreground facing a towering deep-sea Kaiju across flooded harbor roads, hard rain, waves and spray, distant coastal industrial skyline with scattered amber warning lights, deep ink navy and teal with restrained orange bioluminescence, realistic high-detail painted concept art, bold readable silhouettes, atmospheric rim lighting, professional premium video-game cover composition, wide 16:9 layout, no text, no logos, no letters, no borders, no franchise references, no existing characters"
+  },
+  "assets": [
+    {
+      "id": "marauder",
+      "source": "jaeger-marauder.png",
+      "runtime": "jaeger-marauder.webp",
+      "runtimeDimensions": "533x768",
+      "transparent": true,
+      "description": "Blue steel heavy Jaeger with a large shoulder cannon.",
+      "originalPrompt": null
+    },
+    {
+      "id": "anchor",
+      "source": "jaeger-anchor.png",
+      "runtime": "jaeger-anchor.webp",
+      "runtimeDimensions": "666x768",
+      "transparent": true,
+      "description": "Amber-accented defensive Jaeger with broad armored forearms.",
+      "originalPrompt": null
+    },
+    {
+      "id": "wraith",
+      "source": "jaeger-wraith.png",
+      "runtime": "jaeger-wraith.webp",
+      "runtimeDimensions": "485x768",
+      "transparent": true,
+      "description": "Slender violet Jaeger with blade-like armor.",
+      "originalPrompt": null
+    },
+    {
+      "id": "tidebreaker",
+      "source": "kaiju-tidebreaker.png",
+      "runtime": "kaiju-tidebreaker.webp",
+      "runtimeDimensions": "768x739",
+      "transparent": true,
+      "description": "Large horned coastal Kaiju with a heavy tail.",
+      "originalPrompt": null
+    },
+    {
+      "id": "riftmaw",
+      "source": "kaiju-riftmaw.png",
+      "runtime": "kaiju-riftmaw.webp",
+      "runtimeDimensions": "581x768",
+      "transparent": true,
+      "description": "Lean spined Kaiju with elongated arms and glowing fissures.",
+      "originalPrompt": null
+    },
+    {
+      "id": "marauder-back",
+      "source": "jaeger-marauder-back.png",
+      "runtime": "jaeger-marauder-back.webp",
+      "runtimeDimensions": "401x768",
+      "transparent": true,
+      "description": "Rear-view companion sprite for the blue slate-steel cannon Jaeger.",
+      "originalPrompt": "Original industrial science-fiction Jaeger robot, full-body REAR VIEW seen directly from behind, no face and no chest visible. Match this specific original design: tall heavy blue slate-steel combat mech, oversized cannon mounted on its left shoulder (left as seen from the mech's back), broad armored shoulders, layered back armor, cyan running lights, worn salt-sprayed plating, visible hip joints and both feet. Centered upright neutral stance, whole silhouette and feet visible, detailed realistic painted game concept art, isolated cutout, transparent background, no text, no logos, no extra characters, not based on any existing franchise or recognizable copyrighted character."
+    },
+    {
+      "id": "anchor-back",
+      "source": "jaeger-anchor-back.png",
+      "runtime": "jaeger-anchor-back.webp",
+      "runtimeDimensions": "505x768",
+      "transparent": true,
+      "description": "Rear-view companion sprite for the amber defensive Jaeger.",
+      "originalPrompt": "Original industrial science-fiction Jaeger robot, full-body REAR VIEW seen directly from behind, no face and no chest visible. Match this specific original design: broad defensive robot with chunky amber-bronze armor, huge reinforced forearms, broad shoulder plates, a layered protective back plate and exposed central spine assembly, muted teal status lights, weathered metal. Centered upright neutral stance, whole silhouette and both feet visible, detailed realistic painted game concept art, isolated cutout, transparent background, no text, no logos, no extra characters, not based on any existing franchise or recognizable copyrighted character."
+    },
+    {
+      "id": "wraith-back",
+      "source": "jaeger-wraith-back.png",
+      "runtime": "jaeger-wraith-back.webp",
+      "runtimeDimensions": "439x768",
+      "transparent": true,
+      "description": "Rear-view companion sprite for the violet blade-armored Jaeger.",
+      "originalPrompt": "Original industrial science-fiction Jaeger robot, full-body REAR VIEW seen directly from behind, no face and no chest visible. Match this specific original design: slender agile violet-steel mech, narrow waist, long blade-like armor fins along the shoulders and outer arms, segmented back armor, fine lavender illuminated seams, worn dark alloy. Centered upright neutral stance, whole silhouette and both feet visible, detailed realistic painted game concept art, isolated cutout, transparent background, no text, no logos, no extra characters, not based on any existing franchise or recognizable copyrighted character."
+    },
+    {
+      "id": "tidebreaker-back",
+      "source": "kaiju-tidebreaker-back.png",
+      "runtime": "kaiju-tidebreaker-back.webp",
+      "runtimeDimensions": "506x768",
+      "transparent": true,
+      "description": "Rear-view companion sprite showing Tidebreaker's armored back and heavy tail.",
+      "originalPrompt": "Original giant alien coastal monster, full-body REAR VIEW seen directly from behind, no face visible. Match this specific creature design: massive charcoal sea-beast with a broad hunched silhouette, thick plated shoulders, heavy segmented armor down the back, large muscular legs and an unmistakable thick tapering tail, subtle deep-teal bioluminescent cracks, wet salt-dark hide. Centered upright four-limbed stance, whole silhouette and tail visible, detailed realistic painted game creature concept art, isolated cutout, transparent background, no text, no extra characters, not based on any existing franchise or recognizable copyrighted creature."
+    },
+    {
+      "id": "riftmaw-back",
+      "source": "kaiju-riftmaw-back.png",
+      "runtime": "kaiju-riftmaw-back.webp",
+      "runtimeDimensions": "395x768",
+      "transparent": true,
+      "description": "Rear-view companion sprite showing Riftmaw's dorsal spines and glowing fissures.",
+      "originalPrompt": "Original giant alien coastal monster, full-body REAR VIEW seen directly from behind, no face visible. Match this specific creature design: lean razorback sea-kaiju with long arms, narrow hips, angular bony dorsal spines from neck down the spine and tail, layered dark red-brown and charcoal hide with restrained glowing ember-orange fissures, clawed feet. Centered upright stance, whole silhouette and tail visible, detailed realistic painted game creature concept art, isolated cutout, transparent background, no text, no extra characters, not based on any existing franchise or recognizable copyrighted creature."
+    },
+    {
+      "id": "hailstorm-rocket",
+      "source": "black-tide-hailstorm-rocket.png",
+      "runtime": "black-tide-hailstorm-rocket.webp",
+      "runtimeDimensions": "782x244",
+      "transparent": true,
+      "description": "AI-generated guided rocket sprite with a cyan engine plume for the Hailstorm missile swarm.",
+      "originalPrompt": "An original sci-fi mech rocket projectile sprite for a premium kaiju-combat game. One single realistic guided missile, shown horizontally in side three-quarter profile with its sharp nose pointing precisely to the RIGHT and tail to the LEFT. Dark gunmetal body with elegant cyan-teal luminous seams, compact turbine fins, a vivid blue-white rocket plume with a few restrained amber sparks trailing left. The missile fills about 75 percent of a square canvas width and 18 percent of its height; centered, fully in frame, strong clean silhouette, crisp readable shape at small in-game size. Isolated cutout on a genuinely transparent background with no checkerboard, no sky, no scenery, no ground, no smoke cloud hiding the missile, no text, no lettering, no logos, no extra objects."
+    },
+    {
+      "id": "rail-lance-beam",
+      "source": "black-tide-rail-lance-beam.png",
+      "runtime": "black-tide-rail-lance-beam.webp",
+      "runtimeDimensions": "997x137",
+      "transparent": true,
+      "description": "AI-generated cyan-violet energy beam sprite for the charged Rail Lance.",
+      "originalPrompt": "A single horizontal rail-lance laser beam effect sprite for an original premium science-fiction kaiju combat game, no weapon or scenery. Extremely bright white-cyan energy core, edged by controlled electric teal filaments and subtle violet-blue plasma, a narrow tapered lance traveling from LEFT to RIGHT with fine trailing streaks on the left and a few tiny sparks at the forward tip on the right. Wide horizontal composition inside a square canvas: beam spans about 85 percent of the width but only 10 to 14 percent of the height, with a soft contained glow that fades smoothly to alpha. Clean, high-contrast shape that stays readable when stretched across a 3D scene; isolated on a genuinely transparent background with no checkerboard, no solid backdrop, no text, no logos, no explosion cloud, no extra objects."
+    },
+    {
+      "id": "coast",
+      "source": "kuroshio-coastal-panorama.png",
+      "runtime": "kuroshio-coastal-panorama.webp",
+      "runtimeDimensions": "1024x1024",
+      "transparent": false,
+      "description": "Storm-dark coastal city, breakwater, and rough ocean at dusk.",
+      "originalPrompt": null
+    }
+  ]
+}

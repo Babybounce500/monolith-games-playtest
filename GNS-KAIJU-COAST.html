@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#061017">
+  <meta name="description" content="GNS: Black Tide — pilot a Jaeger squad against colossal Kaiju on a storm-lashed coast.">
+  <title>GNS // BLACK TIDE — JAEGER VS KAIJU</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="mech-tournament.css">
+  <script src="vendor/three.r128.min.js"></script>
+  <script src="shared-game-audio.js"></script>
+  <script defer src="mech-tournament.js?v=24"></script>
+</head>
+<body>
+  <main id="game-root">
+    <div id="world-canvas" aria-label="Black Tide coastal combat zone"></div>
+    <canvas id="fallback-canvas" class="hidden" aria-label="2D combat compatibility view"></canvas>
+    <div id="render-mode-badge" class="render-mode-badge hidden">TACTICAL 2D COMPATIBILITY VIEW</div>
+
+    <div class="cinema-bars" aria-hidden="true"><i></i><i></i></div>
+    <div class="cockpit-frame" aria-hidden="true">
+      <div class="cockpit-canopy"></div>
+      <div class="cockpit-pillar cockpit-pillar-left"></div>
+      <div class="cockpit-pillar cockpit-pillar-right"></div>
+      <div class="cockpit-dash"></div>
+      <div class="cockpit-strut"></div>
+      <div class="cockpit-glass-reflection"></div>
+    </div>
+
+    <section id="mission-briefing" class="screen-layer">
+      <div class="briefing-panel">
+        <div class="briefing-kicker"><span class="live-dot"></span> GNS TACTICAL NETWORK <span>·</span> KUROSHIO COAST // SECTOR 09</div>
+        <div class="briefing-grid">
+          <div class="briefing-copy">
+            <p class="classification">BLACK TIDE PROTOCOL <span>FIELD DEPLOYMENT // 2049</span></p>
+            <h1>WHEN THE<br><em>OCEAN</em><br>WAKES.</h1>
+            <p class="briefing-lede">Vier Jaeger. Zwei Kaiju. Eine Küstenstadt, die nicht noch einen Sonnenaufgang verlieren darf. Steig ins Cockpit, koordinier deinen Trupp und treib die Titanen zurück ins schwarze Wasser.</p>
+            <div class="briefing-meta">
+              <div><small>YOUR FRAME</small><b>GNS-07 // AEGIS WARDEN</b></div>
+              <div><small>THREAT CLASS</small><b id="briefing-threat">KAIJU // CLASS IV + III</b></div>
+              <div><small>OPERATION</small><b>HOLD THE BREAKWATER</b></div>
+            </div>
+            <button id="deploy-button" class="deploy-button" type="button">ENTER THE CONN-POD <span>→</span></button>
+            <p class="start-hint">ENTER TO DEPLOY <span>·</span> MOUSE LOOK <span>·</span> OFFLINE SQUAD SIMULATION</p>
+          </div>
+          <aside class="briefing-side">
+            <div class="briefing-stamp">JAEGER<br>DIVISION<br><b>GNS</b></div>
+            <div class="mission-card">
+              <span class="section-code">01 / MISSION</span>
+              <h2>BLACK TIDE</h2>
+              <p>Kuroshio industrial coast. Storm front incoming. Evacuation at 61%.</p>
+              <div class="threat-meter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <small>BREACH ACTIVITY <b>CRITICAL</b></small>
+            </div>
+            <div class="squad-line"><span class="squad-light"></span> SQUAD LINK <b>4/4</b><span>LOCAL SIM</span></div>
+          </aside>
+        </div>
+        <div class="briefing-controls">
+          <span><b>W A S D</b> WALK / STRAFE</span><span><b>MOUSE</b> LOOK / AIM</span><span><b>1–4</b> WEAPON SYSTEMS</span>
+          <span><b>CLICK</b> FIRE <b>R</b> RELOAD</span><span><b>Q</b> TARGET LOCK</span><span><b>SHIFT</b> BOOST <b>F</b> SHIELD <b>E</b> OVERDRIVE</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="pause-screen" class="screen-layer hidden">
+      <div class="pause-panel">
+        <p class="section-code">PILOT LINK // PAUSED</p>
+        <h2>HOLD POSITION</h2>
+        <p>Squad is awaiting your next command.</p>
+        <button id="resume-button" class="deploy-button" type="button">RESUME SORTIE <span>→</span></button>
+        <button id="abort-button" class="quiet-button" type="button">ABORT MISSION</button>
+      </div>
+    </section>
+
+    <section id="result-screen" class="screen-layer hidden">
+      <div class="pause-panel result-panel">
+        <p id="result-kicker" class="section-code">GNS AFTER ACTION</p>
+        <h2 id="result-title">SECTOR SECURED</h2>
+        <p id="result-copy">Kaiju threat neutralized. The breakwater is still standing.</p>
+        <div id="result-stats" class="result-stats"></div>
+        <button id="replay-button" class="deploy-button" type="button">REDEPLOY <span>↻</span></button>
+        <button id="briefing-button" class="quiet-button" type="button">RETURN TO BRIEFING</button>
+      </div>
+    </section>
+
+    <div id="mission-hud" class="mission-hud hidden" aria-live="polite">
+      <header class="hud-topline">
+        <div class="unit-mark"><span>G</span><div><b>BLACK TIDE</b><small>GNS // JAEGER OPERATIONS</small></div></div>
+        <div class="squad-status" id="squad-status"></div>
+        <div class="mission-clock"><small>SECTOR TIME</small><b id="mission-clock">05:00</b></div>
+      </header>
+      <div class="upper-callout"><span>KUROSHIO COAST</span><i></i><b>BREACH ZONE 09</b><i></i><span>WIND 48 KTS</span></div>
+
+      <div class="target-zone">
+        <div class="reticle"><i></i><i></i><b></b><span></span></div>
+        <div id="target-bracket" class="target-bracket hidden">
+          <span class="bracket-corner c1"></span><span class="bracket-corner c2"></span>
+          <span class="bracket-corner c3"></span><span class="bracket-corner c4"></span>
+          <small id="target-class">KAIJU // CLASS IV</small><b id="target-name">TIDEBREAKER</b>
+          <div class="target-health-track"><i id="target-health-fill"></i></div>
+          <span id="target-distance">RANGE 000 M</span>
+        </div>
+        <div id="lock-indicator" class="lock-indicator">Q // ACQUIRE TARGET</div>
+      </div>
+
+      <div class="threat-bars">
+        <div class="threat-heading"><span>BREACH THREAT</span><b id="threat-count">2 TITANS ACTIVE</b></div>
+        <div id="kaiju-bars"></div>
+      </div>
+
+      <div class="radar-panel"><canvas id="radar" width="180" height="180" aria-label="Tactical radar"></canvas><span>NAV // 400M</span></div>
+      <div class="objective-chip"><small>PRIMARY OBJECTIVE</small><b id="objective-text">NEUTRALIZE BOTH KAIJU</b><span><i></i> EVACUATION // 61%</span></div>
+      <div class="squad-callout" id="squad-callout">SQUAD LINK STABLE <span>·</span> MARK A TARGET WITH Q</div>
+      <div class="damage-vignette" id="damage-vignette"></div>
+
+      <div class="systems-left">
+        <div class="system-label"><span>FRAME INTEGRITY</span><b id="armor-value">100%</b></div>
+        <div class="system-bar"><i id="armor-fill"></i></div>
+        <div class="system-label"><span>AEGIS SHIELD</span><b id="shield-value">100%</b></div>
+        <div class="system-bar shield-bar"><i id="shield-fill"></i></div>
+        <div class="system-label"><span>THRUSTER CHARGE</span><b id="boost-value">100%</b></div>
+        <div class="system-bar boost-bar"><i id="boost-fill"></i></div>
+        <div class="ability-readout"><span>CONN-POD OVERDRIVE <kbd>E</kbd></span><b id="overdrive-value">READY</b></div>
+        <div class="pilot-readout"><small>CONN-POD LINK</small><b>SYNC <span id="sync-value">98.4</span>%</b><i></i></div>
+      </div>
+
+      <div class="weapon-dock" id="weapon-dock" role="group" aria-label="Select missile system">
+        <button class="weapon-card is-active" data-weapon="0" type="button"><kbd>1</kbd><span class="weapon-icon icon-missile icon-needle"></span><b>NEEDLE RACK</b><small>RAPID MICRO-MISSILES</small><em id="ammo-0">18 / 72</em></button>
+        <button class="weapon-card" data-weapon="1" type="button"><kbd>2</kbd><span class="weapon-icon icon-missile icon-cluster"></span><b>HAILSTORM</b><small>3-ROCKET GUIDED SALVO</small><em id="ammo-1">6 / 18</em></button>
+        <button class="weapon-card" data-weapon="2" type="button"><kbd>3</kbd><span class="weapon-icon icon-missile icon-heavy"></span><b>TITANBREAKER</b><small>CHARGED HEAVY MISSILE</small><em id="ammo-2">4 / 12</em></button>
+        <button class="weapon-card" data-weapon="3" type="button"><kbd>4</kbd><span class="weapon-icon icon-missile icon-swarm"></span><b>THUNDERHEAD</b><small>6-PACK CLOSE SWARM</small><em id="ammo-3">6-PACK READY</em></button>
+      </div>
+
+      <div class="cockpit-bottom-right">
+        <div class="weapon-readout"><small id="weapon-readout-type">01 // NEEDLE RACK</small><b id="weapon-readout-name">RAPID MICRO-MISSILES</b><span><strong id="mag-value">18</strong><i>/</i><em id="reserve-value">72</em></span></div>
+        <div id="heat-gauge" class="heat-gauge"><i></i><span>CORE TEMP</span></div>
+      </div>
+
+      <div class="touch-controls">
+        <div id="move-stick" class="move-stick"><i></i><span>MOVE</span></div>
+        <div id="look-zone" class="look-zone">DRAG TO AIM</div>
+        <button id="touch-fire" type="button">FIRE</button>
+        <button id="touch-lock" type="button">LOCK</button>
+        <button id="touch-boost" type="button">BOOST</button>
+        <button id="touch-shield" type="button">SHIELD</button>
+        <button id="touch-reload" type="button">R</button>
+      </div>
+      <div class="mobile-hint">TAP FIRE · DRAG RIGHT SIDE TO AIM</div>
+    </div>
+
+    <div id="loading-error" class="loading-error hidden" role="alert"></div>
+  </main>
+</body>
+</html>

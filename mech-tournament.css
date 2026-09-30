@@ -1,0 +1,251 @@
+* {
+  box-sizing: border-box;
+  -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+  /* Standard user-select alone doesn't stop iOS Safari's long-press
+     "Copy/Look Up" callout bubble on touch controls - this is the
+     separate, Safari-specific property that does. Ported from the
+     main-project arena-tournament.js/css fix, which this sibling
+     engine predates. */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  /* The move-stick/look-zone/touch buttons already had their own
+     touch-action:none, but that left gaps (any HUD element without its
+     own rule) where repeated/rapid taps could still be read as a
+     double-tap-zoom gesture. Blanket none is the fix; .screen-layer and
+     .briefing-panel below get an explicit pan-y exception since they
+     genuinely scroll. */
+  touch-action: none;
+}
+:root {
+  color-scheme: dark;
+  --ice: #91f5f4;
+  --cyan: #50d8df;
+  --amber: #ffc56f;
+  --danger: #ff536a;
+  --ink: #071118;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: Inter, "Arial Narrow", Arial, sans-serif;
+}
+html, body, #game-root { width:100%; height:100%; margin:0; overflow:hidden; background:#050e15; color:#eef7f7; }
+button { font:inherit; color:inherit; }
+#game-root { position:relative; isolation:isolate; }
+#world-canvas, #fallback-canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+#world-canvas canvas { display:block; width:100%; height:100%; outline:none; }
+.hidden { display:none !important; }
+.cinema-bars { position:absolute; z-index:8; inset:0; pointer-events:none; }
+.cinema-bars i { position:absolute; left:0; right:0; height:clamp(10px,2.1vh,24px); background:linear-gradient(90deg,#03080ce8,#10171fcc 48%,#03080ce8); opacity:.68; }
+.cinema-bars i:first-child { top:0; }
+.cinema-bars i:last-child { bottom:0; }
+.cockpit-frame { position:absolute; z-index:4; inset:0; overflow:hidden; pointer-events:none; opacity:.9; }
+.cockpit-canopy { position:absolute; inset:4.6% 5.5% 14%; border:1px solid rgba(160,240,244,.22); clip-path:polygon(2% 0,98% 0,100% 96%,87% 100%,13% 100%,0 96%); background:linear-gradient(180deg,rgba(146,234,244,.03),transparent 30%,rgba(0,8,13,.08)); }
+.cockpit-pillar { position:absolute; top:0; bottom:0; width:clamp(38px,8vw,145px); background:linear-gradient(90deg,#080e13 0%,#1b252a 44%,#060b0e 86%); clip-path:polygon(0 0,25% 0,100% 100%,52% 100%); border-right:1px solid #91f5f42a; }
+.cockpit-pillar-left { left:0; }
+.cockpit-pillar-right { right:0; transform:scaleX(-1); }
+.cockpit-dash { position:absolute; left:0; right:0; bottom:-2%; height:18%; background:linear-gradient(0deg,#060b10 10%,#111b21d9 45%,#111b214d 80%,transparent); clip-path:polygon(0 22%,17% 19%,32% 32%,68% 32%,83% 19%,100% 22%,100% 100%,0 100%); border-top:1px solid #96e9e93b; }
+.cockpit-strut { position:absolute; left:50%; top:0; bottom:15%; width:clamp(3px,.32vw,6px); transform:translateX(-50%); background:linear-gradient(90deg,#05090e,#344046 50%,#080d11); opacity:.55; }
+.cockpit-glass-reflection { position:absolute; inset:5% 12% 18%; background:linear-gradient(125deg,transparent 0 37%,rgba(173,242,245,.035) 37.2%,transparent 38% 100%); }
+.screen-layer { position:absolute; z-index:30; inset:0; display:grid; place-items:center; overflow:auto; touch-action:pan-y; padding:clamp(14px,3vw,40px); background:linear-gradient(100deg,rgba(2,8,13,.87),rgba(3,12,19,.55) 56%,rgba(2,9,14,.63)); backdrop-filter:blur(5px); }
+.briefing-panel { width:min(1160px,100%); border:1px solid rgba(124,224,231,.34); background:linear-gradient(120deg,rgba(6,17,24,.98),rgba(8,22,30,.95) 58%,rgba(7,14,20,.98)); box-shadow:0 34px 100px #000b,0 0 58px #61ced511; position:relative; }
+.briefing-panel::before { content:""; position:absolute; top:-1px; left:34px; width:150px; height:2px; background:var(--ice); box-shadow:0 0 19px var(--cyan); }
+.briefing-kicker, .classification, .section-code, .briefing-meta small, .start-hint, .briefing-controls, .mission-card>small, .squad-line, .upper-callout, .threat-heading, .system-label, .pilot-readout, .weapon-card small, .weapon-card em, .weapon-readout small, .weapon-readout span, .heat-gauge span, .mobile-hint { font-family:var(--mono); letter-spacing:.11em; }
+.briefing-kicker { display:flex; gap:11px; align-items:center; min-height:38px; padding:8px 26px; border-bottom:1px solid #91f5f414; color:#99b8be; font-size:9px; }
+.live-dot,.squad-light { width:7px; height:7px; border-radius:50%; background:#ff5b62; box-shadow:0 0 12px #ff5b62; animation:beacon 1.2s infinite alternate; }
+@keyframes beacon { to { opacity:.3; } }
+.briefing-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(240px,.65fr); gap:clamp(24px,6vw,82px); padding:clamp(24px,4vw,54px); }
+.classification { display:flex; justify-content:space-between; gap:14px; color:var(--ice); font-size:9px; font-weight:800; }
+.classification span { color:#728890; font-size:8px; }
+h1 { margin:20px 0 17px; font-size:clamp(50px,9.2vw,112px); line-height:.79; letter-spacing:-.085em; font-weight:900; }
+h1 em { color:var(--ice); font-style:normal; text-shadow:0 0 28px #5cdee633; }
+.briefing-lede { max-width:610px; margin:0; color:#aec0c4; font-size:clamp(12px,1.2vw,15px); line-height:1.7; }
+.briefing-meta { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:24px 0 20px; padding:15px 0; border-top:1px solid #9bd9df24; border-bottom:1px solid #9bd9df24; }
+.briefing-meta div { min-width:0; }
+.briefing-meta small { display:block; margin-bottom:6px; color:#6d858c; font-size:8px; }
+.briefing-meta b { display:block; overflow:hidden; color:#e5f0ef; font:800 9px var(--mono); white-space:nowrap; text-overflow:ellipsis; }
+.deploy-button { width:100%; min-height:52px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--ice); padding:0 18px; background:var(--ice); color:#061114; font:900 11px var(--mono); letter-spacing:.12em; cursor:pointer; transition:transform .18s,box-shadow .18s,background .18s; }
+.deploy-button span { font-size:19px; }
+.deploy-button:hover { transform:translateY(-2px); background:#d4fffc; box-shadow:0 0 28px #59dce43d; }
+.start-hint { margin:10px 0 0; color:#73878d; text-align:center; font-size:8px; }
+.start-hint span { margin:0 5px; color:#cb865a; }
+.briefing-side { display:flex; flex-direction:column; justify-content:space-between; align-items:stretch; padding:3px 0; }
+.briefing-stamp { align-self:flex-end; display:grid; place-items:center; width:124px; height:124px; border:1px solid #8feef14a; transform:rotate(7deg); color:#a9e6e5; text-align:center; font:800 11px/1.4 var(--mono); letter-spacing:.16em; background:repeating-linear-gradient(135deg,#9cebf20b 0 2px,transparent 2px 9px); }
+.briefing-stamp b { color:#fff; font-size:28px; }
+.mission-card { margin-top:28px; padding:18px; border-left:2px solid #fa5f5a; background:linear-gradient(115deg,#c647261e,transparent 80%); }
+.section-code { color:#7ce8e8; font-size:9px; font-weight:800; }
+.mission-card h2 { margin:10px 0 6px; font-size:26px; letter-spacing:-.05em; }
+.mission-card p { margin:0; color:#91a7ad; font-size:11px; line-height:1.6; }
+.threat-meter { display:flex; gap:4px; margin:17px 0 8px; }
+.threat-meter i { height:4px; flex:1; background:#fb5b4d; box-shadow:0 0 6px #fb5b4d58; }
+.threat-meter i:nth-child(n+7) { background:#3b4c52; box-shadow:none; }
+.mission-card>small { color:#769095; font-size:8px; }
+.mission-card>small b { float:right; color:#ff7865; }
+.squad-line { display:flex; align-items:center; gap:8px; padding-top:14px; border-top:1px solid #9bd9df24; color:#9ab1b6; font-size:8px; }
+.squad-line b { color:var(--ice); }
+.squad-line span:last-child { margin-left:auto; color:#657b82; }
+.briefing-controls { display:flex; flex-wrap:wrap; gap:10px 20px; padding:14px clamp(24px,4vw,54px); border-top:1px solid #9bd9df20; color:#71868c; font-size:8px; }
+.briefing-controls b { color:#e2eeed; }
+.pause-panel { width:min(430px,100%); padding:clamp(22px,4vw,42px); border:1px solid #8debee51; background:#07151eee; box-shadow:0 30px 90px #000b; }
+.pause-panel h2 { margin:13px 0 8px; font-size:clamp(34px,6vw,52px); letter-spacing:-.07em; }
+.pause-panel p:not(.section-code) { color:#98afb3; font-size:13px; }
+.pause-panel .deploy-button { margin-top:23px; }
+.quiet-button { width:100%; margin-top:10px; padding:12px; border:1px solid transparent; background:transparent; color:#91a8ad; font:800 9px var(--mono); letter-spacing:.1em; cursor:pointer; }
+.quiet-button:hover { color:#fff; border-color:#91f5f422; }
+.result-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:18px; }
+.result-stats div { padding:12px 7px; text-align:center; border:1px solid #93e9e31e; background:#90f4f407; }
+.result-stats b { display:block; color:var(--ice); font:900 19px var(--mono); }
+.result-stats small { display:block; margin-top:5px; color:#758a90; font:700 7px var(--mono); letter-spacing:.1em; }
+.mission-hud { position:absolute; z-index:12; inset:0; pointer-events:none; }
+.hud-topline { position:absolute; top:25px; left:clamp(50px,8vw,150px); right:clamp(50px,8vw,150px); display:grid; grid-template-columns:1fr minmax(260px,1fr) 1fr; align-items:center; gap:12px; }
+.unit-mark { display:flex; align-items:center; gap:10px; }
+.unit-mark>span { display:grid; place-items:center; width:34px; height:34px; border:1px solid var(--ice); color:var(--ice); font:900 19px var(--mono); }
+.unit-mark b,.unit-mark small { display:block; }
+.unit-mark b { font:900 11px var(--mono); letter-spacing:.12em; }
+.unit-mark small { margin-top:4px; color:#80999d; font:700 7px var(--mono); letter-spacing:.12em; }
+.squad-status { display:flex; justify-content:center; gap:5px; }
+.squad-status span { width:46px; padding:6px 4px; text-align:center; border:1px solid #9aecee3a; background:#07151db9; color:#8ba5aa; font:800 7px var(--mono); }
+.squad-status span i { display:block; height:2px; margin-top:6px; background:var(--ice); box-shadow:0 0 6px var(--ice); }
+.mission-clock { justify-self:end; text-align:right; }
+.mission-clock small { display:block; color:#8aa6aa; font:700 7px var(--mono); letter-spacing:.15em; }
+.mission-clock b { display:block; margin-top:3px; color:#f2fbf9; font:900 25px var(--mono); letter-spacing:.06em; text-shadow:0 0 14px #8debed33; }
+.upper-callout { position:absolute; top:83px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; padding:6px 10px; border:1px solid #89e8e322; background:#07141c70; color:#9bb2b5; font-size:7px; white-space:nowrap; }
+.upper-callout i { width:18px; height:1px; background:#70d8d877; }
+.upper-callout b { color:#e7f8f6; }
+.target-zone { position:absolute; inset:0; }
+.reticle { position:absolute; top:50%; left:50%; width:35px; height:35px; transform:translate(-50%,-50%); border:1px solid #aaf6ebba; border-radius:50%; box-shadow:0 0 13px #59e1e34a; }
+.reticle::before,.reticle::after { content:""; position:absolute; background:#d6fff2; box-shadow:0 0 8px #74f1ed; }
+.reticle::before { left:-11px; right:-11px; top:16px; height:1px; }
+.reticle::after { top:-11px; bottom:-11px; left:16px; width:1px; }
+.reticle i { position:absolute; width:5px; height:5px; border:1px solid #bdfdff; }
+.reticle i:first-child { top:-7px; left:-7px; }.reticle i:nth-child(2) { right:-7px; bottom:-7px; }
+.reticle b { position:absolute; left:50%; top:50%; width:3px; height:3px; transform:translate(-50%,-50%); border-radius:50%; background:#fb685d; }
+.reticle span { position:absolute; inset:-17px; border:1px solid #e6c88a44; border-radius:50%; }
+.target-bracket { position:absolute; left:50%; top:calc(50% - 116px); transform:translateX(-50%); width:174px; padding:8px 10px; border-left:1px solid #ff8578; border-right:1px solid #ff8578; background:#09171c8a; text-align:center; text-shadow:0 1px 4px #000; }
+.target-bracket small,.target-bracket b,.target-bracket>span:last-child { display:block; }
+.target-bracket small { color:#ff9d88; font:800 7px var(--mono); letter-spacing:.13em; }
+.target-bracket b { margin-top:4px; color:#fff; font:900 11px var(--mono); letter-spacing:.1em; }
+.target-health-track { height:3px; margin:6px 0; background:#333; }.target-health-track i { display:block; width:100%; height:100%; background:#fb7763; }
+.target-bracket>span:last-child { color:#b7c7c7; font:700 7px var(--mono); }
+.bracket-corner { position:absolute; width:9px; height:9px; border-color:#ff8e7e; border-style:solid; }
+.c1 { top:0; left:0; border-width:1px 0 0 1px; }.c2 { top:0; right:0; border-width:1px 1px 0 0; }.c3 { bottom:0; left:0; border-width:0 0 1px 1px; }.c4 { bottom:0; right:0; border-width:0 1px 1px 0; }
+.lock-indicator { position:absolute; top:calc(50% + 42px); left:50%; transform:translateX(-50%); color:#8eaaad; font:700 7px var(--mono); letter-spacing:.14em; white-space:nowrap; text-shadow:0 2px 4px #000; }
+.lock-indicator.locked { color:#baffd8; text-shadow:0 0 12px #59ffb9; }
+.threat-bars { position:absolute; top:112px; left:clamp(54px,9vw,165px); width:min(220px,27vw); }
+.threat-heading { display:flex; justify-content:space-between; gap:8px; color:#abc1c3; font-size:7px; }
+.threat-heading b { color:#ff9385; }
+#kaiju-bars { display:grid; gap:5px; margin-top:6px; }
+.kaiju-bar { height:4px; background:#202a2e; }.kaiju-bar i { display:block; height:100%; background:linear-gradient(90deg,#ff554e,#ffbc81); transition:width .2s; }
+.radar-panel { position:absolute; top:106px; right:clamp(54px,9vw,165px); width:clamp(88px,12vw,136px); color:#86a4a7; font:700 7px var(--mono); letter-spacing:.1em; text-align:center; }
+.radar-panel canvas { display:block; width:100%; height:auto; border:1px solid #8cdbd43a; background:#07161b7a; }
+.radar-panel span { display:block; margin-top:4px; }
+.objective-chip { position:absolute; left:50%; top:111px; transform:translateX(-50%); min-width:210px; padding:8px 12px; border:1px solid #8ddfe529; background:#07131a77; text-align:center; }
+.objective-chip small,.objective-chip b,.objective-chip span { display:block; font-family:var(--mono); }
+.objective-chip small { color:#738d92; font-size:7px; letter-spacing:.14em; }
+.objective-chip b { margin:5px 0; color:#e9f7f5; font-size:9px; letter-spacing:.09em; }
+.objective-chip span { color:#90a7a9; font-size:7px; letter-spacing:.08em; }
+.objective-chip span i { display:inline-block; width:5px; height:5px; margin-right:5px; border-radius:50%; background:#65e6ca; }
+.squad-callout { position:absolute; top:49%; left:50%; transform:translateX(-50%); color:#b9d9d7; font:700 7px var(--mono); letter-spacing:.14em; text-shadow:0 2px 6px #000; white-space:nowrap; }
+.squad-callout span { color:#ff9a72; }
+.systems-left { position:absolute; left:clamp(54px,9vw,165px); bottom:clamp(116px,18vh,170px); width:min(230px,28vw); padding:10px 12px; border-left:1px solid #8de8e442; background:linear-gradient(90deg,#07151cc9,transparent); }
+.system-label { display:flex; justify-content:space-between; gap:12px; margin:5px 0 4px; color:#98adb0; font-size:7px; }
+.system-label b { color:#edfaf8; font-size:8px; }
+.system-bar { height:3px; margin-bottom:7px; background:#29353a; }.system-bar i { display:block; width:100%; height:100%; background:var(--ice); box-shadow:0 0 8px #72f4ee88; transition:width .2s; }
+.shield-bar i { background:#70bfff; }.boost-bar i { background:#ffd184; }
+.ability-readout { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:3px; padding-top:5px; border-top:1px solid #91f5f419; color:#81989b; font:700 6px var(--mono); letter-spacing:.08em; }
+.ability-readout kbd { padding:2px 4px; border:1px solid #8de9e43a; color:#b9e8e4; font:700 6px var(--mono); }
+.ability-readout b { color:#ffd18b; font:800 7px var(--mono); }
+.pilot-readout { display:flex; align-items:center; justify-content:space-between; gap:6px; padding-top:6px; color:#758b90; font-size:6px; }
+.pilot-readout b { color:#b8e7df; font-size:7px; }.pilot-readout i { width:5px; height:5px; border-radius:50%; background:#6cf4c5; box-shadow:0 0 8px #6cf4c5; }
+.weapon-dock { position:absolute; left:50%; bottom:clamp(27px,5.5vh,57px); display:flex; gap:5px; transform:translateX(-50%); pointer-events:auto; }
+.weapon-card { position:relative; width:clamp(95px,11vw,130px); min-height:68px; display:grid; grid-template-columns:22px 28px 1fr; grid-template-rows:21px 17px 14px; align-items:center; column-gap:5px; padding:6px 7px; border:1px solid #9de4e326; background:linear-gradient(135deg,#07151dd9,#071016bb); text-align:left; cursor:pointer; clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%); }
+.weapon-card.is-active { border-color:#a1faf1; background:linear-gradient(135deg,#15505aaf,#09151cdb); box-shadow:0 0 17px #55e4df29; }
+.weapon-card kbd { align-self:start; color:#8aacae; font:800 8px var(--mono); }
+.weapon-card.is-active kbd { color:var(--ice); }
+.weapon-card b { grid-column:2/4; color:#e8f5f1; font:900 8px var(--mono); letter-spacing:.04em; }
+.weapon-card small { grid-column:2/4; color:#758b91; font-size:6px; white-space:nowrap; }
+.weapon-card em { grid-column:2/4; color:#bdcacc; font-size:6px; font-style:normal; }
+.weapon-icon { grid-column:1; grid-row:2/4; width:22px; height:22px; border:1px solid #82e8e45c; border-radius:50%; position:relative; }
+.weapon-icon::before,.weapon-icon::after { content:""; position:absolute; background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+.icon-missile::before { width:3px; height:11px; left:9px; top:4px; transform:rotate(34deg); }.icon-missile::after { width:8px; height:3px; left:6px; bottom:2px; }
+.icon-needle::before { width:2px; height:9px; left:9px; top:5px; transform:rotate(34deg); }.icon-needle::after { width:6px; height:2px; left:7px; bottom:3px; }
+.icon-cluster::after { box-shadow:-4px 0 0 -1px var(--cyan),4px 0 0 -1px var(--cyan),0 0 6px var(--cyan); }
+.icon-heavy::before { width:5px; height:15px; left:8px; top:2px; transform:rotate(34deg); }.icon-heavy::after { width:10px; height:4px; left:5px; bottom:1px; }
+.icon-swarm::before { width:3px; height:8px; left:9px; top:6px; transform:rotate(34deg); }.icon-swarm::after { width:7px; height:3px; left:6px; bottom:2px; box-shadow:-4px 0 0 -1px var(--cyan),4px 0 0 -1px var(--cyan),0 0 6px var(--cyan); }
+.cockpit-bottom-right { position:absolute; right:clamp(54px,9vw,165px); bottom:clamp(116px,18vh,170px); display:flex; align-items:end; gap:14px; }
+.weapon-readout { min-width:145px; text-align:right; text-shadow:0 2px 8px #000; }
+.weapon-readout small { display:block; color:#8da9ad; font-size:7px; }.weapon-readout b { display:block; margin:4px 0; font:900 11px var(--mono); letter-spacing:.07em; }.weapon-readout span { display:block; color:#a6b8b9; font-size:9px; }.weapon-readout strong { color:#ffd27e; font-size:25px; }.weapon-readout i { margin:0 5px; font-style:normal; }.weapon-readout em { font-style:normal; }
+.heat-gauge { position:relative; width:44px; height:44px; border:2px solid #d4aa6e66; border-radius:50%; display:grid; place-items:center; margin-bottom:7px; background:#111915aa; }
+.heat-gauge i { position:absolute; inset:3px; border-radius:50%; border:2px solid #ffc472; border-left-color:transparent; transform:rotate(32deg); box-shadow:0 0 8px #ffc47233; }
+.heat-gauge span { color:#d8c9a4; font-size:5px; }
+.damage-vignette { position:absolute; inset:0; opacity:0; box-shadow:inset 0 0 110px 28px #ff263e; transition:opacity .1s; }
+.damage-vignette.active { opacity:.65; }
+.render-mode-badge { position:absolute; z-index:20; top:95px; left:50%; transform:translateX(-50%); padding:6px 9px; border:1px solid #ffce7c7a; color:#ffdf9e; background:#0b1418da; font:800 7px var(--mono); letter-spacing:.1em; white-space:nowrap; }
+.touch-controls,.mobile-hint { display:none; }
+.loading-error { position:absolute; z-index:100; inset:0; display:grid; place-items:center; padding:24px; color:#fff; background:#081117; text-align:center; }
+@media(max-width:900px) {
+  .briefing-grid { gap:25px; padding:24px; }
+  .briefing-stamp { width:92px; height:92px; font-size:9px; }
+  .mission-card { margin-top:15px; padding:13px; }
+  .hud-topline { top:24px; left:52px; right:52px; grid-template-columns:1fr auto; }
+  .squad-status { position:absolute; top:49px; left:50%; transform:translateX(-50%); }
+  .squad-status span { width:40px; }
+  .upper-callout { top:85px; }
+  .threat-bars { top:119px; left:54px; width:180px; }
+  .radar-panel { top:118px; right:54px; width:83px; }
+  .objective-chip { top:125px; min-width:175px; padding:6px 8px; }
+  .systems-left { left:54px; bottom:138px; width:180px; }
+  .cockpit-bottom-right { right:54px; bottom:138px; }
+  .weapon-dock { bottom:27px; }
+  .weapon-card { width:96px; min-height:61px; grid-template-columns:18px 22px 1fr; grid-template-rows:18px 14px 12px; gap:3px; padding:5px; }
+  .weapon-icon { width:18px; height:18px; }
+}
+@media(max-width:650px) {
+  .screen-layer { align-items:start; padding:10px; }
+  .briefing-panel { margin:auto 0; }
+  .briefing-kicker { padding:7px 13px; font-size:7px; }
+  .briefing-grid { grid-template-columns:1fr; gap:14px; padding:21px 17px 17px; }
+  .classification { font-size:7px; }.classification span { font-size:6px; }
+  h1 { margin:15px 0; font-size:clamp(53px,16vw,83px); }
+  .briefing-lede { font-size:12px; line-height:1.55; }
+  .briefing-meta { gap:5px; margin:15px 0 13px; padding:11px 0; }
+  .briefing-meta small { font-size:6px; }.briefing-meta b { font-size:7px; }
+  .briefing-side { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:10px; }
+  .briefing-stamp { width:60px; height:60px; font-size:6px; }.briefing-stamp b { font-size:17px; }
+  .mission-card { margin:0; padding:9px 11px; }.mission-card h2 { margin:5px 0 3px; font-size:17px; }.mission-card p { font-size:9px; }
+  .mission-card .threat-meter { margin:8px 0 5px; }.mission-card>small { font-size:6px; }
+  .squad-line { grid-column:1/-1; padding-top:7px; font-size:6px; }
+  .briefing-controls { gap:7px 11px; padding:11px 14px; font-size:6px; }
+  .deploy-button { min-height:46px; font-size:9px; }
+  .hud-topline { top:20px; left:45px; right:45px; }
+  .unit-mark>span { width:27px; height:27px; font-size:15px; }.unit-mark { gap:6px; }.unit-mark b { font-size:8px; }.unit-mark small { font-size:5px; }
+  .mission-clock b { font-size:18px; }.mission-clock small { font-size:5px; }
+  .squad-status { top:43px; }.squad-status span { width:35px; padding:4px 2px; font-size:5px; }
+  .upper-callout { top:77px; gap:6px; font-size:5px; }.upper-callout i { width:9px; }
+  .threat-bars { top:104px; left:45px; width:130px; }.threat-heading { font-size:5px; }.threat-heading b { font-size:5px; }
+  .radar-panel { top:104px; right:45px; width:58px; font-size:5px; }
+  .objective-chip { top:auto; bottom:clamp(205px,28vh,255px); min-width:155px; padding:5px 6px; }.objective-chip small,.objective-chip span { font-size:5px; }.objective-chip b { font-size:7px; }
+  .systems-left { left:45px; bottom:120px; width:122px; padding:6px 7px; }.system-label { font-size:5px; margin:3px 0; }.system-label b { font-size:6px; }.system-bar { margin-bottom:4px; height:2px; }.pilot-readout { display:none; }
+  .cockpit-bottom-right { right:45px; bottom:119px; gap:5px; }.weapon-readout { min-width:95px; }.weapon-readout small { font-size:5px; }.weapon-readout b { font-size:7px; }.weapon-readout strong { font-size:19px; }.heat-gauge { width:31px; height:31px; }.heat-gauge span { font-size:4px; }
+  .weapon-dock { left:45px; right:45px; bottom:29px; justify-content:center; gap:3px; transform:none; }
+  .weapon-card { width:auto; min-width:0; flex:1; grid-template-columns:14px 16px 1fr; grid-template-rows:15px 12px 10px; gap:2px; padding:4px 3px; }
+  .weapon-card kbd,.weapon-card b { font-size:6px; }.weapon-card small,.weapon-card em { font-size:4px; letter-spacing:.02em; }.weapon-icon { width:14px; height:14px; }.weapon-icon::before { transform:scale(.75); }
+  .target-bracket { top:calc(50% - 96px); width:145px; padding:6px; }.target-bracket b { font-size:8px; }.target-bracket small,.target-bracket>span:last-child { font-size:5px; }
+  .lock-indicator { top:calc(50% + 34px); font-size:5px; }
+  .squad-callout { top:56%; font-size:5px; }
+  .touch-controls { display:block; position:absolute; inset:0; z-index:18; pointer-events:none; }
+  .move-stick { position:absolute; left:18px; bottom:25px; width:104px; height:104px; border:1px solid #d8ffff70; border-radius:50%; background:#0817215c; pointer-events:auto; touch-action:none; }
+  .move-stick::before { content:""; position:absolute; inset:23px; border:1px solid #b8e6e733; border-radius:50%; }
+  .move-stick i { position:absolute; left:50%; top:50%; width:38px; height:38px; margin:-19px; border:1px solid #91f5f4; border-radius:50%; background:#53e3e644; }
+  .move-stick span { position:absolute; bottom:8px; left:0; right:0; color:#d7f6f4; text-align:center; font:700 6px var(--mono); }
+  .look-zone { position:absolute; top:30%; right:4px; bottom:24%; width:37%; display:grid; place-items:center; color:#c5eeed15; font:700 7px var(--mono); pointer-events:auto; touch-action:none; }
+  .touch-controls button { position:absolute; border:1px solid #b9edef8c; border-radius:50%; background:#091820bd; color:#d8fffc; font:900 7px var(--mono); pointer-events:auto; touch-action:none; }
+  #touch-fire { right:16px; bottom:32px; width:65px; height:65px; border-color:#ff897c; color:#ffbbb1; }
+  #touch-lock { right:84px; bottom:40px; width:44px; height:44px; }
+  #touch-boost { right:88px; bottom:92px; width:42px; height:42px; }
+  #touch-shield { right:31px; bottom:108px; width:42px; height:42px; }
+  #touch-reload { right:136px; bottom:42px; width:34px; height:34px; }
+  .mobile-hint { display:block; position:absolute; left:50%; bottom:8px; transform:translateX(-50%); color:#b2c8c8; font-size:5px; white-space:nowrap; text-shadow:0 1px 4px #000; }
+  .cinema-bars i { height:8px; }.cockpit-canopy { inset:5% 7% 16%; }
+}
+@media(max-height:540px) and (min-width:651px) {
+  .briefing-grid { padding:20px 32px; }.briefing-panel { max-height:96vh; overflow:auto; touch-action:pan-y; } h1 { font-size:58px; margin:12px 0; }
+  .briefing-meta { margin:13px 0; }.briefing-controls { padding:10px 32px; }
+}
