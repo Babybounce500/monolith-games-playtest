@@ -4,19 +4,19 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
-<title>PRIME SECTOR — Kampagne</title>
+<title>SWARM RISING — Kampagne</title>
 <link rel="icon" href="data:,">
 <style>
 :root {
-    --bg: #0a1408;
-    --panel: rgba(6, 16, 6, 0.95);
-    --accent: #22c55e;
-    --accent2: #38bdf8;
+    --bg: #130a1a;
+    --panel: rgba(26, 12, 32, 0.95);
+    --accent: #9fef6a;
+    --accent2: #c9a8e0;
     --red: #ef4444;
     --warn: #f59e0b;
     --text: #e2e8f0;
     --muted: #94a3b8;
-    --border: #1e4020;
+    --border: #4d1f66;
 }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--text); font-family:'Courier New',monospace; overflow:hidden; user-select:none; }
@@ -39,7 +39,7 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:'Courier N
 #mode-switcher { position:absolute; top:58px; right:16px; z-index:100; display:flex; gap:6px; pointer-events:auto; }
 .mode-btn { background:rgba(4,12,4,0.95); border:1px solid var(--border); color:var(--muted); padding:8px 16px; cursor:pointer; transition:all 0.15s; border-radius:8px; font-size:10px; font-weight:700; letter-spacing:1px; font-family:'Courier New',monospace; }
 .mode-btn:hover { border-color:var(--accent); color:var(--text); }
-.mode-btn.active { background:var(--accent); color:#000; border-color:var(--accent); box-shadow:0 0 18px rgba(34,197,94,0.5); }
+.mode-btn.active { background:var(--accent); color:#000; border-color:var(--accent); box-shadow:0 0 18px rgba(159,239,106,0.5); }
 .mode-btn.build-active { background:var(--accent2); color:#000; border-color:var(--accent2); }
 .mode-btn.micro-active { background:#a855f7; color:#fff; border-color:#a855f7; box-shadow:0 0 18px rgba(168,85,247,0.5); }
 
@@ -70,14 +70,14 @@ button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.1
 .stat-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
 .stat-lbl { font-size:8px; color:var(--muted); width:30px; text-transform:uppercase; letter-spacing:1px; }
 .stat-bar-bg { flex:1; height:6px; background:#0d1a0d; border-radius:3px; border:1px solid #1a2a1a; overflow:hidden; }
-.stat-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; background:#22c55e; }
+.stat-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; background:#9fef6a; }
 .stat-bar-fill.mid { background:#f59e0b; }
 .stat-bar-fill.low { background:#ef4444; }
 .stat-val { font-size:8px; color:var(--muted); width:38px; text-align:right; }
 #unit-count { font-size:9px; color:var(--accent2); margin-top:5px; }
 
 /* ── SELECTION BOX ── */
-#select-box { position:absolute; border:2px solid #22c55e; background:rgba(34,197,94,0.08); pointer-events:none; display:none; z-index:200; }
+#select-box { position:absolute; border:2px solid #9fef6a; background:rgba(159,239,106,0.08); pointer-events:none; display:none; z-index:200; }
 
 /* ── HP BARS (world-space overlays) ── */
 .hp-bar-el {
@@ -86,7 +86,7 @@ button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.1
     background:#111; border:1px solid #333; border-radius:4px; z-index:152;
     transform:translateX(-50%); display:none; overflow:hidden;
 }
-.hp-bar-fill { height:100%; background:#22c55e; transition:width 0.15s; }
+.hp-bar-fill { height:100%; background:#9fef6a; transition:width 0.15s; }
 .hp-bar-el.low .hp-bar-fill { background:#ef4444; }
 .hp-bar-el.mid .hp-bar-fill { background:#f59e0b; }
 .hp-bar-el.enemy .hp-bar-fill { background:#ef4444; }
@@ -98,9 +98,9 @@ button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.1
 .shield-bar-fill { position:absolute; left:0; bottom:0; height:3px; background:#67e8f9; box-shadow:0 0 4px #67e8f9; transition:width 0.15s; }
 
 /* ── NAMETAGS ── */
-.nametag { position:absolute; pointer-events:none; background:rgba(0,0,0,0.85); border:1px solid #1e4020; color:#86efac; padding:2px 7px; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:1px; transform:translateX(-50%); white-space:nowrap; z-index:150; display:none; }
+.nametag { position:absolute; pointer-events:none; background:rgba(0,0,0,0.85); border:1px solid #4d1f66; color:#c4f0a8; padding:2px 7px; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:1px; transform:translateX(-50%); white-space:nowrap; z-index:150; display:none; }
 .nametag.enemy { border-color:#4a0a0a; color:#fca5a5; }
-.nametag.selected { border-color:#22c55e !important; color:#22c55e !important; background:rgba(0,30,0,0.9) !important; }
+.nametag.selected { border-color:#9fef6a !important; color:#9fef6a !important; background:rgba(0,30,0,0.9) !important; }
 .nametag.worker { border-color:#0ea5e9; color:#7dd3fc; }
 
 /* ── MINIMAP ── */
@@ -109,7 +109,7 @@ button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.1
 
 /* ── STATUS / TOAST ── */
 #status-bar { position:absolute; bottom:16px; right:16px; z-index:50; font-size:10px; color:var(--muted); background:rgba(0,0,0,0.75); padding:5px 14px; border-radius:16px; border:1px solid var(--border); pointer-events:none; max-width:420px; }
-#toast { position:absolute; top:58px; left:50%; transform:translateX(-50%); background:#0a1a0a; border:1px solid #1a6332; color:#22c55e; padding:7px 20px; border-radius:8px; font-size:11px; font-weight:700; z-index:2000; opacity:0; transition:opacity 0.3s; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
+#toast { position:absolute; top:58px; left:50%; transform:translateX(-50%); background:#1a0f26; border:1px solid #5a9e2f; color:#9fef6a; padding:7px 20px; border-radius:8px; font-size:11px; font-weight:700; z-index:2000; opacity:0; transition:opacity 0.3s; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
 #toast.show { opacity:1; }
 
 /* ── LOADER ── */
@@ -123,25 +123,25 @@ button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.1
 #wave-alert.show { opacity:1; }
 
 /* ── SOUND TOGGLE ── */
-#sound-btn { position:absolute; top:10px; right:16px; z-index:200; background:rgba(0,20,0,0.85); border:1px solid #1a4a1a; color:#4a9a4a; font-size:18px; width:36px; height:36px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s, color 0.2s; user-select:none; }
+#sound-btn { position:absolute; top:10px; right:16px; z-index:200; background:rgba(0,20,0,0.85); border:1px solid #4d1f66; color:#4a9a4a; font-size:18px; width:36px; height:36px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s, color 0.2s; user-select:none; }
 #sound-btn:hover { background:rgba(0,40,0,0.95); color:#6aff6a; }
 #sound-btn.muted { color:#4a1a1a; border-color:#4a1a1a; }
 
 /* ── END SCREEN ── */
 #end-screen { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.88); backdrop-filter:blur(6px); }
 #end-screen.hidden { display:none; }
-#end-box { background:#060e06; border:2px solid #1a4a1a; border-radius:18px; padding:44px 62px; text-align:center; min-width:400px; box-shadow:0 0 60px rgba(0,255,80,0.08); }
+#end-box { background:#140a1c; border:2px solid #4d1f66; border-radius:18px; padding:44px 62px; text-align:center; min-width:400px; box-shadow:0 0 60px rgba(159,239,106,0.08); }
 #end-title { font-size:38px; font-weight:900; letter-spacing:7px; margin-bottom:14px; }
 #end-title.defeat  { color:#ef4444; text-shadow:0 0 32px #ef444488; }
 #end-title.victory { color:#22d3ee; text-shadow:0 0 32px #22d3ee88; }
 #end-sub { font-size:13px; letter-spacing:2px; margin-bottom:22px; color:#4a6a4a; }
-#end-stats { color:#86efac; font-size:14px; margin-bottom:22px; line-height:2.2; }
+#end-stats { color:#c4f0a8; font-size:14px; margin-bottom:22px; line-height:2.2; }
 #end-stats b { color:#fff; }
 #end-hs { color:#fbbf24; font-size:12px; margin-bottom:28px; line-height:2.0; letter-spacing:1px; border-top:1px solid #1a3a1a; padding-top:16px; }
 #end-hs .hs-head { color:#facc15; font-weight:700; letter-spacing:3px; margin-bottom:4px; }
-#end-hs .hs-new { color:#4ade80; font-weight:700; }
-#end-restart { background:#0d200d; border:1px solid #22c55e; color:#22c55e; padding:13px 36px; border-radius:8px; font-size:13px; font-weight:700; letter-spacing:3px; cursor:pointer; transition:background 0.2s,color 0.2s; }
-#end-restart:hover { background:#22c55e; color:#000; }
+#end-hs .hs-new { color:#c4f0a8; font-weight:700; }
+#end-restart { background:#241233; border:1px solid #9fef6a; color:#9fef6a; padding:13px 36px; border-radius:8px; font-size:13px; font-weight:700; letter-spacing:3px; cursor:pointer; transition:background 0.2s,color 0.2s; }
+#end-restart:hover { background:#9fef6a; color:#000; }
 
 /* ── CONTROLS HINT ── */
 #hint-box { position:absolute; top:58px; right:16px; z-index:40; font-size:9px; color:#2a3a2a; line-height:2.1; text-align:right; pointer-events:none; }
@@ -161,12 +161,12 @@ body::after {
 /* ── HUD VALUE GLOW ── */
 .hud-val { text-shadow: 0 0 10px currentColor; }
 .hud-section { transition: background 0.2s; }
-.hud-section:hover { background: rgba(34,197,94,0.04); }
+.hud-section:hover { background: rgba(159,239,106,0.04); }
 
 /* ── PANEL GLOW BORDER ANIMATION ── */
 @keyframes borderPulse {
-    0%,100% { border-color:#1e4020; box-shadow:0 0 0 rgba(34,197,94,0); }
-    50%      { border-color:#2a5c2e; box-shadow:0 0 12px rgba(34,197,94,0.15); }
+    0%,100% { border-color:#4d1f66; box-shadow:0 0 0 rgba(159,239,106,0); }
+    50%      { border-color:#2a5c2e; box-shadow:0 0 12px rgba(159,239,106,0.15); }
 }
 .panel { animation: borderPulse 4s ease-in-out infinite; }
 
@@ -203,7 +203,7 @@ body::after {
 @keyframes shimmer { 0%{left:-100%;} 100%{left:200%;} }
 
 /* ── TOAST ENHANCED ── */
-#toast { box-shadow:0 0 24px rgba(34,197,94,0.3); backdrop-filter:blur(8px); }
+#toast { box-shadow:0 0 24px rgba(159,239,106,0.3); backdrop-filter:blur(8px); }
 
 /* ── AIR UNIT INDICATOR in HUD ── */
 .hud-air { font-size:11px; color:#a78bfa; font-weight:700; }
@@ -254,19 +254,19 @@ body::after {
         }
         #hub-screen.hidden { display:none; }
         #hub-inner { max-width:920px; margin:0 auto; }
-        #hub-title { font-size:34px; font-weight:900; letter-spacing:8px; color:#22c55e; text-shadow:0 0 30px rgba(34,197,94,.5); text-align:center; }
-        #hub-subtitle { text-align:center; color:#86efac; font-size:12px; letter-spacing:3px; margin-top:6px; margin-bottom:6px; }
+        #hub-title { font-size:34px; font-weight:900; letter-spacing:8px; color:#9fef6a; text-shadow:0 0 30px rgba(159,239,106,.5); text-align:center; }
+        #hub-subtitle { text-align:center; color:#c4f0a8; font-size:12px; letter-spacing:3px; margin-top:6px; margin-bottom:6px; }
         #hub-lore { max-width:680px; margin:18px auto 34px; font-size:12.5px; line-height:1.8; color:#9fb2a0; text-align:center; }
-        #hub-lore b { color:#4ade80; }
+        #hub-lore b { color:#c4f0a8; }
         .hub-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin-bottom:30px; }
         .mission-card {
-            background:rgba(8,20,8,0.85); border:1px solid #1e4020; border-radius:10px; padding:16px;
+            background:rgba(8,20,8,0.85); border:1px solid #4d1f66; border-radius:10px; padding:16px;
             cursor:pointer; transition:all .15s; position:relative; overflow:hidden;
         }
-        .mission-card:hover:not(.locked) { border-color:#22c55e; background:rgba(14,32,14,0.95); box-shadow:0 0 18px rgba(34,197,94,.25); }
+        .mission-card:hover:not(.locked) { border-color:#9fef6a; background:rgba(14,32,14,0.95); box-shadow:0 0 18px rgba(159,239,106,.25); }
         .mission-card.locked { opacity:.42; cursor:not-allowed; filter:grayscale(.6); }
         .mission-card.done { border-color:#2a5c2e; }
-        .mission-card.done::after { content:'✔ ABGESCHLOSSEN'; position:absolute; top:8px; right:10px; font-size:8px; letter-spacing:1px; color:#4ade80; }
+        .mission-card.done::after { content:'✔ ABGESCHLOSSEN'; position:absolute; top:8px; right:10px; font-size:8px; letter-spacing:1px; color:#c4f0a8; }
         .mission-num { font-size:9px; color:#4a9a4a; letter-spacing:2px; }
         .mission-title { font-size:15px; font-weight:700; color:#eafff0; margin:4px 0 6px; }
         .mission-desc { font-size:10.5px; color:#8aa08a; line-height:1.5; }
@@ -276,36 +276,36 @@ body::after {
         .flag-pill.blue { color:#93c5fd; border-color:#1d4ed8; }
         .flag-pill.black{ color:#5eead4; border-color:#0a6a55; }
 
-        #hub-research { background:rgba(6,14,6,.8); border:1px solid #1e4020; border-radius:12px; padding:18px 20px; margin-bottom:30px; }
+        #hub-research { background:rgba(6,14,6,.8); border:1px solid #4d1f66; border-radius:12px; padding:18px 20px; margin-bottom:30px; }
         #hub-research h3 { font-size:11px; letter-spacing:3px; color:#38bdf8; margin:0 0 12px; }
         .research-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #132213; font-size:11px; }
         .research-row:last-child { border-bottom:none; }
         .research-row .rname { color:#cdeccd; }
         .research-row .rdesc { color:#5a7a5a; font-size:9px; }
         .research-row .rstate { font-size:9px; letter-spacing:1px; padding:3px 9px; border-radius:6px; }
-        .rstate.owned  { color:#22c55e; border:1px solid #1e4020; }
+        .rstate.owned  { color:#9fef6a; border:1px solid #4d1f66; }
         .rstate.locked { color:#555; border:1px solid #2a2a2a; }
 
         /* ── BRIEFING MODAL ── */
         #briefing-modal { position:fixed; inset:0; z-index:8500; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.82); backdrop-filter:blur(4px); }
         #briefing-modal.show { display:flex; }
-        #briefing-box { background:#060e06; border:2px solid #1a4a1a; border-radius:16px; padding:34px 40px; max-width:520px; box-shadow:0 0 50px rgba(0,255,80,.1); }
-        #briefing-title { font-size:20px; font-weight:900; letter-spacing:3px; color:#22c55e; margin-bottom:4px; }
+        #briefing-box { background:#140a1c; border:2px solid #4d1f66; border-radius:16px; padding:34px 40px; max-width:520px; box-shadow:0 0 50px rgba(159,239,106,.1); }
+        #briefing-title { font-size:20px; font-weight:900; letter-spacing:3px; color:#9fef6a; margin-bottom:4px; }
         #briefing-num { font-size:10px; letter-spacing:2px; color:#4a9a4a; margin-bottom:16px; }
         #briefing-text { font-size:13px; line-height:1.9; color:#d7e8d7; margin-bottom:18px; white-space:pre-line; }
         #briefing-unlocks { font-size:10.5px; color:#fbbf24; margin-bottom:22px; line-height:1.8; }
         #briefing-unlocks b { color:#fde68a; }
         .briefing-btns { display:flex; gap:10px; justify-content:flex-end; }
-        .briefing-btns button { background:#0d200d; border:1px solid #22c55e; color:#22c55e; padding:10px 22px; border-radius:8px; font-size:11px; font-weight:700; letter-spacing:2px; cursor:pointer; }
-        .briefing-btns button:hover { background:#22c55e; color:#000; }
+        .briefing-btns button { background:#241233; border:1px solid #9fef6a; color:#9fef6a; padding:10px 22px; border-radius:8px; font-size:11px; font-weight:700; letter-spacing:2px; cursor:pointer; }
+        .briefing-btns button:hover { background:#9fef6a; color:#000; }
         .briefing-btns button.secondary { border-color:#334; color:#9fb2c0; }
         .briefing-btns button.secondary:hover { background:#1a2a1a; color:#fff; }
 
         /* ── Mission objective strip (in-game) ── */
         #objective-strip {
             position:absolute; top:58px; left:50%; transform:translateX(-50%); z-index:90;
-            background:rgba(4,10,4,.88); border:1px solid #1e4020; border-radius:9px; padding:7px 18px;
-            font-size:10.5px; letter-spacing:1px; color:#86efac; text-align:center; pointer-events:none; max-width:70vw;
+            background:rgba(4,10,4,.88); border:1px solid #4d1f66; border-radius:9px; padding:7px 18px;
+            font-size:10.5px; letter-spacing:1px; color:#c4f0a8; text-align:center; pointer-events:none; max-width:70vw;
         }
         #objective-strip b { color:#fde68a; }
 
@@ -320,7 +320,7 @@ body::after {
 <body>
 
 <div id="scanlines"></div>
-<div id="loader" style="display:none"><div class="spinner"></div><div id="loader-text">PRIME SECTOR — LADEN...</div></div>
+<div id="loader" style="display:none"><div class="spinner"></div><div id="loader-text">SWARM RISING — LADEN...</div></div>
 <div id="toast"></div>
 <div id="wave-alert"></div>
 <button id="sound-btn" title="Sound an/aus" style="display:none">🔊</button>
@@ -328,9 +328,9 @@ body::after {
 <!-- ══ MISSION HUB ══ -->
 <div id="hub-screen">
   <div id="hub-inner">
-    <div id="hub-title">PRIME SECTOR</div>
-    <div id="hub-subtitle">KAMPAGNE · 10 MISSIONEN</div>
-    <div id="hub-lore">Im Grenzsektor <b>Prime-7</b> wurde ein uralter <b>Quanten-Kern</b> entdeckt. Zwei Mächte wollen ihn zuerst: die militaristische <b>Scarlet Dominion</b> (Rot) und die technokratische <b>Cobalt Concord</b> (Blau). Du führst die kleine <b>Prime Expeditionary Force</b> — mitten zwischen die Fronten geraten, mit nur einem unsicheren Verbündeten: dem <b>Umbra-Rest</b> (Schwarz), Nachfahren jener, die den Kern einst bauten.</div>
+    <div id="hub-title">SWARM RISING</div>
+    <div id="hub-subtitle">KAMPAGNE · 10 MISSIONEN · SCHWARM</div>
+    <div id="hub-lore">Zeitalter von Umbras Resonanz haben die Biosphäre des Sektors durchtränkt. Als der Kern vollständig erwachte, erwachte auch sie — ruhendes Erbgut, über Äonen verändert, verschmilzt zu etwas Neuem. Du bist die erste wahre <b>Brut</b>: kein Volk, kein Plan, nur Instinkt — wachsen, verschlingen, sich ausbreiten. Was von <b>Scarlet Dominion</b> (Rot) und <b>Cobalt Concord</b> (Blau) übrig ist, sieht in dir das Ende ihrer Geschichte — oder ihre letzte Chance.</div>
     <div class="hub-grid" id="hub-grid"></div>
     <div id="hub-research">
       <h3>⚙ FORSCHUNG — PERMANENTE UPGRADES</h3>
@@ -373,31 +373,31 @@ body::after {
 <div id="hud-top">
     <div class="hud-section"><span class="hud-icon">💎</span><div><div class="hud-label">Mineralien</div><div class="hud-val" id="res-minerals">500</div></div></div>
     <div class="hud-section"><span class="hud-icon">⚡</span><div><div class="hud-label">Supply</div><div class="hud-val" id="res-supply">0/10</div></div></div>
-    <div class="hud-section"><span class="hud-icon">⛏️</span><div><div class="hud-label">WBFs</div><div class="hud-val hud-worker" id="res-workers">0</div></div></div>
-    <div class="hud-section"><span class="hud-icon">🪖</span><div><div class="hud-label">Marines</div><div class="hud-val" id="res-marines">0</div></div></div>
-    <div class="hud-section"><span class="hud-icon">🚀</span><div><div class="hud-label">Tanks</div><div class="hud-val" id="res-tanks">0</div></div></div>
-    <div class="hud-section"><span class="hud-icon">✈️</span><div><div class="hud-label">Jäger</div><div class="hud-val hud-air" id="res-air">0</div></div></div>
-    <div class="hud-section"><span class="hud-icon">🖤</span><div><div class="hud-label">Verbündete</div><div class="hud-val" id="res-allies" style="color:#5eead4;text-shadow:0 0 8px #00ffcc">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">⛏️</span><div><div class="hud-label">Sammler</div><div class="hud-val hud-worker" id="res-workers">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🧬</span><div><div class="hud-label">Spawnlinge</div><div class="hud-val" id="res-marines">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🧬</span><div><div class="hud-label">Spiner</div><div class="hud-val" id="res-tanks">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🧬</span><div><div class="hud-label">Skitterwings</div><div class="hud-val hud-air" id="res-air">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🧬</span><div><div class="hud-label">Brutkin</div><div class="hud-val" id="res-allies" style="color:#9fef6a;text-shadow:0 0 8px #7fff4a">0</div></div></div>
     <div class="hud-section"><span class="hud-icon">💀</span><div><div class="hud-label">Kills</div><div class="hud-val" id="res-kills" style="color:#facc15;text-shadow:0 0 8px #facc15">0</div></div></div>
     <div class="hud-section"><span class="hud-icon">⚠️</span><div><div class="hud-label">Feinde</div><div class="hud-val" id="res-enemies" style="color:#f87171">0</div></div></div>
-    <div class="hud-section" style="font-size:9px;color:#4a9a4a;letter-spacing:1px;" id="hud-mission-label">PRIME SECTOR</div>
+    <div class="hud-section" style="font-size:9px;color:#9fef6a;letter-spacing:1px;" id="hud-mission-label">SWARM RISING</div>
 </div>
 
 <!-- PRODUCTION PANEL (always visible in command mode) -->
 <div id="prod-panel">
     <div class="panel">
-        <div class="plabel">⛏️ WBF Arbeiter</div>
+        <div class="plabel">⛏️ Sammler-Drohne</div>
         <div class="btn-grid">
-            <button onclick="spawnWorkerBtn()" style="grid-column:1/-1">⛏️ WBF einsetzen<span class="cost-badge">25 💎 · auto-sammelt Mineralien</span></button>
+            <button onclick="spawnWorkerBtn()" style="grid-column:1/-1">⛏️ Drohne einsetzen<span class="cost-badge">25 💎 · auto-sammelt Biomasse</span></button>
         </div>
     </div>
     <div class="panel">
-        <div class="plabel">🪖 Kaserne → Einheiten</div>
+        <div class="plabel">🧬 Brutkammer → Einheiten</div>
         <div class="btn-grid">
-            <button onclick="spawnPlayerMarine()">🪖 Marine<span class="cost-badge">50 💎</span></button>
-            <button onclick="spawnPlayerTank()">🚀 Tank<span class="cost-badge">150 💎</span></button>
-            <button onclick="spawnPlayerWraith()" style="grid-column:1/-1;border-color:#4c1d95;color:#c4b5fd;">✈️ Jäger<span class="cost-badge">100 💎 · Lufteinheit</span></button>
-            <button onclick="spawnPlayerSphere()" style="grid-column:1/-1;border-color:#22ff66;color:#22ff66;background:rgba(0,80,40,0.4);font-weight:700;letter-spacing:1px;">🌐 QUANTEN-SPHÄRE<span class="cost-badge" style="background:#22ff66;color:#000;font-weight:900;">2000 💎 · MEGA</span></button>
+            <button onclick="spawnPlayerMarine()">🧬 Spawnling<span class="cost-badge">35 💎 · Regeneration</span></button>
+            <button onclick="spawnPlayerTank()">🧬 Spiner<span class="cost-badge">110 💎 · Regeneration</span></button>
+            <button onclick="spawnPlayerWraith()" style="grid-column:1/-1;border-color:#4d1f66;color:#c9a8e0;">🧬 Skitterwing<span class="cost-badge">85 💎 · Lufteinheit · Regeneration</span></button>
+            <button onclick="spawnPlayerSphere()" style="grid-column:1/-1;border-color:#9fef6a;color:#9fef6a;background:rgba(58,31,77,0.4);font-weight:700;letter-spacing:1px;">🧬 BROODMUTTER<span class="cost-badge" style="background:#9fef6a;color:#000;font-weight:900;">1800 💎 · MEGA</span></button>
         </div>
     </div>
 </div>
@@ -405,14 +405,14 @@ body::after {
 <!-- BUILD PANEL -->
 <div id="build-ui">
     <div class="panel">
-        <div class="plabel">🏗️ Gebäude bauen</div>
+        <div class="plabel">🏗️ Brut errichten</div>
         <div class="btn-grid">
-            <button id="btn-barracks" onclick="setBuildType('barracks')">🪖 Kaserne<span class="cost-badge">150 💎</span></button>
-            <button id="btn-depot" onclick="setBuildType('depot')">📦 Depot<span class="cost-badge">100 💎</span></button>
-            <button id="btn-turret" onclick="setBuildType('turret')">🔫 Turm<span class="cost-badge">75 💎</span></button>
-            <button id="btn-bunker" onclick="setBuildType('bunker')">🛡️ Bunker<span class="cost-badge">120 💎</span></button>
-            <button id="btn-refinery" onclick="setBuildType('refinery')">⚙️ Raffinerie<span class="cost-badge">200 💎</span></button>
-            <button id="btn-factory" onclick="setBuildType('factory')">🏭 Fabrik<span class="cost-badge">250 💎</span></button>
+            <button id="btn-barracks" onclick="setBuildType('barracks')">🧬 Brutkammer<span class="cost-badge">150 💎</span></button>
+            <button id="btn-depot" onclick="setBuildType('depot')">🧬 Biomasse-Zyste<span class="cost-badge">100 💎</span></button>
+            <button id="btn-turret" onclick="setBuildType('turret')">🧬 Stachelturm<span class="cost-badge">75 💎</span></button>
+            <button id="btn-bunker" onclick="setBuildType('bunker')">🧬 Chitin-Nest<span class="cost-badge">120 💎</span></button>
+            <button id="btn-refinery" onclick="setBuildType('refinery')">🧬 Nährboden<span class="cost-badge">200 💎</span></button>
+            <button id="btn-factory" onclick="setBuildType('factory')">🧬 Mutationsgrube<span class="cost-badge">250 💎</span></button>
         </div>
     </div>
     <div class="panel">
@@ -480,7 +480,7 @@ const res = { minerals: 500, supply: 0, maxSupply: 10, kills: 0, totalMined: 0 }
 // ════════════════════════════════════════════════════════
 // CAMPAIGN SAVE SYSTEM
 // ════════════════════════════════════════════════════════
-const CAMPAIGN_KEY = 'prime_sector_campaign_v1';
+const CAMPAIGN_KEY = 'swarm_rising_campaign_v1';
 function loadCampaign() {
     try {
         const saved = JSON.parse(localStorage.getItem(CAMPAIGN_KEY));
@@ -500,14 +500,14 @@ let campaign = loadCampaign();
 // have it all, has to be prioritized, same as a real tech tree.
 // ════════════════════════════════════════════════════════
 const RESEARCH = [
-    { id:'infantry_dmg1',  name:'Infanteriewaffen I',  desc:'+15% Marine-Schaden',      cost:1, reqMission:1, stat:'MARINE_DMG',   mult:0.15 },
-    { id:'infantry_hp1',   name:'Infanterie-Panzerung', desc:'+15% Marine-HP',          cost:1, reqMission:2, stat:'MARINE_HP',    mult:0.15 },
-    { id:'worker_eff1',    name:'WBF-Effizienz',        desc:'+20% Mineralien pro Fuhre', cost:1, reqMission:4, stat:'WORKER_CARRY', mult:0.20 },
-    { id:'vehicle_armor1', name:'Panzerplatten',        desc:'+15% Tank-HP',            cost:2, reqMission:5, stat:'TANK_HP',      mult:0.15 },
-    { id:'vehicle_dmg1',   name:'Wucht-Geschosse',      desc:'+15% Tank-Schaden',       cost:2, reqMission:6, stat:'TANK_DMG',     mult:0.15 },
-    { id:'air_engines1',   name:'Fusionstriebwerke',    desc:'+20% Jäger-Tempo',        cost:2, reqMission:6, stat:'WRAITH_SPEED', mult:0.20 },
-    { id:'air_armor1',     name:'Legierungsrumpf',      desc:'+15% Jäger-HP',           cost:2, reqMission:7, stat:'WRAITH_HP',    mult:0.15 },
-    { id:'sphere_res1',    name:'Resonanz-Verstärker',  desc:'+10% Sphären-Dmg/HP',     cost:3, reqMission:9, stat:'SPHERE_BOTH',  mult:0.10 },
+    { id:'spawnling_dmg1',   name:'Toxin-Drüsen I',        desc:'+15% Spawnling-Schaden',          cost:1, reqMission:1, stat:'MARINE_DMG',   mult:0.15 },
+    { id:'spawnling_regen1', name:'Zellteilung I',         desc:'+15% Spawnling-HP/Regeneration',  cost:1, reqMission:2, stat:'MARINE_HP',    mult:0.15 },
+    { id:'collector_eff1',   name:'Enzym-Extraktion',      desc:'+20% Biomasse pro Fuhre',         cost:1, reqMission:4, stat:'WORKER_CARRY', mult:0.20 },
+    { id:'spiner_armor1',    name:'Chitin-Verdickung',     desc:'+15% Spiner-HP/Regeneration',     cost:2, reqMission:5, stat:'TANK_HP',      mult:0.15 },
+    { id:'spiner_dmg1',      name:'Säure-Konzentration',   desc:'+15% Spiner-Schaden',             cost:2, reqMission:6, stat:'TANK_DMG',     mult:0.15 },
+    { id:'skitter_speed1',   name:'Membran-Mutation',      desc:'+20% Skitterwing-Tempo',          cost:2, reqMission:6, stat:'WRAITH_SPEED', mult:0.20 },
+    { id:'skitter_regen1',   name:'Panzerschuppen',        desc:'+15% Skitterwing-HP/Regeneration',cost:2, reqMission:7, stat:'WRAITH_HP',    mult:0.15 },
+    { id:'broodmother_res1', name:'Ur-Mutation',           desc:'+10% Broodmutter Dmg/HP/Regen',   cost:3, reqMission:9, stat:'SPHERE_BOTH',  mult:0.10 },
 ];
 function researchOwned(id)     { return !!campaign.research[id]; }
 function researchUnlocked(r)   { return campaign.unlockedMission >= r.reqMission; }
@@ -525,71 +525,71 @@ function researchMult(stat) {
 // this project, applied to an RTS instead of an FPS.
 // ════════════════════════════════════════════════════════
 const MISSIONS = [
-  { id:0, title:'Planetfall', brief:
-    'Die PEF-Vorhut setzt im Sektor Prime-7 auf. Noch ist der Quanten-Kern nur ein Gerücht — aber die Scanner melden bereits fremde Signaturen.\n\nErrichte deine Basis und sichere eine stabile Mineralienversorgung, bevor hier irgendwer anderes ankommt.',
+  { id:0, title:'Zellteilung', brief:
+    'Eine Zyste reißt auf. Erste Zellen teilen sich, formen sich, beginnen zu greifen — keine Gedanken, nur Hunger und ein Ziel: wachsen. Es gibt noch keinen Feind, nur den Drang, Biomasse zu finden und sich zu vermehren.\n\nErrichte die erste Brut und sichere eine stetige Biomasse-Zufuhr.',
     factions:{red:false,blue:false,black:false}, startMinerals:400, enemyMinerals:0, jointWaves:false,
     unlockedBuildings:['barracks','depot'], unlockedUnits:['marine'],
-    objective:{type:'deliverMinerals', quota:300}, objectiveLabel:'Liefere <b>300💎</b> Mineralien ab',
-    unlockText:'Freigeschaltet: Kaserne, Depot, Marine' },
+    objective:{type:'deliverMinerals', quota:300}, objectiveLabel:'Liefere <b>300💎</b> Biomasse ab',
+    unlockText:'Freigeschaltet: Brutkammer, Biomasse-Zyste, Spawnling' },
 
-  { id:1, title:'Erster Kontakt', brief:
-    'Ein Scarlet-Dominion-Spähtrupp wurde geortet, Kurs auf unsere Basis. Die Dominion markiert jeden Außenposten in diesem Sektor sofort als Ziel — Verhandlungen sind nicht vorgesehen.\n\nHalte die Basis. Baue Verteidigung.',
+  { id:1, title:'Erster Hunger', brief:
+    'Etwas Bewaffnetes nähert sich der Brut — Reste der Scarlet Dominion, ausgesandt, jede unbekannte Signatur im Sektor auszulöschen. Sie wissen nicht, was sie hier finden werden.\n\nHalte die Brut. Errichte Stacheltürme.',
     factions:{red:true,blue:false,black:false}, startMinerals:500, enemyMinerals:1100, jointWaves:false,
     unlockedBuildings:['barracks','depot','turret','bunker'], unlockedUnits:['marine'],
     objective:{type:'wipeEnemies'}, objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Scarlet-Dominion</span>-Kräfte',
-    unlockText:'Freigeschaltet: Turm, Bunker' },
+    unlockText:'Freigeschaltet: Stachelturm, Chitin-Nest' },
 
-  { id:2, title:'Zwei Fronten', brief:
-    'Die Aufklärung hatte recht: wir sind nicht allein. Die Cobalt Concord ist ebenfalls im Sektor gelandet — und beide Mächte haben uns längst erfasst.\n\nÜberlebe, bis die Verstärkung eintrifft. Nicht gewinnen — durchhalten.',
+  { id:2, title:'Zwei Jäger', brief:
+    'Die Brut strahlt messbare Energie ab — und lockt mehr an. Cobalt-Concord-Scouts kreisen jetzt ebenfalls über dem Nährgebiet. Beide Mächte haben die Brut erfasst.\n\nÜberlebe, bis die nächste Zellteilung abgeschlossen ist. Nicht siegen — durchhalten.',
     factions:{red:true,blue:true,black:false}, startMinerals:550, enemyMinerals:1200, jointWaves:false,
     unlockedBuildings:['barracks','depot','turret','bunker'], unlockedUnits:['marine'],
     objective:{type:'surviveTime', seconds:150}, objectiveLabel:'Überlebe <b>150 Sekunden</b>',
     unlockText:'Keine neuen Freischaltungen — nur Standhalten.' },
 
-  { id:3, title:'Raffinerie-Wettlauf', brief:
-    'Command will eine zweite Mineralienquelle gesichert sehen, bevor Rot sie findet. Wir starten mit wenig Kapital — der Rest muss erarbeitet werden, während rote Spähtrupps uns stören.\n\nBaue eine Raffinerie. Erarbeite den Rest.',
+  { id:3, title:'Nährboden', brief:
+    'Die Brut braucht einen zweiten Nährboden — tiefer, reicher an Biomasse. Wir beginnen mit wenig Reserve; der Rest muss erjagt werden, während Dominion-Spähtrupps stören.\n\nErrichte den Nährboden. Erjage den Rest.',
     factions:{red:true,blue:false,black:false}, startMinerals:150, enemyMinerals:900, jointWaves:false,
     unlockedBuildings:['barracks','depot','turret','bunker','refinery'], unlockedUnits:['marine'],
-    objective:{type:'deliverMinerals', quota:450}, objectiveLabel:'Liefere <b>450💎</b> Mineralien ab',
-    unlockText:'Freigeschaltet: Raffinerie' },
+    objective:{type:'deliverMinerals', quota:450}, objectiveLabel:'Liefere <b>450💎</b> Biomasse ab',
+    unlockText:'Freigeschaltet: Nährboden' },
 
-  { id:4, title:'Umbra-Schleier', brief:
-    'Ein unbekanntes Signal — alt, aber stabil. Der Umbra-Rest kontaktiert uns zum ersten Mal: Nachfahren jener Zivilisation, die den Quanten-Kern einst erschuf. Sie warnen uns, was geschieht, sollte Rot oder Blau ihn zuerst bergen.\n\nVernichte die Dominion-Streitmacht mit Unterstützung der Umbra.',
+  { id:4, title:'Zweite Brut', brief:
+    'Eine zweite Zyste reißt auf, weit entfernt, aber spürbar — Brutkin, aus derselben Ur-Mutation geboren. Für einen Moment ist da etwas wie Erkennen. Gemeinsam vernichtet ihr, was von der Dominion-Streitmacht übrig ist, die euer Nährgebiet bedroht.',
     factions:{red:true,blue:false,black:true}, startMinerals:550, enemyMinerals:1600, jointWaves:false,
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank'],
     objective:{type:'wipeEnemies'}, objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Scarlet-Dominion</span>-Kräfte',
-    unlockText:'Freigeschaltet: Fabrik, Tank' },
+    unlockText:'Freigeschaltet: Mutationsgrube, Spiner' },
 
-  { id:5, title:'Scarlet-Sturm', brief:
-    'Die Dominion wirft jetzt ihre gesamte Garnison gegen uns — gepanzerte Kolonnen, Luftunterstützung. Das ist kein Scharmützel mehr, das ist ein Sturmangriff.\n\nHalte die Stellung.',
+  { id:5, title:'Dominions Jagd', brief:
+    'Die Scarlet Dominion wirft ihre letzte Garnison gegen die wachsende Brut — gepanzerte Kolonnen, Luftunterstützung, alles, was ihnen geblieben ist. Ein letzter Versuch, das auszurotten, was sie nicht verstehen.\n\nHalte die Brut.',
     factions:{red:true,blue:false,black:false}, startMinerals:750, enemyMinerals:1500, jointWaves:true, jointWavesFaction:'red',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith'],
     objective:{type:'surviveTime', seconds:200}, objectiveLabel:'Überlebe <b>200 Sekunden</b> Dominion-Großangriff',
-    unlockText:'Freigeschaltet: Jäger (Luftstreitkraft)' },
+    unlockText:'Freigeschaltet: Skitterwing (Luftstreitkraft)' },
 
-  { id:6, title:'Cobalt-Einbruch', brief:
-    'Jetzt ist Blau an der Reihe. Die Cobalt Concord greift mit koordinierter Luft-Boden-Taktik an — anders als die Dominion, diszipliniert und methodisch.\n\nHalte die Stellung. Setz deine Jäger gegen ihre Luftstreitkräfte ein.',
+  { id:6, title:'Concords Säuberung', brief:
+    'Jetzt ist Blau an der Reihe. Die Cobalt Concord greift mit koordinierter Luft-Boden-Taktik an — anders als die Dominion, methodisch, entschlossen, jede Spur der Brut zu tilgen, bevor sie sich weiter ausbreitet.\n\nHalte die Brut. Setz deine Skitterwings gegen ihre Luftstreitkräfte ein.',
     factions:{red:false,blue:true,black:false}, startMinerals:750, enemyMinerals:1500, jointWaves:true, jointWavesFaction:'blue',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith'],
     objective:{type:'surviveTime', seconds:200}, objectiveLabel:'Überlebe <b>200 Sekunden</b> Concord-Großangriff',
     unlockText:'Keine neuen Freischaltungen — Luftabwehr ist jetzt entscheidend.' },
 
-  { id:7, title:'Kern-Beben', brief:
-    'Der Kern beginnt, messbare Energie abzustrahlen — und sowohl Rot als auch Blau haben das bemerkt. Für einen Moment ignorieren sie uns komplett: sie kämpfen gegeneinander um den Zugang.\n\nLass sie sich gegenseitig schwächen. Greif ein, wenn der Moment richtig ist — denn am Ende wollen beide denselben Kern, und das schließt uns ein.',
+  { id:7, title:'Beutekonkurrenz', brief:
+    'Verzweiflung zerreißt, was von Dominion und Concord übrig ist. Beide wollen dasselbe schwindende Territorium — und für einen Moment ignorieren sie die Brut komplett, um sich gegenseitig zu vernichten.\n\nLass sie sich schwächen. Greif ein, wenn der Moment richtig ist — am Ende wollen beide dasselbe Nährgebiet, und das schließt die Brut ein.',
     factions:{red:true,blue:true,black:false}, startMinerals:700, enemyMinerals:2000, jointWaves:false, rivalClash:true,
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith'],
     objective:{type:'wipeEnemies'}, objectiveLabel:'Vernichte, was von <span style="color:#fca5a5">Rot</span> und <span style="color:#93c5fd">Blau</span> übrig bleibt',
     unlockText:'Keine neuen Freischaltungen — nutze das Chaos.' },
 
-  { id:8, title:'Quanten-Zündung', brief:
-    'Der Kern erwacht. Die Umbra haben uns Zugang zur Resonanz-Technologie gewährt, die seinen Energien standhält — die Quanten-Sphäre ist einsatzbereit. Rot und Blau greifen jetzt gemeinsam an, in einem letzten koordinierten Vorstoß, bevor wir den Kern sichern können.',
+  { id:8, title:'Ur-Erwachen', brief:
+    'Etwas in der Brut verändert sich — eine Mutation, älter und größer als alles bisher Geborene, beginnt zu reifen. Dominion und Concord haben ihre letzten Reste zu einem verzweifelten gemeinsamen Vorstoß vereint, um sie zu verhindern.',
     factions:{red:true,blue:true,black:true}, startMinerals:800, enemyMinerals:2800, jointWaves:true, jointWavesFaction:'both',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith','sphere'],
     objective:{type:'wipeEnemies'}, objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>- und <span style="color:#93c5fd">Blau</span>-Kräfte',
-    unlockText:'Freigeschaltet: Quanten-Sphäre (Mega-Einheit)' },
+    unlockText:'Freigeschaltet: Broodmutter (Mega-Einheit)' },
 
-  { id:9, title:'Konvergenz', brief:
-    'Letzte Mission. Rot und Blau marschieren mit allem, was ihnen geblieben ist, auf den Kern zu. Es gibt keine Zeit, jede einzelne Einheit zu jagen — nur die Hauptquartiere zählen. Zerstöre beide, bevor sie sich vereinen können.',
+  { id:9, title:'Vollendung', brief:
+    'Letzte Mission. Was von Dominion und Concord übrig ist, marschiert mit allem auf die Brut zu, das ihnen geblieben ist. Keine Zeit, jede einzelne Einheit zu jagen — nur ihre Hauptquartiere zählen. Zerstöre beide. Die Brut wächst weiter, oder sie endet hier.',
     factions:{red:true,blue:true,black:true}, startMinerals:900, enemyMinerals:3600, jointWaves:true, jointWavesFaction:'both',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith','sphere'],
     objective:{type:'destroyHQs'}, objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere',
@@ -948,18 +948,25 @@ const CAM_PAN_SPEED = 0.5;
 let savedCamPos = null, savedCamTarget = null;
 
 // Unit constants
-const MARINE_HP=60,  MARINE_DMG=8,  MARINE_RANGE=14, MARINE_SPEED=5.5, MARINE_RATE=0.65;
-const TANK_HP=180,   TANK_DMG=24,   TANK_RANGE=20,   TANK_SPEED=3.2,   TANK_RATE=1.8;
+// Player side = Spawnling/Spiner/Skitterwing/Broodmother (Swarm, cheap +
+// fast + regenerating). Lower raw HP and mineral cost than the Terran
+// equivalent, but a continuous passive hpRegenRate (always-on organic
+// healing, unlike the Umbra campaign's regenerate-only-out-of-combat
+// shield) - the Swarm fantasy is overwhelming numbers and attrition, not
+// a single unit tanking a straight fight. E_* enemy constants (Scarlet
+// Dominion / Cobalt Concord holdouts, still Terran) are unchanged.
+const MARINE_HP=40,  MARINE_DMG=9,  MARINE_RANGE=2.2,  MARINE_SPEED=6.5, MARINE_RATE=0.6,  MARINE_REGEN=2.5; // Spawnling (melee)
+const TANK_HP=100,   TANK_DMG=19,   TANK_RANGE=17,     TANK_SPEED=4.3,   TANK_RATE=1.4,    TANK_REGEN=4;    // Spiner (ranged)
 const E_MARINE_HP=55, E_MARINE_DMG=8, E_MARINE_RANGE=12, E_MARINE_SPEED=5.2;
 const E_TANK_HP=150,  E_TANK_DMG=20,  E_TANK_RANGE=18,   E_TANK_SPEED=3.0;
 const TURRET_DMG=14, TURRET_RANGE=22, TURRET_RATE=1.0;
 const WORKER_SPEED=6.0, WORKER_MINE_TIME=3.5, WORKER_CARRY=12;
 // Aircraft constants
-const WRAITH_HP=80, WRAITH_DMG=10, WRAITH_RANGE=22, WRAITH_SPEED=13, WRAITH_RATE=0.75;
+const WRAITH_HP=55, WRAITH_DMG=9, WRAITH_RANGE=19, WRAITH_SPEED=16, WRAITH_RATE=0.6, WRAITH_REGEN=3; // Skitterwing
 const E_WRAITH_HP=70, E_WRAITH_DMG=9, E_WRAITH_RANGE=20, E_WRAITH_SPEED=11;
 const AIR_ALTITUDE = 11.0;  // constant flight height
-// ── QUANTUM SPHERE — Mega Unit ──────────────────────────
-const SPHERE_HP=900, SPHERE_DMG=55, SPHERE_RANGE=36, SPHERE_SPEED=5.5, SPHERE_RATE=2.2, SPHERE_COST=2000;
+// ── BROODMOTHER — Mega Unit ──────────────────────────
+const SPHERE_HP=950, SPHERE_DMG=52, SPHERE_RANGE=34, SPHERE_SPEED=6.0, SPHERE_RATE=2.0, SPHERE_COST=1800, SPHERE_REGEN=18; // Broodmother
 const E_SPHERE_HP=800, E_SPHERE_DMG=48, E_SPHERE_RANGE=32, E_SPHERE_SPEED=5.0;
 const SPHERE_ALTITUDE = AIR_ALTITUDE + 4.5; // flies higher
 
@@ -1105,42 +1112,42 @@ function init() {
     window.setBuildTool = setBuildTool;
     window.deleteSelectedBuilding = deleteSelectedBuilding;
     window.spawnPlayerMarine = () => {
-        if (res.minerals<50) { showToast('⚠️ Zu wenig Mineralien! (brauche 50💎)'); return; }
-        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
-        res.minerals-=50; spawnUnit('marine',false); updateHUD(); showToast('🪖 Marine spawnt sofort!');
+        if (res.minerals<35) { showToast('⚠️ Zu wenig Biomasse! (brauche 35💎)'); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Brutkammer bauen!'); return; }
+        res.minerals-=35; spawnUnit('marine',false); updateHUD(); showToast('🧬 Spawnling geboren!');
     };
     window.spawnPlayerTank = () => {
-        if (!currentMission.unlockedUnits.includes('tank')) { showToast('🔒 Tank noch nicht freigeschaltet!'); return; }
-        if (res.minerals<150) { showToast('⚠️ Zu wenig Mineralien!'); return; }
+        if (!currentMission.unlockedUnits.includes('tank')) { showToast('🔒 Spiner noch nicht freigeschaltet!'); return; }
+        if (res.minerals<110) { showToast('⚠️ Zu wenig Biomasse!'); return; }
         if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll!'); return; }
-        res.minerals-=150; spawnUnit('tank',false); updateHUD(); showToast('🚀 Tank eingesetzt!');
+        res.minerals-=110; spawnUnit('tank',false); updateHUD(); showToast('🧬 Spiner eingesetzt!');
     };
     window.spawnWorkerBtn = () => {
-        if (res.minerals<25) { showToast('⚠️ Zu wenig Mineralien!'); return; }
-        res.minerals-=25; spawnWorker(); updateHUD(); showToast('⛏️ WBF-Arbeiter eingesetzt!');
+        if (res.minerals<25) { showToast('⚠️ Zu wenig Biomasse!'); return; }
+        res.minerals-=25; spawnWorker(); updateHUD(); showToast('⛏️ Sammler-Drohne eingesetzt!');
     };
     window.spawnPlayerWraith = () => {
-        if (!currentMission.unlockedUnits.includes('wraith')) { showToast('🔒 Jäger noch nicht freigeschaltet!'); return; }
-        if (res.minerals<100) { showToast('❌ Nicht genug Mineralien! (100 💎)'); return; }
-        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
-        res.minerals-=100;
+        if (!currentMission.unlockedUnits.includes('wraith')) { showToast('🔒 Skitterwing noch nicht freigeschaltet!'); return; }
+        if (res.minerals<85) { showToast('❌ Nicht genug Biomasse! (85 💎)'); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Brutkammer bauen!'); return; }
+        res.minerals-=85;
         const cmd = playerBuildings.find(b=>b.type==='command');
         const sx = cmd ? cmd.cx+(Math.random()-0.5)*14 : -20+(Math.random()-0.5)*14;
         const sz = cmd ? cmd.cz+(Math.random()-0.5)*14 : -32+(Math.random()-0.5)*14;
         const u = spawnAircraft(false);
         u.group.position.set(sx, AIR_ALTITUDE, sz);
-        updateHUD(); showToast('✈️ Jäger startet!');
+        updateHUD(); showToast('🧬 Skitterwing schlüpft!');
     };
     window.spawnPlayerSphere = () => {
-        if (!currentMission.unlockedUnits.includes('sphere')) { showToast('🔒 Quanten-Sphäre noch nicht freigeschaltet!'); return; }
-        if (res.minerals<SPHERE_COST) { showToast(`❌ 2000 💎 für Quanten-Sphäre benötigt!`); return; }
-        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
+        if (!currentMission.unlockedUnits.includes('sphere')) { showToast('🔒 Broodmutter noch nicht freigeschaltet!'); return; }
+        if (res.minerals<SPHERE_COST) { showToast(`❌ 1800 💎 für Broodmutter benötigt!`); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Brutkammer bauen!'); return; }
         res.minerals-=SPHERE_COST;
         const cmd = playerBuildings.find(b=>b.type==='command');
         const sx = cmd ? cmd.cx+(Math.random()-0.5)*12 : -20+(Math.random()-0.5)*12;
         const sz = cmd ? cmd.cz+(Math.random()-0.5)*12 : -32+(Math.random()-0.5)*12;
         spawnSphere('player', sx, sz);
-        updateHUD(); showToast('🌐 QUANTEN-SPHÄRE aktiviert! ⚡ LASER ONLINE');
+        updateHUD(); showToast('🧬 BROODMUTTER GEBOREN! ⚡ SCHWARM ERWACHT');
     };
 
     // ── INITIAL ENEMY FORCES (C&C style: faction starts with workers + scouts) ──
@@ -1287,20 +1294,21 @@ function addMineralDeposit(mx,mz) {
 // that building type - otherwise a mission's "Freigeschaltet: Kaserne,
 // Depot" briefing text would be a lie, standing right next to 3 turrets
 // the player can plainly see but can't yet queue a replacement for.
+const SWARM_MAIN = 0x5a1f3d, SWARM_STEEL = 0x7a2d52;
 function buildPlayerBase() {
     const bl = currentMission.unlockedBuildings;
-    buildBuilding(-20,-32,'command',false,'Command Center');
-    if (bl.includes('barracks')) buildBuilding(-36,-20,'barracks',false,'Kaserne Alpha');
+    buildBuilding(-20,-32,'command',false,'Mutterbrut', SWARM_MAIN, SWARM_STEEL);
+    if (bl.includes('barracks')) buildBuilding(-36,-20,'barracks',false,'Brutkammer Alpha', SWARM_MAIN, SWARM_STEEL);
     if (bl.includes('depot')) {
-        buildBuilding(-12,-20,'depot',false,'Depot 1');
-        buildBuilding( -5,-32,'depot',false,'Depot 2');
+        buildBuilding(-12,-20,'depot',false,'Biomasse-Zyste I', SWARM_MAIN, SWARM_STEEL);
+        buildBuilding( -5,-32,'depot',false,'Biomasse-Zyste II', SWARM_MAIN, SWARM_STEEL);
     }
     if (bl.includes('turret')) {
-        buildBuilding(-42,-38,'turret',false,'Turm A');
-        buildBuilding(-22,-48,'turret',false,'Turm B');
-        buildBuilding( -8,-48,'turret',false,'Turm C');
+        buildBuilding(-42,-38,'turret',false,'Stachelturm A', SWARM_MAIN, SWARM_STEEL);
+        buildBuilding(-22,-48,'turret',false,'Stachelturm B', SWARM_MAIN, SWARM_STEEL);
+        buildBuilding( -8,-48,'turret',false,'Stachelturm C', SWARM_MAIN, SWARM_STEEL);
     }
-    if (bl.includes('bunker')) buildBuilding(-38,-48,'bunker',false,'Bunker A');
+    if (bl.includes('bunker')) buildBuilding(-38,-48,'bunker',false,'Chitin-Nest', SWARM_MAIN, SWARM_STEEL);
 }
 
 function buildEnemyBase() {
@@ -1314,14 +1322,19 @@ function buildEnemyBase() {
 }
 
 // ── BLACK ALLY FACTION — bottom-left corner ─────────────
+// Narrative note: the ally slot is a second awakened Brood (Brutkin),
+// not a separate species - their units are built by the same
+// spawnAlly() which reuses spawnUnit(type,false), so they render with
+// the same Spawnling/Spiner organic models. Darker, sicklier tint keeps
+// them visually distinct from the player's own Brood on screen.
 function buildBlackBase() {
-    buildBuilding(-55,48,'command', false,'Verbündete HQ',   0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-42,38,'barracks',false,'V-Kaserne',       0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-62,38,'depot',   false,'V-Depot',         0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-42,58,'turret',  false,'V-Turm A',        0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-55,62,'turret',  false,'V-Turm B',        0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-68,58,'turret',  false,'V-Turm C',        0x1c1c1c,0x2d2d2d,true);
-    buildBuilding(-68,40,'bunker',  false,'V-Bunker',        0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-55,48,'command', false,'Brutkin-Nest',    0x2a1420,0x3d1a2e,true);
+    buildBuilding(-42,38,'barracks',false,'B-Brutkammer',    0x2a1420,0x3d1a2e,true);
+    buildBuilding(-62,38,'depot',   false,'B-Biomasse-Zyste',0x2a1420,0x3d1a2e,true);
+    buildBuilding(-42,58,'turret',  false,'B-Stachelturm A', 0x2a1420,0x3d1a2e,true);
+    buildBuilding(-55,62,'turret',  false,'B-Stachelturm B', 0x2a1420,0x3d1a2e,true);
+    buildBuilding(-68,58,'turret',  false,'B-Stachelturm C', 0x2a1420,0x3d1a2e,true);
+    buildBuilding(-68,40,'bunker',  false,'B-Chitin-Nest',   0x2a1420,0x3d1a2e,true);
 }
 
 // ════════════════════════════════════════════════════════
@@ -1426,7 +1439,7 @@ function fireLaserBeam(fromPos, toPos, target, dmg, isEnemyShot, laserColor) {
 // ── SPHERE SPAWN ─────────────────────────────────────────
 function spawnSphere(faction, bx, bz) {
     const cfg = {
-        player: {wire:0x22ff66, core:0x88ff44, laser:0x44ff88, label:'🌐 Quanten-Sphäre', isEnemy:false, isAlly:false},
+        player: {wire:0x9fef6a, core:0x5a1f3d, laser:0x7fff4a, label:'🧬 Broodmutter', isEnemy:false, isAlly:false},
         red:    {wire:0xff3311, core:0xff8800, laser:0xff4400, label:'🔴 Feind-Sphäre',    isEnemy:true,  isAlly:false},
         blue:   {wire:0x3366ff, core:0x00aaff, laser:0x0099ff, label:'🔵 Blau-Sphäre',    isEnemy:true,  isAlly:false},
         ally:   {wire:0x00ffcc, core:0x00dd88, laser:0x22ffcc, label:'🖤 V-Sphäre',        isEnemy:false, isAlly:true},
@@ -1446,6 +1459,7 @@ function spawnSphere(faction, bx, bz) {
     const sphereRM = faction==='player' ? researchMult('SPHERE_BOTH') : 1;
     const hp  = c.isEnemy ? E_SPHERE_HP  : Math.round(SPHERE_HP  * sphereRM);
     const sDmg= c.isEnemy ? E_SPHERE_DMG : Math.round(SPHERE_DMG * sphereRM);
+    const regen0 = c.isEnemy ? 0 : SPHERE_REGEN * sphereRM;
     const unit = {
         group:model, type:'sphere', isEnemy:c.isEnemy, isAlly:c.isAlly,
         hp, maxHp:hp, tag, hpEl,
@@ -1461,6 +1475,7 @@ function spawnSphere(faction, bx, bz) {
         sphereRings, sphereCore,   // cached refs — no traverse() needed
         faction,                   // 'player'|'red'|'blue'|'ally'
     };
+    if (regen0 > 0) unit.hpRegenRate = regen0;
     if (c.isAlly)         { allyUnits.push(unit); }
     else if (c.isEnemy)   { enemyUnits.push(unit); }
     else                  { playerUnits.push(unit); res.supply+=2; }
@@ -1627,7 +1642,40 @@ function buildBuilding(bx,bz,type,isEnemy,label, factionMain=null, factionSteel=
 // ════════════════════════════════════════════════════════
 // UNIT MODELS
 // ════════════════════════════════════════════════════════
+// Spawnling - the Swarm's cheap, fast melee unit. Low quadruped silhouette
+// (so the shared walk-bob code still applies to something plausible)
+// built from organic chitin shapes instead of armor plates - sickly
+// purple-green, bioluminescent joints, claws instead of a gun.
+function makeSpawnlingModel() {
+    const g = new THREE.Group();
+    const chitinM = new THREE.MeshStandardMaterial({color:0x4d1f66, roughness:0.45, metalness:0.1,
+        emissive:new THREE.Color(0x2d0f3d), emissiveIntensity:0.4});
+    const membraneM = new THREE.MeshStandardMaterial({color:0x6b2d8c, roughness:0.5, metalness:0.05,
+        emissive:new THREE.Color(0x3d1a52), emissiveIntensity:0.35});
+    const glowM = new THREE.MeshStandardMaterial({color:0x9fef6a, emissive:new THREE.Color(0x9fef6a), emissiveIntensity:2.0, roughness:0.1});
+    const clawM = new THREE.MeshStandardMaterial({color:0x1a0f22, roughness:0.3, metalness:0.4});
+
+    const body=new THREE.Mesh(new THREE.ConeGeometry(0.32,0.7,6),chitinM);
+    body.rotation.x=Math.PI/2; body.position.set(0,0.42,0); body.castShadow=true; g.add(body);
+    [[-0.18,-0.2],[0.18,-0.2],[-0.18,0.2],[0.18,0.2]].forEach(([lx,lz])=>{
+        const leg=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.42,4),membraneM);
+        leg.position.set(lx,0.21,lz); leg.rotation.x=Math.PI; g.add(leg);
+    });
+    const head=new THREE.Mesh(new THREE.OctahedronGeometry(0.22,0),chitinM);
+    head.position.set(0,0.5,0.45); head.scale.set(1,0.8,1.2); head.castShadow=true; g.add(head);
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,5),glowM);
+    eye.position.set(0,0.52,0.62); g.add(eye);
+    [-0.1,0.1].forEach(cx=>{
+        const claw=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.38,3),clawM);
+        claw.rotation.x=-Math.PI/2.3; claw.position.set(cx,0.4,0.6); g.add(claw);
+    });
+    const spine=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.35,4),membraneM);
+    spine.position.set(0,0.62,-0.3); spine.rotation.x=0.4; g.add(spine);
+    return g;
+}
+
 function makeMarineModel(isEnemy) {
+    if (!isEnemy) return makeSpawnlingModel();
     const g = new THREE.Group();
     const armorCol = isEnemy ? 0xcc2222 : 0x22bb55;
     const helmCol  = isEnemy ? 0x881111 : 0x116633;
@@ -1668,7 +1716,42 @@ function makeMarineModel(isEnemy) {
     return g;
 }
 
+// Spiner - the Swarm's ranged bruiser. Keeps the tankTurret rig (a
+// rotating spine-rack instead of a cannon turret) so the shared
+// turret-tracking code in doFire()/updateUnits() still works.
+function makeSpinerModel() {
+    const g = new THREE.Group();
+    const hullM = new THREE.MeshStandardMaterial({color:0x5a1f3d, roughness:0.5, metalness:0.1,
+        emissive:new THREE.Color(0x3d1428), emissiveIntensity:0.4});
+    const plateM = new THREE.MeshStandardMaterial({color:0x7a2d52, roughness:0.4, metalness:0.15,
+        emissive:new THREE.Color(0x4d1a33), emissiveIntensity:0.35});
+    const glowM = new THREE.MeshStandardMaterial({color:0x9fef6a, emissive:new THREE.Color(0x9fef6a), emissiveIntensity:1.8, roughness:0.1});
+    const spineM = new THREE.MeshStandardMaterial({color:0x1a0f22, roughness:0.3, metalness:0.3});
+
+    const hull=new THREE.Mesh(new THREE.SphereGeometry(1.7,10,8),hullM);
+    hull.scale.set(1.1,0.75,1.5); hull.position.y=0.85; hull.castShadow=true; hull.receiveShadow=true; g.add(hull);
+    [[-1.3,0.5],[1.3,0.5],[-1.3,-0.6],[1.3,-0.6]].forEach(([lx,lz])=>{
+        const leg=new THREE.Mesh(new THREE.ConeGeometry(0.22,1.1,5),plateM);
+        leg.position.set(lx,0.5,lz); leg.rotation.x=Math.PI; leg.castShadow=true; g.add(leg);
+    });
+    // Turret: a rotating spine-rack, same rig the Terran tank uses
+    const turrHead = new THREE.Group();
+    turrHead.userData.isTankTurret = true;
+    g.userData.tankTurret = turrHead;
+    g.add(turrHead);
+    const rack=new THREE.Mesh(new THREE.OctahedronGeometry(0.75,0),hullM);
+    rack.position.set(0,1.9,-0.1); rack.castShadow=true; turrHead.add(rack);
+    for (let i=-1;i<=1;i++) {
+        const spine=new THREE.Mesh(new THREE.ConeGeometry(0.1,2.6,4),spineM);
+        spine.rotation.x=-Math.PI/2; spine.position.set(i*0.3,1.9,-2.0); turrHead.add(spine);
+    }
+    const core=new THREE.Mesh(new THREE.OctahedronGeometry(0.24,0),glowM);
+    core.position.set(0,1.9,0); turrHead.add(core);
+    return g;
+}
+
 function makeTankModel(isEnemy) {
+    if (!isEnemy) return makeSpinerModel();
     const g = new THREE.Group();
     const hullCol = isEnemy ? 0xbb2222 : 0x229955;
     const hullM  = new THREE.MeshStandardMaterial({color:hullCol, roughness:0.4, metalness:0.65,
@@ -1739,7 +1822,41 @@ function makeWorkerModel() {
 // ════════════════════════════════════════════════════════
 // AIRCRAFT MODEL — Wraith-class fighter
 // ════════════════════════════════════════════════════════
+// Skitterwing - the Swarm's flyer. An insectoid glider instead of a jet,
+// keeps isEngineGlow/isNavLight tagged meshes so the existing engine-
+// pulse/nav-blink animation still has something to animate.
+function makeSkitterwingModel() {
+    const g = new THREE.Group();
+    const hullM = new THREE.MeshStandardMaterial({color:0x5a1f3d, roughness:0.45, metalness:0.1,
+        emissive:new THREE.Color(0x3d1428), emissiveIntensity:0.45});
+    const membraneM = new THREE.MeshStandardMaterial({color:0x7a2d52, roughness:0.4, transparent:true, opacity:0.78,
+        emissive:new THREE.Color(0x4d1a33), emissiveIntensity:0.3});
+    const glowM = new THREE.MeshStandardMaterial({color:0x9fef6a, emissive:new THREE.Color(0x9fef6a), emissiveIntensity:2.2, roughness:0.1});
+
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.38, 3.0, 5), hullM);
+    body.rotation.x = -Math.PI/2; body.castShadow=true; g.add(body);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16,6,5), glowM);
+    eye.position.z = 1.4; g.add(eye);
+
+    [-1,1].forEach(side => {
+        const wing = new THREE.Mesh(new THREE.ConeGeometry(0.06, 2.2, 3), membraneM);
+        wing.rotation.z = Math.PI/2; wing.rotation.y = side*0.6;
+        wing.position.set(side*1.0, 0, -0.2); wing.castShadow=true; g.add(wing);
+        const tipM = new THREE.MeshStandardMaterial({color:side<0?0xff2222:0x22ff44, emissive:new THREE.Color(side<0?0xff0000:0x00ff00), emissiveIntensity:2.5});
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 4), tipM);
+        tip.position.set(side*2.1, 0, -0.4); tip.userData.isNavLight=true; tip.userData.navSide=side; g.add(tip);
+    });
+
+    [-0.25,0.25].forEach(ex => {
+        const exhaust = new THREE.Mesh(new THREE.OctahedronGeometry(0.1,0), glowM.clone());
+        exhaust.position.set(ex, 0, -1.4);
+        exhaust.userData.isEngineGlow=true; g.add(exhaust);
+    });
+    return g;
+}
+
 function makeWraithModel(isEnemy) {
+    if (!isEnemy) return makeSkitterwingModel();
     const g = new THREE.Group();
     const col = isEnemy ? 0xbb2020 : 0x1e6fa8;
     const hullM = new THREE.MeshStandardMaterial({color:col, metalness:0.82, roughness:0.18,
@@ -1812,7 +1929,7 @@ function spawnAircraft(isEnemy) {
 
     const tag = document.createElement('div');
     tag.className = 'nametag air' + (isEnemy?' enemy':'');
-    tag.innerText = isEnemy ? '🔴 Feind-Jäger' : '✈️ Jäger';
+    tag.innerText = isEnemy ? '🔴 Feind-Jäger' : '🧬 Skitterwing';
     document.body.appendChild(tag);
 
     const hpEl = document.createElement('div');
@@ -1822,6 +1939,7 @@ function spawnAircraft(isEnemy) {
 
     const hp    = isEnemy ? E_WRAITH_HP    : Math.round(WRAITH_HP * researchMult('WRAITH_HP'));
     const speed0= isEnemy ? E_WRAITH_SPEED : Math.round(WRAITH_SPEED * researchMult('WRAITH_SPEED'));
+    const regen0= isEnemy ? 0 : WRAITH_REGEN * researchMult('WRAITH_HP');
     const unit = {
         group:model, type:'wraith', isEnemy, hp, maxHp:hp, tag, hpEl,
         selected:false, state:'patrol', moveTarget:null, attackTarget:null,
@@ -1833,6 +1951,7 @@ function spawnAircraft(isEnemy) {
         patrolAngle: Math.random()*Math.PI*2,
         bankAngle: 0,
     };
+    if (regen0 > 0) unit.hpRegenRate = regen0;
     unit.overlayPos = new THREE.Vector3();
     // Cache engine glow + nav light refs to avoid traverse() every frame
     const _eg=[], _nl=[];
@@ -1910,8 +2029,8 @@ function tintBlack(unit) {
     unit.isAlly = true;
     unit.faction = 'black';
     setUnitSpriteFaction(unit, 'black');
-    const typeLabel = unit.type==='wraith'?'✈️':unit.type==='tank'?'🖤':'⬛';
-    unit.tag.innerText = typeLabel + ' Verbündete';
+    const typeLabel = unit.type==='wraith'?'🧬':unit.type==='tank'?'🧬':'🧬';
+    unit.tag.innerText = typeLabel + ' Brutkin';
     unit.tag.className = (unit.tag.className||'nametag') + ' ally';
 }
 function spawnAlly(type) {
@@ -2034,7 +2153,7 @@ function spawnUnit(type, isEnemy) {
 
     const tag = document.createElement('div');
     tag.className='nametag'+(isEnemy?' enemy':'');
-    tag.innerText = isEnemy?(type==='tank'?'🔴 Feind-Tank':'👹 Feind-Marine'):(type==='tank'?'🚀 Tank':'🪖 Marine');
+    tag.innerText = isEnemy?(type==='tank'?'🔴 Feind-Tank':'👹 Feind-Marine'):(type==='tank'?'🧬 Spiner':'🧬 Spawnling');
     document.body.appendChild(tag);
 
     const hpEl = document.createElement('div');
@@ -2044,9 +2163,11 @@ function spawnUnit(type, isEnemy) {
 
     let hp  = isEnemy?(type==='tank'?E_TANK_HP:E_MARINE_HP):(type==='tank'?TANK_HP:MARINE_HP);
     let dmg = isEnemy?(type==='tank'?E_TANK_DMG:E_MARINE_DMG):(type==='tank'?TANK_DMG:MARINE_DMG);
+    let hpRegenRate = isEnemy ? 0 : (type==='tank'?TANK_REGEN:MARINE_REGEN);
     if (!isEnemy) {
         hp  = Math.round(hp  * researchMult(type==='tank'?'TANK_HP':'MARINE_HP'));
         dmg = Math.round(dmg * researchMult(type==='tank'?'TANK_DMG':'MARINE_DMG'));
+        hpRegenRate = hpRegenRate * researchMult(type==='tank'?'TANK_HP':'MARINE_HP');
     }
     const unit = {
         group:model, type, isEnemy, hp, maxHp:hp, tag, hpEl,
@@ -2057,6 +2178,7 @@ function spawnUnit(type, isEnemy) {
         dmg,
         fireRate: type==='tank'?TANK_RATE:MARINE_RATE,
     };
+    if (hpRegenRate > 0) unit.hpRegenRate = hpRegenRate;
     unit.tankTurret = model.userData.tankTurret || null;
     unit.lodSprite = model.userData.lodSprite || null;
     if (unit.lodSprite) unit.lodSprite.userData._unit = unit;
@@ -3052,7 +3174,7 @@ function updateUnitOverlay(unit) {
     fill.style.width=hpPct+'%';
     // Color by HP
     unit.hpEl.className='hp-bar-el'+(unit.isEnemy?' enemy':'')+(hpPct<25?' low':hpPct<55?' mid':'');
-    if(!unit.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#22c55e'; }
+    if(!unit.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#9fef6a'; }
     unit.hpEl.style.display='block';
     unit.hpEl.style.left=sx+'px'; unit.hpEl.style.top=(sy-10)+'px';
     if (unit.shieldMax) {
@@ -3086,7 +3208,7 @@ function updateBuildingOverlays() {
         const hpPct=Math.max(0,bld.hp/bld.maxHp*100);
         const fill=bld.hpEl.querySelector('.hp-bar-fill');
         fill.style.width=hpPct+'%';
-        if(!bld.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#22c55e'; }
+        if(!bld.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#9fef6a'; }
         bld.hpEl.style.display='block';
         bld.hpEl.style.left=sx+'px'; bld.hpEl.style.top=(sy-12)+'px';
 
@@ -3136,8 +3258,8 @@ function updateUnitInfoPanel() {
     if(selectedUnits.length===0){ panel.style.display='none'; return; }
     panel.style.display='block';
     const u=selectedUnits[0];
-    document.getElementById('unit-portrait').innerText=u.type==='tank'?'🚀':u.type==='worker'?'⛏️':u.type==='wraith'?'✈️':'🪖';
-    document.getElementById('unit-info-title').innerText=selectedUnits.length>1?`${selectedUnits.length}× EINHEITEN`:(u.type==='sphere'?'🌐 QUANTEN-SPHÄRE':u.type==='tank'?'KAMPFTANK':u.type==='worker'?'WBF-ARBEITER':u.type==='wraith'?'JÄGER WRAITH':'MARINE');
+    document.getElementById('unit-portrait').innerText=u.type==='tank'?'🧬':u.type==='worker'?'⛏️':u.type==='wraith'?'🧬':'🧬';
+    document.getElementById('unit-info-title').innerText=selectedUnits.length>1?`${selectedUnits.length}× EINHEITEN`:(u.type==='sphere'?'🧬 BROODMUTTER':u.type==='tank'?'SPINER':u.type==='worker'?'SAMMLER-DROHNE':u.type==='wraith'?'SKITTERWING':'SPAWNLING');
     const hpPct=Math.round(u.hp/u.maxHp*100);
     const hpClass=hpPct>55?'':'  '+( hpPct>25?'mid':'low');
     const shieldRow = u.shieldMax ? `
@@ -3352,7 +3474,7 @@ function drawMinimap() {
     [[62,62],[-62,-62],[72,-52],[-72,52]].forEach(([lx,lz])=>{ ctx.beginPath();ctx.arc(cx+lx*SC,cy+lz*SC,4,0,Math.PI*2);ctx.fill(); });
     // Player buildings
     playerBuildings.forEach(b=>{
-        ctx.fillStyle=b.type==='command'?'#22c55e':b.type==='turret'?'#86efac':'#16a34a';
+        ctx.fillStyle=b.type==='command'?'#9fef6a':b.type==='turret'?'#c4f0a8':'#5a9e2f';
         ctx.fillRect(cx+b.cx*SC-4,cy+b.cz*SC-4,8,8);
     });
     // Enemy buildings
@@ -3365,7 +3487,7 @@ function drawMinimap() {
     workers.forEach(w=>{ ctx.beginPath();ctx.arc(cx+w.group.position.x*SC,cy+w.group.position.z*SC,2,0,Math.PI*2);ctx.fill(); });
     // Player units (ground)
     playerUnits.filter(u=>u.type!=='wraith').forEach(u=>{
-        ctx.fillStyle=u.selected?'#bbf7d0':(u.type==='tank'?'#4ade80':'#22c55e');
+        ctx.fillStyle=u.selected?'#e8f7da':(u.type==='tank'?'#c4f0a8':'#9fef6a');
         ctx.beginPath();ctx.arc(cx+u.group.position.x*SC,cy+u.group.position.z*SC,u.type==='tank'?3:2,0,Math.PI*2);ctx.fill();
     });
     // Player aircraft (purple diamond)
