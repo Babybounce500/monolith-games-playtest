@@ -1,0 +1,3257 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+<title>STAR PRIME — RTS</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+    --bg: #0a1408;
+    --panel: rgba(6, 16, 6, 0.95);
+    --accent: #22c55e;
+    --accent2: #38bdf8;
+    --red: #ef4444;
+    --warn: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #1e4020;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:'Courier New',monospace; overflow:hidden; user-select:none; }
+
+/* ── TOP HUD ── */
+#hud-top {
+    position:absolute; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center;
+    background:rgba(4,10,4,0.94); border-bottom:2px solid var(--border);
+    padding:0 10px; height:48px; backdrop-filter:blur(14px); pointer-events:none;
+}
+.hud-section { display:flex; align-items:center; gap:8px; padding:0 12px; border-right:1px solid #1a2a1a; height:100%; }
+.hud-section:last-child { border-right:none; margin-left:auto; }
+.hud-label { font-size:7px; color:var(--accent); text-transform:uppercase; letter-spacing:2px; }
+.hud-val { font-size:16px; font-weight:700; color:var(--text); }
+.hud-icon { font-size:16px; }
+.hud-worker { font-size:11px; color:#38bdf8; font-weight:700; }
+
+/* ── MODE BUTTONS ── */
+#mode-switcher { position:absolute; top:58px; right:16px; z-index:100; display:flex; gap:6px; pointer-events:auto; }
+.mode-btn { background:rgba(4,12,4,0.95); border:1px solid var(--border); color:var(--muted); padding:8px 16px; cursor:pointer; transition:all 0.15s; border-radius:8px; font-size:10px; font-weight:700; letter-spacing:1px; font-family:'Courier New',monospace; }
+.mode-btn:hover { border-color:var(--accent); color:var(--text); }
+.mode-btn.active { background:var(--accent); color:#000; border-color:var(--accent); box-shadow:0 0 18px rgba(34,197,94,0.5); }
+.mode-btn.build-active { background:var(--accent2); color:#000; border-color:var(--accent2); }
+.mode-btn.micro-active { background:#a855f7; color:#fff; border-color:#a855f7; box-shadow:0 0 18px rgba(168,85,247,0.5); }
+
+/* ── BUILD PANEL ── */
+#build-ui { position:absolute; top:58px; left:16px; z-index:100; width:228px; display:none; flex-direction:column; gap:6px; }
+.panel { background:var(--panel); padding:12px; border:1px solid var(--border); border-radius:10px; backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,0.8); pointer-events:auto; }
+.plabel { font-size:8px; color:var(--accent); text-transform:uppercase; letter-spacing:2px; margin-bottom:8px; font-weight:700; }
+.btn-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+button { background:#060f06; border:1px solid var(--border); color:var(--muted); padding:8px 5px; cursor:pointer; transition:all 0.15s; border-radius:7px; font-size:9px; font-weight:700; letter-spacing:0.5px; font-family:'Courier New',monospace; }
+button:hover { border-color:var(--accent); color:#fff; background:#0f200f; }
+button.active-tool { background:var(--accent); color:#000; border-color:var(--accent); }
+button.danger-btn { border-color:#450a0a; color:#f87171; }
+button.danger-btn:hover { border-color:var(--red); background:rgba(239,68,68,0.12); color:var(--red); }
+.cost-badge { font-size:7px; color:var(--warn); display:block; }
+
+/* ── PRODUCTION PANEL (command mode) ── */
+#prod-panel { position:absolute; top:58px; left:16px; z-index:100; width:228px; display:flex; flex-direction:column; gap:6px; pointer-events:auto; }
+#prod-panel .plabel { color:#38bdf8; }
+#prod-panel button { border-color:#1a3a4a; color:#94a3b8; }
+#prod-panel button:hover { border-color:#38bdf8; color:#fff; }
+
+/* ── UNIT INFO PANEL ── */
+#unit-info { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:100; min-width:360px; max-width:560px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 16px; display:none; pointer-events:none; box-shadow:0 8px 32px rgba(0,0,0,0.9); }
+#unit-info-title { font-size:8px; color:var(--accent); letter-spacing:2px; margin-bottom:8px; }
+#unit-info-body { display:flex; gap:14px; align-items:flex-start; }
+.unit-portrait { width:46px; height:46px; background:#0d1a0d; border:1px solid var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+.unit-stats { flex:1; }
+.stat-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.stat-lbl { font-size:8px; color:var(--muted); width:30px; text-transform:uppercase; letter-spacing:1px; }
+.stat-bar-bg { flex:1; height:6px; background:#0d1a0d; border-radius:3px; border:1px solid #1a2a1a; overflow:hidden; }
+.stat-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; background:#22c55e; }
+.stat-bar-fill.mid { background:#f59e0b; }
+.stat-bar-fill.low { background:#ef4444; }
+.stat-val { font-size:8px; color:var(--muted); width:38px; text-align:right; }
+#unit-count { font-size:9px; color:var(--accent2); margin-top:5px; }
+
+/* ── SELECTION BOX ── */
+#select-box { position:absolute; border:2px solid #22c55e; background:rgba(34,197,94,0.08); pointer-events:none; display:none; z-index:200; }
+
+/* ── HP BARS (world-space overlays) ── */
+.hp-bar-el {
+    position:absolute; pointer-events:none;
+    width:54px; height:8px;
+    background:#111; border:1px solid #333; border-radius:4px; z-index:152;
+    transform:translateX(-50%); display:none; overflow:hidden;
+}
+.hp-bar-fill { height:100%; background:#22c55e; transition:width 0.15s; }
+.hp-bar-el.low .hp-bar-fill { background:#ef4444; }
+.hp-bar-el.mid .hp-bar-fill { background:#f59e0b; }
+.hp-bar-el.enemy .hp-bar-fill { background:#ef4444; }
+.hp-bar-el.enemy.high .hp-bar-fill { background:#ef4444; }
+.hp-bar-el.bld { width:70px; height:10px; }
+
+/* ── NAMETAGS ── */
+.nametag { position:absolute; pointer-events:none; background:rgba(0,0,0,0.85); border:1px solid #1e4020; color:#86efac; padding:2px 7px; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:1px; transform:translateX(-50%); white-space:nowrap; z-index:150; display:none; }
+.nametag.enemy { border-color:#4a0a0a; color:#fca5a5; }
+.nametag.selected { border-color:#22c55e !important; color:#22c55e !important; background:rgba(0,30,0,0.9) !important; }
+.nametag.worker { border-color:#0ea5e9; color:#7dd3fc; }
+
+/* ── MINIMAP ── */
+#minimap { position:absolute; bottom:16px; left:16px; z-index:100; width:168px; height:168px; background:rgba(3,10,3,0.92); border:2px solid var(--border); border-radius:10px; overflow:hidden; }
+#minimap canvas { width:100%; height:100%; }
+
+/* ── STATUS / TOAST ── */
+#status-bar { position:absolute; bottom:16px; right:16px; z-index:50; font-size:10px; color:var(--muted); background:rgba(0,0,0,0.75); padding:5px 14px; border-radius:16px; border:1px solid var(--border); pointer-events:none; max-width:420px; }
+#toast { position:absolute; top:58px; left:50%; transform:translateX(-50%); background:#0a1a0a; border:1px solid #1a6332; color:#22c55e; padding:7px 20px; border-radius:8px; font-size:11px; font-weight:700; z-index:2000; opacity:0; transition:opacity 0.3s; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
+#toast.show { opacity:1; }
+
+/* ── LOADER ── */
+#loader { display:flex; position:absolute; inset:0; background:rgba(2,5,2,0.97); z-index:1000; flex-direction:column; gap:16px; justify-content:center; align-items:center; }
+.spinner { width:44px; height:44px; border:3px solid #0d1a0d; border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
+#loader-text { color:var(--accent); font-size:12px; letter-spacing:3px; font-weight:700; }
+
+/* ── WAVE ALERT ── */
+#wave-alert { position:absolute; top:48%; left:50%; transform:translate(-50%,-50%); background:rgba(60,0,0,0.95); border:2px solid var(--red); color:var(--red); padding:14px 38px; border-radius:12px; font-size:18px; font-weight:700; letter-spacing:3px; z-index:500; opacity:0; transition:opacity 0.4s; pointer-events:none; text-align:center; }
+#wave-alert.show { opacity:1; }
+
+/* ── SOUND TOGGLE ── */
+#sound-btn { position:absolute; top:10px; right:16px; z-index:200; background:rgba(0,20,0,0.85); border:1px solid #1a4a1a; color:#4a9a4a; font-size:18px; width:36px; height:36px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s, color 0.2s; user-select:none; }
+#sound-btn:hover { background:rgba(0,40,0,0.95); color:#6aff6a; }
+#sound-btn.muted { color:#4a1a1a; border-color:#4a1a1a; }
+
+/* ── END SCREEN ── */
+#end-screen { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.88); backdrop-filter:blur(6px); }
+#end-screen.hidden { display:none; }
+#end-box { background:#060e06; border:2px solid #1a4a1a; border-radius:18px; padding:44px 62px; text-align:center; min-width:400px; box-shadow:0 0 60px rgba(0,255,80,0.08); }
+#end-title { font-size:38px; font-weight:900; letter-spacing:7px; margin-bottom:14px; }
+#end-title.defeat  { color:#ef4444; text-shadow:0 0 32px #ef444488; }
+#end-title.victory { color:#22d3ee; text-shadow:0 0 32px #22d3ee88; }
+#end-sub { font-size:13px; letter-spacing:2px; margin-bottom:22px; color:#4a6a4a; }
+#end-stats { color:#86efac; font-size:14px; margin-bottom:22px; line-height:2.2; }
+#end-stats b { color:#fff; }
+#end-hs { color:#fbbf24; font-size:12px; margin-bottom:28px; line-height:2.0; letter-spacing:1px; border-top:1px solid #1a3a1a; padding-top:16px; }
+#end-hs .hs-head { color:#facc15; font-weight:700; letter-spacing:3px; margin-bottom:4px; }
+#end-hs .hs-new { color:#4ade80; font-weight:700; }
+#end-restart { background:#0d200d; border:1px solid #22c55e; color:#22c55e; padding:13px 36px; border-radius:8px; font-size:13px; font-weight:700; letter-spacing:3px; cursor:pointer; transition:background 0.2s,color 0.2s; }
+#end-restart:hover { background:#22c55e; color:#000; }
+
+/* ── CONTROLS HINT ── */
+#hint-box { position:absolute; top:58px; right:16px; z-index:40; font-size:9px; color:#2a3a2a; line-height:2.1; text-align:right; pointer-events:none; }
+#hint-box span { color:#4a6a4a; }
+
+/* ── SCANLINES CRT OVERLAY ── */
+#scanlines {
+    position:fixed; inset:0; pointer-events:none; z-index:9999;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+}
+/* Subtle vignette corners */
+body::after {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+    background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ── HUD VALUE GLOW ── */
+.hud-val { text-shadow: 0 0 10px currentColor; }
+.hud-section { transition: background 0.2s; }
+.hud-section:hover { background: rgba(34,197,94,0.04); }
+
+/* ── PANEL GLOW BORDER ANIMATION ── */
+@keyframes borderPulse {
+    0%,100% { border-color:#1e4020; box-shadow:0 0 0 rgba(34,197,94,0); }
+    50%      { border-color:#2a5c2e; box-shadow:0 0 12px rgba(34,197,94,0.15); }
+}
+.panel { animation: borderPulse 4s ease-in-out infinite; }
+
+/* ── WAVE ALERT ENHANCED ── */
+#wave-alert {
+    background: rgba(60,0,0,0.97); border:2px solid var(--red);
+    color:var(--red); border-radius:12px; font-size:18px; font-weight:700;
+    letter-spacing:3px; z-index:500; pointer-events:none; text-align:center;
+    text-shadow:0 0 24px rgba(239,68,68,0.9);
+    box-shadow:0 0 40px rgba(239,68,68,0.4), inset 0 0 40px rgba(100,0,0,0.5);
+}
+@keyframes waveIn { 0%{transform:translate(-50%,-50%) scale(0.6);opacity:0;} 20%{transform:translate(-50%,-50%) scale(1.08);} 100%{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+#wave-alert.show { opacity:1; animation: waveIn 0.4s ease-out; }
+
+/* ── NAMETAG GLOW ── */
+.nametag { backdrop-filter: blur(4px); }
+.nametag.selected { text-shadow:0 0 8px rgba(34,255,100,0.7); }
+.nametag.air { border-color:#7c3aed; color:#c4b5fd; }
+.nametag.air.enemy { border-color:#7f1d1d; color:#fca5a5; }
+.nametag.blue-enemy { border-color:#1d4ed8; color:#93c5fd; background:rgba(10,30,80,0.82); }
+.nametag.ally { border-color:#00ffcc; color:#5eead4; background:rgba(0,20,18,0.88); text-shadow:0 0 6px rgba(0,255,200,0.5); }
+.nametag.sphere { border-width:2px; font-weight:700; letter-spacing:1px; }
+.nametag.sphere:not(.enemy):not(.ally) { border-color:#22ff66; color:#22ff66; background:rgba(0,40,20,0.9); text-shadow:0 0 8px rgba(34,255,100,0.7); }
+.nametag.sphere.enemy { border-color:#ff4422; color:#ff8866; background:rgba(40,10,5,0.9); text-shadow:0 0 8px rgba(255,80,30,0.7); }
+.nametag.sphere.ally { border-color:#00ffcc; color:#44ffdd; background:rgba(0,30,25,0.9); text-shadow:0 0 8px rgba(0,255,200,0.7); }
+
+/* ── HP BAR SHIMMER ── */
+.hp-bar-fill { position:relative; overflow:hidden; }
+.hp-bar-fill::after {
+    content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
+    background: linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);
+    animation: shimmer 2.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0%{left:-100%;} 100%{left:200%;} }
+
+/* ── TOAST ENHANCED ── */
+#toast { box-shadow:0 0 24px rgba(34,197,94,0.3); backdrop-filter:blur(8px); }
+
+/* ── AIR UNIT INDICATOR in HUD ── */
+.hud-air { font-size:11px; color:#a78bfa; font-weight:700; }
+</style>
+    <style>
+        /* This page's WebGL canvas is full-screen. */
+        body > canvas {
+            position: fixed !important;
+            inset: 0 auto auto 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            max-width: none !important;
+            max-height: none !important;
+        }
+        @media (max-width: 768px) {
+            #hud-top {
+                pointer-events: auto !important;
+                overflow-x: auto !important;
+                touch-action: pan-x !important;
+                scrollbar-width: none;
+            }
+            #hud-top::-webkit-scrollbar { display: none; }
+            #hud-top .hud-section {
+                width: max-content !important;
+                min-width: max-content !important;
+                max-width: none !important;
+                flex: 0 0 auto !important;
+            }
+            #hud-top .hud-section:last-child { margin-left: 0 !important; }
+            #status-bar {
+                left: auto !important;
+                right: 8px !important;
+                transform: none !important;
+                max-width: calc(100vw - 184px) !important;
+                white-space: normal !important;
+                line-height: 1.35 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="scanlines"></div>
+<div id="loader"><div class="spinner"></div><div id="loader-text">STAR PRIME — LADEN...</div></div>
+<div id="toast"></div>
+<div id="wave-alert"></div>
+<button id="sound-btn" title="Sound an/aus">🔊</button>
+
+<!-- END SCREEN -->
+<div id="end-screen" class="hidden">
+    <div id="end-box">
+        <div id="end-title"></div>
+        <div id="end-sub"></div>
+        <div id="end-stats"></div>
+        <div id="end-hs"></div>
+        <button id="end-restart">🔄 NOCHMAL SPIELEN</button>
+    </div>
+</div>
+
+<!-- TOP HUD -->
+<div id="hud-top">
+    <div class="hud-section"><span class="hud-icon">💎</span><div><div class="hud-label">Mineralien</div><div class="hud-val" id="res-minerals">500</div></div></div>
+    <div class="hud-section"><span class="hud-icon">⚡</span><div><div class="hud-label">Supply</div><div class="hud-val" id="res-supply">0/10</div></div></div>
+    <div class="hud-section"><span class="hud-icon">⛏️</span><div><div class="hud-label">WBFs</div><div class="hud-val hud-worker" id="res-workers">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🪖</span><div><div class="hud-label">Marines</div><div class="hud-val" id="res-marines">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🚀</span><div><div class="hud-label">Tanks</div><div class="hud-val" id="res-tanks">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">✈️</span><div><div class="hud-label">Jäger</div><div class="hud-val hud-air" id="res-air">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">🖤</span><div><div class="hud-label">Verbündete</div><div class="hud-val" id="res-allies" style="color:#5eead4;text-shadow:0 0 8px #00ffcc">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">💀</span><div><div class="hud-label">Kills</div><div class="hud-val" id="res-kills" style="color:#facc15;text-shadow:0 0 8px #facc15">0</div></div></div>
+    <div class="hud-section"><span class="hud-icon">⚠️</span><div><div class="hud-label">Feinde</div><div class="hud-val" id="res-enemies" style="color:#f87171">0</div></div></div>
+    <div class="hud-section" style="font-size:8px;color:#2a4a2a;letter-spacing:2px;">STAR PRIME · RTS</div>
+</div>
+
+<!-- PRODUCTION PANEL (always visible in command mode) -->
+<div id="prod-panel">
+    <div class="panel">
+        <div class="plabel">⛏️ WBF Arbeiter</div>
+        <div class="btn-grid">
+            <button onclick="spawnWorkerBtn()" style="grid-column:1/-1">⛏️ WBF einsetzen<span class="cost-badge">25 💎 · auto-sammelt Mineralien</span></button>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="plabel">🪖 Kaserne → Einheiten</div>
+        <div class="btn-grid">
+            <button onclick="spawnPlayerMarine()">🪖 Marine<span class="cost-badge">50 💎</span></button>
+            <button onclick="spawnPlayerTank()">🚀 Tank<span class="cost-badge">150 💎</span></button>
+            <button onclick="spawnPlayerWraith()" style="grid-column:1/-1;border-color:#4c1d95;color:#c4b5fd;">✈️ Jäger<span class="cost-badge">100 💎 · Lufteinheit</span></button>
+            <button onclick="spawnPlayerSphere()" style="grid-column:1/-1;border-color:#22ff66;color:#22ff66;background:rgba(0,80,40,0.4);font-weight:700;letter-spacing:1px;">🌐 QUANTEN-SPHÄRE<span class="cost-badge" style="background:#22ff66;color:#000;font-weight:900;">2000 💎 · MEGA</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- BUILD PANEL -->
+<div id="build-ui">
+    <div class="panel">
+        <div class="plabel">🏗️ Gebäude bauen</div>
+        <div class="btn-grid">
+            <button id="btn-barracks" onclick="setBuildType('barracks')">🪖 Kaserne<span class="cost-badge">150 💎</span></button>
+            <button id="btn-depot" onclick="setBuildType('depot')">📦 Depot<span class="cost-badge">100 💎</span></button>
+            <button id="btn-turret" onclick="setBuildType('turret')">🔫 Turm<span class="cost-badge">75 💎</span></button>
+            <button id="btn-bunker" onclick="setBuildType('bunker')">🛡️ Bunker<span class="cost-badge">120 💎</span></button>
+            <button id="btn-refinery" onclick="setBuildType('refinery')">⚙️ Raffinerie<span class="cost-badge">200 💎</span></button>
+            <button id="btn-factory" onclick="setBuildType('factory')">🏭 Fabrik<span class="cost-badge">250 💎</span></button>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="plabel">🛠️ Werkzeuge</div>
+        <div class="btn-grid">
+            <button id="btn-select" class="active-tool" onclick="setBuildTool('select')">↖ SELECT</button>
+            <button class="danger-btn" onclick="deleteSelectedBuilding()">✕ ABREISSEN</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODE SWITCHER -->
+<div id="mode-switcher">
+    <button class="mode-btn active" id="mode-cmd" onclick="switchMode('command')">⚔️ BEFEHLE</button>
+    <button class="mode-btn" id="mode-build" onclick="switchMode('build')">🏗️ BAUEN</button>
+    <button class="mode-btn" id="mode-micro" onclick="switchMode('micro')" title="Wähle erst eine Einheit, dann Mikro-Modus">🔍 MIKRO</button>
+</div>
+
+<!-- UNIT INFO -->
+<div id="unit-info">
+    <div id="unit-info-title">EINHEITEN AUSGEWÄHLT</div>
+    <div id="unit-info-body">
+        <div class="unit-portrait" id="unit-portrait">🪖</div>
+        <div class="unit-stats" id="unit-stats"></div>
+    </div>
+    <div id="unit-count"></div>
+</div>
+
+<!-- SELECTION BOX -->
+<div id="select-box"></div>
+
+<!-- MINIMAP -->
+<div id="minimap"><canvas id="minimap-canvas" width="168" height="168"></canvas></div>
+
+<!-- STATUS -->
+<div id="status-bar">⚔️ BEFEHLE: Klick=auswählen · Drag=Gruppe · RMB=bewegen/angreifen · [A]=Alle · [S]=Stopp · [F2]=Bauen</div>
+
+<!-- HINT -->
+<div id="hint-box">
+    <span>[LMB Klick]</span> Auswählen &nbsp;<span>[LMB Drag]</span> Boxauswahl<br>
+    <span>[RMB]</span> Bewegen / Angreifen &nbsp;<span>[A]</span> Alle<br>
+    <span>[S]</span> Stopp &nbsp;<span>[H]</span> Halten &nbsp;<span>[Esc]</span> Deselect<br>
+    <span>[Scroll]</span> Zoom &nbsp;<span>[RMB Drag]</span> Kamera<br>
+    <span>[F1]</span> Befehle &nbsp;<span>[F2]</span> Bauen
+</div>
+
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ════════════════════════════════════════════════════════
+// GLOBALS
+// ════════════════════════════════════════════════════════
+let scene, camera, renderer, orbitControls;
+let gameMode = 'command';
+let buildType = null, buildTool = 'select', buildPreview = null, selectedBuilding = null;
+
+const raycaster   = new THREE.Raycaster();
+const mouse       = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+
+const res = { minerals: 500, supply: 0, maxSupply: 10, kills: 0 };
+
+// All unit/building arrays
+const playerUnits    = [];
+const enemyUnits     = [];
+const allyUnits      = [];   // BLACK ally faction
+const workers        = [];   // WBF workers
+const projectiles    = [];
+const playerBuildings = [];
+const enemyBuildings  = [];
+const allyBuildings   = [];  // BLACK ally buildings
+const mineralDeposits = []; // { pos:THREE.Vector3, mesh }
+const unitScratch = [];
+const workerBasePosition = new THREE.Vector3();
+const cameraDirectionScratch = new THREE.Vector3();
+const cameraForwardScratch = new THREE.Vector3();
+const microTargetScratch = new THREE.Vector3();
+const microDirectionScratch = new THREE.Vector3();
+const projectileGeometry = new THREE.BoxGeometry(0.09, 0.09, 1.4);
+const projectileMaterials = {
+    friendly: new THREE.MeshStandardMaterial({color:0x55ff99, emissive:new THREE.Color(0x55ff99), emissiveIntensity:3.5}),
+    enemy: new THREE.MeshStandardMaterial({color:0xff4444, emissive:new THREE.Color(0xff4444), emissiveIntensity:3.5}),
+};
+const projectileImpactGeometry = new THREE.SphereGeometry(0.35, 5, 4);
+const projectileImpactMaterial = new THREE.MeshStandardMaterial({
+    color:0xffcc00, emissive:new THREE.Color(0xffcc00), emissiveIntensity:3.5, transparent:true, opacity:0.95
+});
+const laserResourceCache = new Map();
+let buildObjects = [];
+
+function fillUnitScratch(includeWorkers=false) {
+    unitScratch.length = 0;
+    for (let i=0;i<playerUnits.length;i++) unitScratch.push(playerUnits[i]);
+    for (let i=0;i<allyUnits.length;i++) unitScratch.push(allyUnits[i]);
+    for (let i=0;i<enemyUnits.length;i++) unitScratch.push(enemyUnits[i]);
+    if (includeWorkers) for (let i=0;i<workers.length;i++) unitScratch.push(workers[i]);
+    return unitScratch;
+}
+
+// Selection
+let selectedUnits = [], selectBoxStart = null, selectBoxActive = false;
+let mouseDownPos = {x:0,y:0}, mouseIsDown = false, isDraggingSelect = false;
+const DRAG_THRESH = 5;
+
+// Strategic AI — C&C style (replaces wave system)
+let aiGameTime = 0;          // total seconds elapsed (used for scaling)
+let redRes  = {minerals:2000};  // start rich — workers supplement income
+let blueRes = {minerals:2000};
+let redWorkers=[], blueWorkers=[];
+let coordCheckTimer = 0;
+// Shared rally — BOTH factions mass here before final assault
+const SHARED_RALLY_X = 2, SHARED_RALLY_Z = 2;
+// Joint assault waves (layered on top of AI economy)
+let jointWaveTimer = 42, waveCount = 0;
+
+const redAI = {
+    faction:'red',   state:'economy',
+    buildTimer:2,    workerTimer:3,   // much faster start
+    attackRefreshTimer:0, retreatTimer:0,
+    attackThreshold:5,                // attack sooner
+    rallyX:SHARED_RALLY_X, rallyZ:SHARED_RALLY_Z, // same rally as blue!
+    cmdX:18,   cmdZ:30,
+};
+const blueAI = {
+    faction:'blue',  state:'economy',
+    buildTimer:3,    workerTimer:4,
+    attackRefreshTimer:0, retreatTimer:0,
+    attackThreshold:4,
+    rallyX:SHARED_RALLY_X, rallyZ:SHARED_RALLY_Z, // same rally as red!
+    cmdX:55,   cmdZ:-48,
+};
+
+// Ally reinforcement
+let allyReinforceTimer = 45;
+// Perf counters
+let frameCount = 0;
+const MAX_ENEMY_UNITS = 44;
+const MAX_RENDER_SCALE = Math.min(window.devicePixelRatio || 1, 1);
+const MIN_RENDER_SCALE = Math.min(MAX_RENDER_SCALE, 0.6);
+let renderScale = MAX_RENDER_SCALE;
+let renderScaleWindowMs = 0;
+let renderScaleWindowFrames = 0;
+
+// ════════════════════════════════════════════════════════
+// AUDIO ENGINE — procedural Web Audio (no external files)
+// ════════════════════════════════════════════════════════
+let audioCtx   = null;
+let masterGain = null;
+let bgmGain    = null;
+let soundOn    = true;
+let bgmLoopTO  = null;
+let sfxShotCount = 0; // throttle shoot sounds
+
+function initAudio() {
+    if (audioCtx) { audioCtx.resume(); return; }
+    audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = soundOn ? 1.0 : 0.0;
+    masterGain.connect(audioCtx.destination);
+    bgmGain = audioCtx.createGain();
+    bgmGain.gain.value = 0.14;
+    bgmGain.connect(masterGain);
+    scheduleBGM();
+}
+
+function toggleSound() {
+    soundOn = !soundOn;
+    if (masterGain) masterGain.gain.linearRampToValueAtTime(soundOn ? 1.0 : 0.0, audioCtx.currentTime + 0.2);
+    const btn = document.getElementById('sound-btn');
+    btn.textContent = soundOn ? '🔊' : '🔇';
+    btn.classList.toggle('muted', !soundOn);
+}
+
+// ── Background music: dark militaristic loop ──
+function scheduleBGM() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const BPM = 96, step = 60/BPM;
+    // Bass pattern (A-minor pentatonic-ish)
+    const bassNotes = [55,55,55,49,55,55,58,55];
+    bassNotes.forEach((f,i) => {
+        mkOsc(f,'sine',    now+i*step, step*0.85, 0.18, bgmGain);
+        mkOsc(f*2,'triangle',now+i*step, step*0.4,  0.04, bgmGain);
+    });
+    // Dark pad chords (low, slow)
+    [[110,0],[104,step*2],[98,step*4],[110,step*6]].forEach(([f,t])=>{
+        mkOsc(f,    'sawtooth', now+t, step*1.8, 0.025, bgmGain);
+        mkOsc(f*1.5,'sawtooth', now+t, step*1.8, 0.015, bgmGain);
+    });
+    // High arp — sparse, tense
+    [[440,step*0.5],[523,step*1.5],[494,step*3],[440,step*4.5],[392,step*5.5],[440,step*7]].forEach(([f,t])=>{
+        mkOsc(f,'square', now+t, step*0.25, 0.018, bgmGain);
+    });
+    // Schedule next loop (8 beats)
+    bgmLoopTO = setTimeout(scheduleBGM, step*8*1000 - 80);
+}
+
+function mkOsc(freq, type, start, dur, vol, dest) {
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0,            start);
+    g.gain.linearRampToValueAtTime(vol, start + Math.min(0.08, dur*0.2));
+    g.gain.linearRampToValueAtTime(0,   start + dur);
+    o.connect(g); g.connect(dest || masterGain);
+    o.start(start); o.stop(start + dur + 0.02);
+}
+
+// ── Sound effects ──
+function sfxShoot() {
+    if (!audioCtx || !soundOn) return;
+    sfxShotCount++;
+    if (sfxShotCount % 5 !== 0) return; // play 1-in-5 to avoid spam
+    const now = audioCtx.currentTime;
+    mkOsc(900,'sawtooth', now, 0.06, 0.08);
+    mkOsc(600,'sawtooth', now+0.03, 0.07, 0.05);
+}
+
+function sfxLaser() {
+    if (!audioCtx || !soundOn) return;
+    sfxShotCount++;
+    if (sfxShotCount % 4 !== 0) return;
+    const now = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1400, now);
+    o.frequency.exponentialRampToValueAtTime(200, now + 0.18);
+    g.gain.setValueAtTime(0.12, now);
+    g.gain.linearRampToValueAtTime(0, now + 0.18);
+    o.connect(g); g.connect(masterGain);
+    o.start(now); o.stop(now + 0.2);
+}
+
+function sfxExplosion(big=false) {
+    if (!audioCtx || !soundOn) return;
+    const now = audioCtx.currentTime;
+    const dur  = big ? 0.9 : 0.5;
+    const vol  = big ? 0.45 : 0.28;
+    const size = Math.floor(audioCtx.sampleRate * dur);
+    const buf  = audioCtx.createBuffer(1, size, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0; i<size; i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/size, big?1.6:2.2);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const flt = audioCtx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.frequency.value = big ? 500 : 320;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    src.connect(flt); flt.connect(g); g.connect(masterGain);
+    src.start(now); src.stop(now + dur + 0.05);
+    // Sub thud
+    mkOsc(big?60:80, 'sine', now, dur*0.4, big?0.3:0.18);
+}
+
+function sfxWaveAlert() {
+    if (!audioCtx || !soundOn) return;
+    const now = audioCtx.currentTime;
+    // Ominous descending horn
+    [[220,0],[196,0.22],[165,0.44],[147,0.66],[130,0.88]].forEach(([f,t])=>{
+        mkOsc(f,  'sawtooth',  now+t, 0.2, 0.22);
+        mkOsc(f/2,'sine',      now+t, 0.2, 0.10);
+    });
+    // Low impact at start
+    sfxExplosion(true);
+}
+
+function sfxAllyAlert() {
+    if (!audioCtx || !soundOn) return;
+    const now = audioCtx.currentTime;
+    // Ascending fanfare — positive
+    [[330,0],[415,0.12],[523,0.24],[659,0.38],[784,0.52]].forEach(([f,t])=>{
+        mkOsc(f,'triangle', now+t, 0.18, 0.14);
+    });
+}
+
+function sfxSphereLaunch() {
+    if (!audioCtx || !soundOn) return;
+    const now = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(80, now);
+    o.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+    g.gain.setValueAtTime(0.2, now);
+    g.gain.linearRampToValueAtTime(0, now + 0.5);
+    o.connect(g); g.connect(masterGain);
+    o.start(now); o.stop(now + 0.55);
+}
+
+document.getElementById('sound-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    if (!audioCtx) initAudio();
+    else toggleSound();
+});
+
+document.getElementById('end-restart').addEventListener('click', () => location.reload());
+
+// ════════════════════════════════════════════════════════
+// WIN / LOSE DETECTION + HIGHSCORE
+// ════════════════════════════════════════════════════════
+let gameEnded   = false;
+let winCheckTimer = 0;
+const HS_KEY = 'starcraft_hs_v1';
+
+function checkEndCondition() {
+    if (gameEnded) return;
+
+    // ── DEFEAT: all green+black units AND buildings wiped ──
+    const greenUnitsAlive = [...playerUnits,...allyUnits].filter(u=>u.hp>0).length;
+    const greenBldsAlive  = [...playerBuildings,...allyBuildings].filter(b=>b.hp>0).length;
+    if (greenUnitsAlive === 0 && greenBldsAlive === 0) {
+        triggerEndGame(false); return;
+    }
+
+    // ── VICTORY: all enemy units, buildings AND workers wiped ──
+    const redBlueAlive  = enemyUnits.filter(u=>u.hp>0).length;
+    const enemyBldsAlive= enemyBuildings.filter(b=>b.hp>0).length;
+    const workerAlive   = [...redWorkers,...blueWorkers].filter(w=>w.hp>0).length;
+    if (redBlueAlive === 0 && enemyBldsAlive === 0 && workerAlive === 0) {
+        triggerEndGame(true); return;
+    }
+}
+
+function triggerEndGame(victory) {
+    gameEnded = true;
+
+    // ── Save score ──
+    const mins  = Math.floor(aiGameTime / 60);
+    const secs  = Math.floor(aiGameTime % 60);
+    const entry = { waves: waveCount, kills: res.kills, time: `${mins}:${String(secs).padStart(2,'0')}`, date: new Date().toLocaleDateString('de-DE') };
+    let scores  = [];
+    try { scores = JSON.parse(localStorage.getItem(HS_KEY) || '[]'); } catch(e){}
+    scores.push(entry);
+    scores.sort((a,b) => b.waves - a.waves || b.kills - a.kills);
+    scores = scores.slice(0, 8);
+    try { localStorage.setItem(HS_KEY, JSON.stringify(scores)); } catch(e){}
+
+    // ── Fill overlay ──
+    const newRank = scores.indexOf(entry) + 1;
+    document.getElementById('end-title').textContent = victory ? '🏆 SIEG!' : '💀 NIEDERLAGE!';
+    document.getElementById('end-title').className   = victory ? 'victory' : 'defeat';
+    document.getElementById('end-sub').textContent   = victory
+        ? 'Du hast beide feindlichen Fraktionen vernichtet!'
+        : 'Deine Allianz wurde vollständig ausgelöscht!';
+    document.getElementById('end-stats').innerHTML   =
+        `Überstandene Wellen: <b>${waveCount}</b><br>`+
+        `Abgeschossene Feinde: <b>${res.kills}</b><br>`+
+        `Spielzeit: <b>${entry.time} min</b>`;
+
+    const hsRows = scores.map((s,i) => {
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`;
+        const isCur = s===entry;
+        return `<span class="${isCur?'hs-new':''}">${medal} ${s.date} &nbsp;·&nbsp; Welle <b>${s.waves}</b> &nbsp;·&nbsp; ${s.kills} Kills &nbsp;·&nbsp; ${s.time}</span>`;
+    }).join('<br>');
+    document.getElementById('end-hs').innerHTML = `<div class="hs-head">— HIGHSCORE —</div>${hsRows}`;
+
+    document.getElementById('end-screen').classList.remove('hidden');
+    if (victory) sfxAllyAlert(); else sfxWaveAlert();
+}
+
+// HUD timer
+let hudT = 0;
+
+// Camera
+const keys = {};
+let microMode = false;
+let microTarget = null;
+const CAM_PAN_SPEED = 0.5;
+// Saved camera state for returning from micro
+let savedCamPos = null, savedCamTarget = null;
+
+// Unit constants
+const MARINE_HP=60,  MARINE_DMG=8,  MARINE_RANGE=14, MARINE_SPEED=5.5, MARINE_RATE=0.65;
+const TANK_HP=180,   TANK_DMG=24,   TANK_RANGE=20,   TANK_SPEED=3.2,   TANK_RATE=1.8;
+const E_MARINE_HP=55, E_MARINE_DMG=8, E_MARINE_RANGE=12, E_MARINE_SPEED=5.2;
+const E_TANK_HP=150,  E_TANK_DMG=20,  E_TANK_RANGE=18,   E_TANK_SPEED=3.0;
+const TURRET_DMG=14, TURRET_RANGE=22, TURRET_RATE=1.0;
+const WORKER_SPEED=6.0, WORKER_MINE_TIME=3.5, WORKER_CARRY=12;
+// Aircraft constants
+const WRAITH_HP=80, WRAITH_DMG=10, WRAITH_RANGE=22, WRAITH_SPEED=13, WRAITH_RATE=0.75;
+const E_WRAITH_HP=70, E_WRAITH_DMG=9, E_WRAITH_RANGE=20, E_WRAITH_SPEED=11;
+const AIR_ALTITUDE = 11.0;  // constant flight height
+// ── QUANTUM SPHERE — Mega Unit ──────────────────────────
+const SPHERE_HP=900, SPHERE_DMG=55, SPHERE_RANGE=36, SPHERE_SPEED=5.5, SPHERE_RATE=2.2, SPHERE_COST=2000;
+const E_SPHERE_HP=800, E_SPHERE_DMG=48, E_SPHERE_RANGE=32, E_SPHERE_SPEED=5.0;
+const SPHERE_ALTITUDE = AIR_ALTITUDE + 4.5; // flies higher
+
+// Building definitions
+const BLDG = {
+    command:  {label:'Command Center',cost:0,   w:12,d:10,h:6,   supply:0},
+    barracks: {label:'Kaserne',       cost:150, w:8, d:7, h:4,   supply:4},
+    depot:    {label:'Depot',         cost:100, w:6, d:6, h:3,   supply:8},
+    turret:   {label:'Turm',          cost:75,  w:3, d:3, h:5,   supply:0},
+    bunker:   {label:'Bunker',        cost:120, w:5, d:5, h:3.5, supply:0},
+    refinery: {label:'Raffinerie',    cost:200, w:7, d:7, h:5,   supply:0},
+    factory:  {label:'Fabrik',        cost:250, w:9, d:8, h:5,   supply:0},
+};
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+function init() {
+    scene = new THREE.Scene();
+    // Dramatic night-battle sky — very dark blue-green
+    scene.background = new THREE.Color(0x050e08);
+    scene.fog = new THREE.Fog(0x050e08, 110, 280);
+
+    camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 800);
+    camera.position.set(-18, 62, 62);
+
+    renderer = new THREE.WebGLRenderer({antialias:false});
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(renderScale);
+    renderer.shadowMap.enabled = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    document.body.appendChild(renderer.domElement);
+
+    orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping  = true;
+    orbitControls.dampingFactor  = 0.06;
+    orbitControls.minDistance    = 4;
+    orbitControls.maxDistance    = 220;
+    orbitControls.maxPolarAngle  = Math.PI / 2.05;
+    orbitControls.enablePan      = true;
+    orbitControls.panSpeed       = 1.2;
+    orbitControls.zoomSpeed      = 1.4;
+    orbitControls.rotateSpeed    = 0.55;
+    // LEFT=null (selection), MIDDLE=pan, RIGHT=orbit, scroll=zoom (built-in)
+    orbitControls.mouseButtons   = {LEFT:null, MIDDLE:THREE.MOUSE.PAN, RIGHT:THREE.MOUSE.ROTATE};
+    // Mobile Touch: 1 Finger = Kamera Pan, 2 Finger = Zoom + Pan
+    orbitControls.touches        = {ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN};
+
+    // ── LIGHTING — cinematic 3-point setup ──
+    scene.add(new THREE.AmbientLight(0x8899aa, 1.6));
+    // Key light — warm reddish-orange "combat sunset"
+    const sun = new THREE.DirectionalLight(0xffcc88, 3.8);
+    sun.position.set(60, 120, 50); sun.castShadow=false; scene.add(sun);
+    // Fill — cool blue from opposite side
+    const fill=new THREE.DirectionalLight(0x4488cc, 1.2);
+    fill.position.set(-60,50,-40); scene.add(fill);
+    // Back rim light — gives 3D depth to units
+    const back=new THREE.DirectionalLight(0x334422, 0.9);
+    back.position.set(0,30,-80); scene.add(back);
+    // Ground bounce (hemi — warm ground, cool sky)
+    scene.add(new THREE.HemisphereLight(0x334422, 0x1a1a0a, 1.4));
+
+    // ── STAR FIELD ──
+    const starGeo=new THREE.BufferGeometry();
+    const starPos=new Float32Array(1200*3);
+    for(let i=0;i<1200;i++){
+        starPos[i*3]=(Math.random()-0.5)*700;
+        starPos[i*3+1]=130+Math.random()*220;
+        starPos[i*3+2]=(Math.random()-0.5)*700;
+    }
+    starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
+    scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xddeeff,size:0.55,sizeAttenuation:true,opacity:0.85,transparent:true})));
+    // NOTE: star count intentionally reduced to 1200 for performance
+
+    // ── TERRAIN GRID (tactical overlay feel) ──
+    const grid=new THREE.GridHelper(260,130,0x1a3a20,0x1a3a20);
+    grid.position.y=0.08; grid.material.opacity=0.45; grid.material.transparent=true;
+    scene.add(grid);
+
+    buildWorld();
+    buildPlayerBase();
+    buildEnemyBase();
+    buildBlueBase();
+    buildBlackBase();
+
+    // Starting units
+    for (let i=0;i<4;i++) spawnUnit('marine',false);
+    spawnUnit('tank',false);
+    spawnEnemy('marine'); spawnEnemy('marine');
+    spawnBlue('marine'); spawnBlue('marine');
+    // Starting ally units — arrive at player base to help
+    spawnAlly('marine'); spawnAlly('marine'); spawnAlly('tank');
+
+    // Starting workers (3 WBFs)
+    for (let i=0;i<3;i++) spawnWorker();
+
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', e=>{ keys[e.code]=true; });
+    window.addEventListener('keyup',   e=>{ keys[e.code]=false; });
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup',   onPointerUp);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('contextmenu', e=>e.preventDefault());
+
+    // ── MOBILE: Long-Press = Rechtsklick (Bewegen / Angreifen) ──
+    (function() {
+        let _lpTimer = null;
+        const LP_MS = 420;
+        window.addEventListener('touchstart', e => {
+            if (e.target.tagName !== 'CANVAS') return;
+            const t = e.touches[0];
+            _lpTimer = setTimeout(() => {
+                _lpTimer = null;
+                // Simuliere Rechtsklick-Event an Touch-Position
+                const fakeEvt = {
+                    button: 2,
+                    buttons: 2,
+                    clientX: t.clientX,
+                    clientY: t.clientY,
+                    target: e.target,
+                    preventDefault: () => {}
+                };
+                handleRightClick(fakeEvt);
+            }, LP_MS);
+        }, { passive: true });
+        window.addEventListener('touchmove',   () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
+        window.addEventListener('touchend',    () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
+        window.addEventListener('touchcancel', () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
+    })();
+
+    // Expose to HTML buttons
+    window.switchMode = switchMode;
+    window.setBuildType = setBuildType;
+    window.setBuildTool = setBuildTool;
+    window.deleteSelectedBuilding = deleteSelectedBuilding;
+    window.spawnPlayerMarine = () => {
+        if (res.minerals<50) { showToast('⚠️ Zu wenig Mineralien! (brauche 50💎)'); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
+        res.minerals-=50; spawnUnit('marine',false); updateHUD(); showToast('🪖 Marine spawnt sofort!');
+    };
+    window.spawnPlayerTank = () => {
+        if (res.minerals<150) { showToast('⚠️ Zu wenig Mineralien!'); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll!'); return; }
+        res.minerals-=150; spawnUnit('tank',false); updateHUD(); showToast('🚀 Tank eingesetzt!');
+    };
+    window.spawnWorkerBtn = () => {
+        if (res.minerals<25) { showToast('⚠️ Zu wenig Mineralien!'); return; }
+        res.minerals-=25; spawnWorker(); updateHUD(); showToast('⛏️ WBF-Arbeiter eingesetzt!');
+    };
+    window.spawnPlayerWraith = () => {
+        if (res.minerals<100) { showToast('❌ Nicht genug Mineralien! (100 💎)'); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
+        res.minerals-=100;
+        const cmd = playerBuildings.find(b=>b.type==='command');
+        const sx = cmd ? cmd.cx+(Math.random()-0.5)*14 : -20+(Math.random()-0.5)*14;
+        const sz = cmd ? cmd.cz+(Math.random()-0.5)*14 : -32+(Math.random()-0.5)*14;
+        const u = spawnAircraft(false);
+        u.group.position.set(sx, AIR_ALTITUDE, sz);
+        updateHUD(); showToast('✈️ Jäger startet!');
+    };
+    window.spawnPlayerSphere = () => {
+        if (res.minerals<SPHERE_COST) { showToast(`❌ 2000 💎 für Quanten-Sphäre benötigt!`); return; }
+        if (res.supply>=res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
+        res.minerals-=SPHERE_COST;
+        const cmd = playerBuildings.find(b=>b.type==='command');
+        const sx = cmd ? cmd.cx+(Math.random()-0.5)*12 : -20+(Math.random()-0.5)*12;
+        const sz = cmd ? cmd.cz+(Math.random()-0.5)*12 : -32+(Math.random()-0.5)*12;
+        spawnSphere('player', sx, sz);
+        updateHUD(); showToast('🌐 QUANTEN-SPHÄRE aktiviert! ⚡ LASER ONLINE');
+    };
+
+    // ── INITIAL ENEMY FORCES (C&C style: both factions start with workers + scouts) ──
+    spawnEnemyWorker('red');  spawnEnemyWorker('red');
+    spawnEnemyWorker('blue'); spawnEnemyWorker('blue');
+    const rs1=spawnEnemy('marine'); if(rs1){rs1.state='idle';}
+    const rs2=spawnEnemy('marine'); if(rs2){rs2.state='idle';}
+    const bs1=spawnBlue('marine');  if(bs1){bs1.state='idle';}
+    const bs2=spawnBlue('marine');  if(bs2){bs2.state='idle';}
+
+    document.getElementById('loader').style.display = 'none';
+    updateHUD();
+    showToast('⚔️ Feind aufgebaut! Rote & Blaue KI sammeln Mineralien und bauen Armeen!');
+    animate();
+}
+
+// ════════════════════════════════════════════════════════
+// WORLD
+// ════════════════════════════════════════════════════════
+function buildWorld() {
+    // Ground — bright olive green
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300),
+        new THREE.MeshStandardMaterial({color:0x4a6a30, roughness:0.95}));
+    ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; ground.name='ground';
+    scene.add(ground);
+
+    // Sand paths
+    [[300,8,0],[8,300,0]].forEach(([pw,pd])=>{
+        const path = new THREE.Mesh(new THREE.BoxGeometry(pw,0.1,pd),
+            new THREE.MeshStandardMaterial({color:0x7a6a40, roughness:0.9}));
+        path.position.y=0.05; path.receiveShadow=true; scene.add(path);
+    });
+
+    // Rock clusters (lighter colors)
+    [
+        [22,20],[32,-28],[-22,32],[12,-42],[44,12],[-32,-22],[52,42],[-44,50],
+        [28,-52],[62,-32],[-62,28],[-52,-42],[48,66],[-38,72],[72,-12],[-72,-8],
+        [80,32],[-80,22],[38,-72],[-32,-66],[-18,55],[55,-18],
+    ].forEach(([rx,rz])=>addRockCluster(rx,rz));
+
+    // Craters
+    [[16,28],[52,-18],[-28,-38],[-52,22],[38,48],[-42,-52],[0,30],[30,0]]
+        .forEach(([cx,cz])=>addCrater(cx,cz));
+
+    // Lava pools (far from base)
+    [[62,62],[-62,-62],[72,-52],[-72,52],[80,-20],[-20,80]]
+        .forEach(([lx,lz])=>addLavaPool(lx,lz));
+
+    // Perimeter
+    const wallMat = new THREE.MeshStandardMaterial({color:0x3a3028, roughness:1.0});
+    const E=132, H=6, T=4;
+    [[0,E,268,T],[0,-E,268,T],[E,0,T,268],[-E,0,T,268]].forEach(([px,pz,pw,pd])=>{
+        const w = new THREE.Mesh(new THREE.BoxGeometry(pw,H,pd), wallMat);
+        w.position.set(px,H/2,pz); w.castShadow=true; w.receiveShadow=true; scene.add(w);
+    });
+
+    // Mineral deposits — 6 original + 1 near blue base
+    [[-28,-12],[22,-62],[66,38],[-66,-32],[0,-70],[70,0],[52,-30]].forEach(([mx,mz])=>{
+        addMineralDeposit(mx,mz);
+    });
+}
+
+function addRockCluster(rx,rz) {
+    const n = 3+Math.floor(Math.random()*4);
+    const cols = [0x6a6055, 0x5a5248, 0x7a7268, 0x4a4540, 0x8a8278];
+    for (let i=0;i<n;i++) {
+        const h=1.5+Math.random()*4, w=1+Math.random()*2.5;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,w*(0.6+Math.random()*0.8)),
+            new THREE.MeshStandardMaterial({color:cols[Math.floor(Math.random()*cols.length)], roughness:0.9}));
+        m.position.set(rx+(Math.random()-0.5)*9,h/2,rz+(Math.random()-0.5)*9);
+        m.rotation.y=Math.random()*Math.PI; m.castShadow=true; m.receiveShadow=true; scene.add(m);
+    }
+}
+
+function addCrater(cx,cz) {
+    const r=4+Math.random()*5;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.3,0.6,18),
+        new THREE.MeshStandardMaterial({color:0x2a2218, roughness:1.0}));
+    m.position.set(cx,-0.3,cz); m.receiveShadow=true; scene.add(m);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(r,0.4,6,20),
+        new THREE.MeshStandardMaterial({color:0x5a5040, roughness:1.0}));
+    rim.rotation.x=Math.PI/2; rim.position.set(cx,0.06,cz); scene.add(rim);
+}
+
+function addLavaPool(lx,lz) {
+    const r=5+Math.random()*4;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.2,20),
+        new THREE.MeshStandardMaterial({color:0xff5500, emissive:new THREE.Color(0xcc2200), emissiveIntensity:0.8, roughness:0.2}));
+    m.position.set(lx,0.02,lz); scene.add(m);
+}
+
+function addMineralDeposit(mx,mz) {
+    const group = new THREE.Group();
+    const crystals = [];
+    for (let i=0;i<7;i++) {
+        const cry = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.5+Math.random()*0.6),
+            new THREE.MeshStandardMaterial({color:0x38bdf8, emissive:new THREE.Color(0x0a4070), emissiveIntensity:1.0, roughness:0.1, metalness:0.6})
+        );
+        cry.position.set(mx+(Math.random()-0.5)*5, 0.6+Math.random()*0.8, mz+(Math.random()-0.5)*5);
+        cry.rotation.set(Math.random(),Math.random(),Math.random());
+        scene.add(cry); crystals.push(cry);
+    }
+    // Keep the deposit glow emissive rather than adding a scene-wide point light.
+    mineralDeposits.push({ pos: new THREE.Vector3(mx,0,mz), crystals });
+}
+
+// ════════════════════════════════════════════════════════
+// PLAYER BASE
+// ════════════════════════════════════════════════════════
+function buildPlayerBase() {
+    buildBuilding(-20,-32,'command',false,'Command Center');
+    buildBuilding(-36,-20,'barracks',false,'Kaserne Alpha');
+    buildBuilding(-12,-20,'depot',false,'Depot 1');
+    buildBuilding( -5,-32,'depot',false,'Depot 2');
+    buildBuilding(-42,-38,'turret',false,'Turm A');
+    buildBuilding(-22,-48,'turret',false,'Turm B');
+    buildBuilding( -8,-48,'turret',false,'Turm C');
+    buildBuilding(-38,-48,'bunker',false,'Bunker A');
+}
+
+function buildEnemyBase() {
+    buildBuilding(18,30,'command',true,'Feind HQ');
+    buildBuilding(32,20,'barracks',true,'Feind Kaserne');
+    buildBuilding(10,20,'depot',true,'Feind Depot');
+    buildBuilding(36,32,'turret',true,'Feind Turm A');
+    buildBuilding(18,46,'turret',true,'Feind Turm B');
+    buildBuilding( 5,46,'turret',true,'Feind Turm C');
+    buildBuilding(30,46,'bunker',true,'Feind Bunker');
+}
+
+// ── BLACK ALLY FACTION — bottom-left corner ─────────────
+function buildBlackBase() {
+    buildBuilding(-55,48,'command', false,'Verbündete HQ',   0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-42,38,'barracks',false,'V-Kaserne',       0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-62,38,'depot',   false,'V-Depot',         0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-42,58,'turret',  false,'V-Turm A',        0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-55,62,'turret',  false,'V-Turm B',        0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-68,58,'turret',  false,'V-Turm C',        0x1c1c1c,0x2d2d2d,true);
+    buildBuilding(-68,40,'bunker',  false,'V-Bunker',        0x1c1c1c,0x2d2d2d,true);
+}
+
+// ════════════════════════════════════════════════════════
+// QUANTUM SPHERE MODEL + LASER
+// ════════════════════════════════════════════════════════
+function makeSphereUnitModel(wireColor, coreColor) {
+    const group = new THREE.Group();
+    // Outer wireframe shell
+    const outerGeo = new THREE.SphereGeometry(2.0, 18, 14);
+    const outerMat = new THREE.MeshStandardMaterial({
+        color: wireColor, wireframe: true, emissive: new THREE.Color(wireColor),
+        emissiveIntensity: 0.7, transparent: true, opacity: 0.85
+    });
+    group.add(new THREE.Mesh(outerGeo, outerMat));
+    // Mid energy shell
+    const midGeo = new THREE.SphereGeometry(1.55, 12, 10);
+    const midMat = new THREE.MeshStandardMaterial({
+        color: wireColor, wireframe: true, emissive: new THREE.Color(wireColor),
+        emissiveIntensity: 0.4, transparent: true, opacity: 0.5
+    });
+    group.add(new THREE.Mesh(midGeo, midMat));
+    // Glowing solid core
+    const coreGeo = new THREE.SphereGeometry(0.75, 12, 10);
+    const coreMat = new THREE.MeshStandardMaterial({
+        color: coreColor, emissive: new THREE.Color(coreColor), emissiveIntensity: 4.0,
+        transparent: false, roughness: 0.0, metalness: 0.0
+    });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    coreMesh.userData.isSphereCore = true;
+    group.add(coreMesh);
+    // Orbiting ring 1 (equatorial)
+    const r1 = new THREE.Mesh(
+        new THREE.TorusGeometry(1.8, 0.09, 6, 36),
+        new THREE.MeshStandardMaterial({color: wireColor, emissive: new THREE.Color(wireColor), emissiveIntensity: 2.0})
+    );
+    r1.userData.isSphereRing1 = true;
+    group.add(r1);
+    // Orbiting ring 2 (tilted 62°)
+    const r2 = r1.clone();
+    r2.rotation.x = Math.PI * 0.35; r2.rotation.z = Math.PI * 0.22;
+    r2.userData.isSphereRing1 = false; r2.userData.isSphereRing2 = true;
+    group.add(r2);
+    // Orbiting ring 3 (tilted other way)
+    const r3 = r1.clone();
+    r3.rotation.x = -Math.PI * 0.28; r3.rotation.z = Math.PI * 0.55;
+    r3.userData.isSphereRing3 = true;
+    group.add(r3);
+    // No PointLight — emissive materials provide glow without expensive shadow recalculation
+    return {group, rings:[r1,r2,r3], core:coreMesh};
+}
+
+function fireLaserBeam(fromPos, toPos, target, dmg, isEnemyShot, laserColor) {
+    // Instant damage
+    target.hp -= dmg;
+    let resources=laserResourceCache.get(laserColor);
+    if(!resources) {
+        resources={
+            impactGeometry:new THREE.SphereGeometry(1,8,6),
+            impactMaterial:new THREE.MeshBasicMaterial({color:laserColor,transparent:true,opacity:0.95}),
+            beamGeometry:new THREE.CylinderGeometry(0.05,0.18,1,8),
+            beamMaterial:new THREE.MeshBasicMaterial({color:laserColor,transparent:true,opacity:0.92}),
+            glowGeometry:new THREE.CylinderGeometry(0.22,0.45,1,8),
+            glowMaterial:new THREE.MeshBasicMaterial({color:laserColor,transparent:true,opacity:0.18}),
+            sparkGeometry:new THREE.SphereGeometry(1,6,5),
+            sparkMaterial:new THREE.MeshBasicMaterial({color:laserColor,transparent:true,opacity:0.9}),
+        };
+        laserResourceCache.set(laserColor,resources);
+    }
+    // Impact sphere burst
+    const impact = new THREE.Mesh(resources.impactGeometry, resources.impactMaterial);
+    impact.scale.setScalar(0.65);
+    impact.position.copy(toPos); scene.add(impact);
+    // Laser beam cylinder
+    const dir = new THREE.Vector3().subVectors(toPos, fromPos);
+    const len = dir.length();
+    const mid = fromPos.clone().lerp(toPos, 0.5);
+    const beam = new THREE.Mesh(resources.beamGeometry, resources.beamMaterial);
+    beam.scale.y=len;
+    beam.position.copy(mid);
+    beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+    scene.add(beam);
+    // Outer glow beam (wider, dimmer)
+    const glow = new THREE.Mesh(resources.glowGeometry, resources.glowMaterial);
+    glow.scale.y=len;
+    glow.position.copy(mid);
+    glow.quaternion.copy(beam.quaternion);
+    scene.add(glow);
+    // Impact point light flash
+    const ptLight = new THREE.PointLight(laserColor, 18, 28);
+    ptLight.position.copy(toPos); scene.add(ptLight);
+    // Origin spark
+    const spark = new THREE.Mesh(resources.sparkGeometry,resources.sparkMaterial);
+    spark.scale.setScalar(0.38);
+    spark.position.copy(fromPos); scene.add(spark);
+    // Auto cleanup
+    setTimeout(()=>{
+        scene.remove(beam); scene.remove(glow);
+        scene.remove(impact); scene.remove(ptLight); scene.remove(spark);
+    }, 230);
+}
+
+// ── SPHERE SPAWN ─────────────────────────────────────────
+function spawnSphere(faction, bx, bz) {
+    const cfg = {
+        player: {wire:0x22ff66, core:0x88ff44, laser:0x44ff88, label:'🌐 Quanten-Sphäre', isEnemy:false, isAlly:false},
+        red:    {wire:0xff3311, core:0xff8800, laser:0xff4400, label:'🔴 Feind-Sphäre',    isEnemy:true,  isAlly:false},
+        blue:   {wire:0x3366ff, core:0x00aaff, laser:0x0099ff, label:'🔵 Blau-Sphäre',    isEnemy:true,  isAlly:false},
+        ally:   {wire:0x00ffcc, core:0x00dd88, laser:0x22ffcc, label:'🖤 V-Sphäre',        isEnemy:false, isAlly:true},
+    };
+    const c = cfg[faction];
+    const {group:model, rings:sphereRings, core:sphereCore} = makeSphereUnitModel(c.wire, c.core);
+    model.position.set(bx+(Math.random()-0.5)*14, SPHERE_ALTITUDE, bz+(Math.random()-0.5)*14);
+    scene.add(model);
+    const tag = document.createElement('div');
+    tag.className = 'nametag sphere' + (c.isEnemy?' enemy':'') + (c.isAlly?' ally':'');
+    tag.innerText = c.label;
+    document.body.appendChild(tag);
+    const hpEl = document.createElement('div');
+    hpEl.className = 'hp-bar-el' + (c.isEnemy?' enemy':'');
+    hpEl.innerHTML = '<div class="hp-bar-fill"></div>';
+    document.body.appendChild(hpEl);
+    const hp = c.isEnemy ? E_SPHERE_HP : SPHERE_HP;
+    const unit = {
+        group:model, type:'sphere', isEnemy:c.isEnemy, isAlly:c.isAlly,
+        hp, maxHp:hp, tag, hpEl,
+        selected:false, state:'patrol', moveTarget:null, attackTarget:null,
+        attackTimer:0, walkCycle:0, bankAngle:0,
+        speed: c.isEnemy ? E_SPHERE_SPEED : SPHERE_SPEED,
+        range: c.isEnemy ? E_SPHERE_RANGE : SPHERE_RANGE,
+        dmg:   c.isEnemy ? E_SPHERE_DMG  : SPHERE_DMG,
+        fireRate: SPHERE_RATE,
+        laserColor: c.laser,
+        patrolAngle: Math.random()*Math.PI*2,
+        patrolBase: {bx, bz},
+        sphereRings, sphereCore,   // cached refs — no traverse() needed
+        faction,                   // 'player'|'red'|'blue'|'ally'
+    };
+    if (c.isAlly)         { allyUnits.push(unit); }
+    else if (c.isEnemy)   { enemyUnits.push(unit); }
+    else                  { playerUnits.push(unit); res.supply+=2; }
+    return unit;
+}
+function spawnEnemySphere()  {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return null;
+    return spawnSphere('red',  18,  30);
+}
+function spawnBlueSphere()   {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return null;
+    return spawnSphere('blue', 55, -48);
+}
+function spawnAllySphere()   {
+    const u=spawnSphere('ally',-55, 48);
+    u.moveTarget=new THREE.Vector3(-22+(Math.random()-0.5)*16,0,-28+(Math.random()-0.5)*16);
+    u.state='moving';
+    return u;
+}
+
+// ── BLUE ENEMY FACTION — second corner ──────────────────
+function buildBlueBase() {
+    buildBuilding(55,-48,'command', true,'Blau HQ',       0x0d3fa6,0x1655cc);
+    buildBuilding(42,-38,'barracks',true,'Blau Kaserne',  0x0d3fa6,0x1655cc);
+    buildBuilding(62,-38,'depot',   true,'Blau Depot',    0x0d3fa6,0x1655cc);
+    buildBuilding(42,-58,'turret',  true,'Blau Turm A',   0x0d3fa6,0x1655cc);
+    buildBuilding(55,-62,'turret',  true,'Blau Turm B',   0x0d3fa6,0x1655cc);
+    buildBuilding(68,-58,'turret',  true,'Blau Turm C',   0x0d3fa6,0x1655cc);
+    buildBuilding(68,-40,'bunker',  true,'Blau Bunker',   0x0d3fa6,0x1655cc);
+}
+
+// ════════════════════════════════════════════════════════
+// BUILD BUILDING
+// ════════════════════════════════════════════════════════
+function buildBuilding(bx,bz,type,isEnemy,label, factionMain=null, factionSteel=null, isAlly=false) {
+    const def = BLDG[type];
+    const group = new THREE.Group();
+
+    // Faction colors: player=green, red enemy=dark red, blue enemy=deep blue
+    const mainCol  = factionMain  ? factionMain  : (isEnemy ? 0x7a2020 : 0x2a6a40);
+    const steelCol = factionSteel ? factionSteel : (isEnemy ? 0x8a3030 : 0x3a8a50);
+    const mainMat  = () => new THREE.MeshStandardMaterial({color:mainCol,  roughness:0.55, metalness:0.35});
+    const steelMat = () => new THREE.MeshStandardMaterial({color:steelCol, roughness:0.35, metalness:0.70});
+    const concMat  = new THREE.MeshStandardMaterial({color:0x5a5a4a, roughness:0.85});
+
+    // Foundation
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(def.w+1.2,0.4,def.d+1.2), concMat);
+    slab.position.set(def.w/2,0.2,def.d/2); slab.receiveShadow=true; group.add(slab);
+
+    if (type==='command') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(def.w-1.5,1.8,def.d-1.5), steelMat());
+        top.position.set(def.w/2,def.h+1.3,def.d/2); group.add(top);
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,8,6), steelMat());
+        mast.position.set(def.w/2,def.h+5.5,def.d/2); group.add(mast);
+        const dish = new THREE.Mesh(new THREE.SphereGeometry(1.6,10,8,0,Math.PI*2,0,Math.PI/2), steelMat());
+        dish.position.set(def.w/2+2.2,def.h+1.8,def.d/2); group.add(dish);
+        // Bright windows
+        const winMat = new THREE.MeshStandardMaterial({color:isEnemy?0xff6666:0x66ffaa, emissive:new THREE.Color(isEnemy?0x990000:0x009944), emissiveIntensity:1.2, transparent:true, opacity:0.9});
+        for (let i=0;i<4;i++) { const w=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.0,0.1),winMat); w.position.set(-def.w/2+2.5+i*2.6,def.h/2+0.4,def.d/2+0.06); group.add(w); }
+    } else if (type==='barracks') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(def.w+0.8,0.6,def.d+0.8), steelMat());
+        roof.position.set(def.w/2,def.h+0.7,def.d/2); group.add(roof);
+        const ramp = new THREE.Mesh(new THREE.BoxGeometry(3,0.25,2), concMat);
+        ramp.position.set(def.w/2,0.12,0); group.add(ramp);
+        // Entry sign light
+        const sign = new THREE.Mesh(new THREE.BoxGeometry(3,0.5,0.1),
+            new THREE.MeshStandardMaterial({color:isEnemy?0xff3333:0x33ff77, emissive:new THREE.Color(isEnemy?0xaa0000:0x00aa44), emissiveIntensity:1.5}));
+        sign.position.set(def.w/2,def.h-0.5,0.05); group.add(sign);
+    } else if (type==='depot') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(def.w/2-0.1,14,9,0,Math.PI*2,0,Math.PI/2), steelMat());
+        dome.position.set(def.w/2,def.h+0.4,def.d/2); group.add(dome);
+    } else if (type==='turret') {
+        // Fixed base (never rotates)
+        const base2 = new THREE.Mesh(new THREE.CylinderGeometry(2.0,2.5,1.8,8), steelMat());
+        base2.position.set(def.w/2,1.3,def.d/2); base2.castShadow=true; group.add(base2);
+        // Rotating head — pivots at turret center so it faces enemies
+        const tHead = new THREE.Group();
+        tHead.position.set(def.w/2, 0, def.d/2);
+        tHead.userData.isTurretHead = true;
+        group.add(tHead);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.8,1.8,2.8), mainMat());
+        body.position.set(0,3.0,0); body.castShadow=true; tHead.add(body);
+        const gunM = new THREE.MeshStandardMaterial({color:0x1a1a1a, metalness:0.96, roughness:0.1});
+        [-0.5,0.5].forEach(gx=>{
+            const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,3.5,6),gunM);
+            // Gun in +Z direction (toward enemy when head.rotation.y=0)
+            gun.rotation.x=Math.PI/2; gun.position.set(gx,3.0,1.75); tHead.add(gun);
+            // Muzzle tip glow
+            const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1,5,4),
+                new THREE.MeshStandardMaterial({color:isEnemy?0xff4444:0x44ff88,emissive:new THREE.Color(isEnemy?0x990000:0x004422),emissiveIntensity:1.2}));
+            tip.position.set(gx,3.0,3.4); tHead.add(tip);
+        });
+        const radar = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.35,1.5), steelMat());
+        radar.position.set(0,4.1,0); radar.userData.isRadar=true; tHead.add(radar);
+    } else if (type==='bunker') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(def.w/2+0.5,1.5,4), steelMat());
+        cap.position.set(def.w/2,def.h+1.15,def.d/2); cap.rotation.y=Math.PI/4; group.add(cap);
+    } else if (type==='refinery') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        [0.8,def.w-0.8].forEach(px=>{
+            const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,4.0,10), steelMat());
+            tank.position.set(px,2.4,def.d/2); group.add(tank);
+        });
+    } else if (type==='factory') {
+        const main = new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d), mainMat());
+        main.position.set(def.w/2,def.h/2+0.4,def.d/2); main.castShadow=true; main.receiveShadow=true; group.add(main);
+        [2,def.w-2].forEach(px=>{
+            const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.48,0.58,5,8), steelMat());
+            ch.position.set(px,def.h+2.9,def.d/2); group.add(ch);
+            const gl = new THREE.Mesh(new THREE.SphereGeometry(0.75,6,5),
+                new THREE.MeshStandardMaterial({color:0xffaa00, emissive:new THREE.Color(0xaa5500), emissiveIntensity:0.8, transparent:true, opacity:0.7}));
+            gl.position.set(px,def.h+5.5,def.d/2); group.add(gl);
+        });
+    }
+
+    // Beacon light on top (bright!)
+    const beaconCol = isEnemy ? 0xff4444 : 0x44ff88;
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.35,8,7),
+        new THREE.MeshStandardMaterial({color:beaconCol, emissive:new THREE.Color(beaconCol), emissiveIntensity:2.0}));
+    beacon.position.set(def.w/2, def.h+0.9, def.d/2);
+    group.add(beacon);
+
+    group.position.set(bx-def.w/2, 0, bz-def.d/2);
+    setGroupShadow(group);
+    scene.add(group);
+    buildObjects.push(group);
+
+    // Nametag
+    const tag = document.createElement('div');
+    tag.className = 'nametag'+(isEnemy?' enemy':'');
+    tag.innerText = (isEnemy?'⚠️ ':'🟢 ')+label;
+    document.body.appendChild(tag);
+
+    // HP bar (building)
+    const hpEl = document.createElement('div');
+    hpEl.className = 'hp-bar-el bld'+(isEnemy?' enemy':'');
+    hpEl.innerHTML = '<div class="hp-bar-fill"></div>';
+    document.body.appendChild(hpEl);
+
+    const hpMax = type==='command'?1500:type==='turret'?350:type==='bunker'?600:500;
+    const bld = {group, type, isEnemy, tag, hpEl, hp:hpMax, maxHp:hpMax, label, cx:bx, cz:bz, def, attackTimer:0, beacon};
+
+    if (isAlly) allyBuildings.push(bld);
+    else if (isEnemy) enemyBuildings.push(bld);
+    else { playerBuildings.push(bld); if(def.supply) res.maxSupply+=def.supply; }
+    return bld;
+}
+
+// ════════════════════════════════════════════════════════
+// UNIT MODELS
+// ════════════════════════════════════════════════════════
+function makeMarineModel(isEnemy) {
+    const g = new THREE.Group();
+    const armorCol = isEnemy ? 0xcc2222 : 0x22bb55;
+    const helmCol  = isEnemy ? 0x881111 : 0x116633;
+    const armorM = new THREE.MeshStandardMaterial({color:armorCol, roughness:0.4, metalness:0.5,
+        emissive:new THREE.Color(isEnemy?0x440000:0x003311), emissiveIntensity:0.35});
+    const helmM  = new THREE.MeshStandardMaterial({color:helmCol,  roughness:0.35, metalness:0.65,
+        emissive:new THREE.Color(isEnemy?0x330000:0x002210), emissiveIntensity:0.25});
+    const skinM  = new THREE.MeshStandardMaterial({color:0xffcba0, roughness:0.7});
+    const gunM   = new THREE.MeshStandardMaterial({color:0x111111, metalness:0.9, roughness:0.2});
+    const visorM = new THREE.MeshStandardMaterial({color:isEnemy?0xff4444:0x44aaff, transparent:true, opacity:0.7, roughness:0.1, emissive:new THREE.Color(isEnemy?0x880000:0x002244), emissiveIntensity:0.5});
+
+    [-0.16,0.16].forEach(lx=>{
+        const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.11,0.58,8),armorM);
+        leg.position.set(lx,0.39,0); leg.castShadow=true; g.add(leg);
+        const boot=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.11,0.31),new THREE.MeshStandardMaterial({color:0x111111,roughness:0.9}));
+        boot.position.set(lx,0.07,0.04); g.add(boot);
+    });
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(0.70,0.76,0.40),armorM);
+    torso.position.y=0.97; torso.castShadow=true; g.add(torso);
+    const chest=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.48,0.09),helmM);
+    chest.position.set(0,1.02,0.23); g.add(chest);
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.13,0.15,7),skinM);
+    neck.position.y=1.42; g.add(neck);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.32,0.36),skinM);
+    head.position.y=1.62; head.castShadow=true; g.add(head);
+    const helm=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.32,0.44),helmM);
+    helm.position.set(0,1.72,0); g.add(helm);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.14,0.07),visorM);
+    visor.position.set(0,1.63,0.22); g.add(visor);
+    [-0.48,0.48].forEach(ax=>{
+        const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.09,0.46,7),armorM);
+        arm.position.set(ax,0.99,0); arm.castShadow=true; g.add(arm);
+    });
+    const gun=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,0.60),gunM);
+    gun.position.set(0.48,0.91,-0.30); g.add(gun);
+    const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,0.42,6),gunM);
+    barrel.rotation.x=Math.PI/2; barrel.position.set(0.48,0.91,-0.52); g.add(barrel);
+    return g;
+}
+
+function makeTankModel(isEnemy) {
+    const g = new THREE.Group();
+    const hullCol = isEnemy ? 0xbb2222 : 0x229955;
+    const hullM  = new THREE.MeshStandardMaterial({color:hullCol, roughness:0.4, metalness:0.65,
+        emissive:new THREE.Color(isEnemy?0x550000:0x004422), emissiveIntensity:0.4});
+    const trackM = new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.9});
+    const gunM   = new THREE.MeshStandardMaterial({color:0x111111, metalness:0.92});
+
+    const hull=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.0,5.0),hullM);
+    hull.position.y=0.9; hull.castShadow=true; hull.receiveShadow=true; g.add(hull);
+    const slope=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.55,2.2),hullM);
+    slope.position.set(0,1.65,-0.55); g.add(slope);
+    // Tank turret: separate rotating group so it can track enemies independently from hull
+    const turrHead = new THREE.Group();
+    turrHead.userData.isTankTurret = true;
+    g.userData.tankTurret = turrHead;
+    g.add(turrHead);
+    const turr=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.2,0.75,10),hullM);
+    turr.position.set(0,2.1,-0.2); turr.castShadow=true; turrHead.add(turr);
+    const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,4.0,8),gunM);
+    barrel.rotation.x=Math.PI/2; barrel.position.set(0,2.1,-2.8); turrHead.add(barrel);
+    [-1.8,1.8].forEach(tx=>{
+        const track=new THREE.Mesh(new THREE.BoxGeometry(0.60,0.66,5.0),trackM);
+        track.position.set(tx,0.43,0); track.castShadow=true; g.add(track);
+        for(let i=-2;i<=2;i+=0.95){
+            const wh=new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.25,8),
+                new THREE.MeshStandardMaterial({color:0x333333,metalness:0.6}));
+            wh.rotation.z=Math.PI/2; wh.position.set(tx,0.43,i); g.add(wh);
+        }
+    });
+    const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2.2,5),gunM);
+    ant.position.set(-0.8,2.75,0.7); g.add(ant);
+    const hatch=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.14,8),hullM);
+    hatch.position.set(0,2.5,0.3); g.add(hatch);
+    return g;
+}
+
+function makeWorkerModel() {
+    const g = new THREE.Group();
+    const propellers = [];
+    const bodyM = new THREE.MeshStandardMaterial({color:0xf59e0b, roughness:0.4, metalness:0.6, emissive:new THREE.Color(0x4a3000), emissiveIntensity:0.3});
+    const darkM = new THREE.MeshStandardMaterial({color:0x444444, roughness:0.6, metalness:0.5});
+
+    // Drone body (squat box)
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.5,0.8),bodyM);
+    body.position.y=0.85; body.castShadow=true; g.add(body);
+    // Top dome
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6,0,Math.PI*2,0,Math.PI/2),bodyM);
+    dome.position.y=1.1; g.add(dome);
+    // 4 rotor arms
+    [[-1,0,-1],[1,0,-1],[-1,0,1],[1,0,1]].forEach(([ax,,az])=>{
+        const arm=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.06,0.08),darkM);
+        arm.position.set(ax*0.52,1.05,az*0.52); arm.rotation.y=Math.atan2(ax,az); g.add(arm);
+        const prop=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.04,8),
+            new THREE.MeshStandardMaterial({color:0xcccccc,transparent:true,opacity:0.5}));
+        prop.position.set(ax*0.75,1.07,az*0.75); prop.userData.isProp=true; g.add(prop);
+        propellers.push(prop);
+    });
+    // Mining arm (bottom)
+    const arm2=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.6,5),darkM);
+    arm2.position.set(0,0.55,0.4); arm2.rotation.x=0.4; g.add(arm2);
+    const drill=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.25,6),
+        new THREE.MeshStandardMaterial({color:0x88bdf8, metalness:0.9}));
+    drill.position.set(0,0.28,0.62); drill.rotation.x=Math.PI; g.add(drill);
+    g.userData.propellers = propellers;
+    return g;
+}
+
+// ════════════════════════════════════════════════════════
+// AIRCRAFT MODEL — Wraith-class fighter
+// ════════════════════════════════════════════════════════
+function makeWraithModel(isEnemy) {
+    const g = new THREE.Group();
+    const col = isEnemy ? 0xbb2020 : 0x1e6fa8;
+    const hullM = new THREE.MeshStandardMaterial({color:col, metalness:0.82, roughness:0.18,
+        emissive:new THREE.Color(isEnemy?0x3a0000:0x00122a), emissiveIntensity:0.45});
+    const darkM = new THREE.MeshStandardMaterial({color:0x111111, metalness:0.92, roughness:0.12});
+    const glowCol = isEnemy ? 0xff4444 : 0x44aaff;
+    const glowM = new THREE.MeshStandardMaterial({color:glowCol, emissive:new THREE.Color(glowCol), emissiveIntensity:2.2});
+
+    // Fuselage — long sleek body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 3.6), hullM);
+    body.castShadow=true; g.add(body);
+
+    // Nose cone
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.9, 6), hullM);
+    nose.rotation.x = -Math.PI/2; nose.position.z = 2.25; g.add(nose);
+
+    // Cockpit dome
+    const cockpitM = new THREE.MeshStandardMaterial({color:0xaaddff, emissive:new THREE.Color(0x003366), emissiveIntensity:0.8, roughness:0.05, metalness:0.3});
+    const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6, 0, Math.PI*2, 0, Math.PI/2*1.1), cockpitM);
+    cockpit.position.set(0, 0.22, 0.9); cockpit.rotation.x = -Math.PI; g.add(cockpit);
+
+    // Wings — swept back for speed aesthetic
+    [-1,1].forEach(side => {
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.1), hullM);
+        wing.position.set(side*1.3, -0.05, -0.2);
+        wing.rotation.y = side * -0.22; // sweep angle
+        wing.castShadow=true; g.add(wing);
+        // Wing gun pod
+        const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7, 6), darkM);
+        pod.rotation.x = Math.PI/2; pod.position.set(side*2.3, -0.08, 0.4); g.add(pod);
+        // Wingtip nav light (red=left, green=right)
+        const tipM = new THREE.MeshStandardMaterial({color:side<0?0xff2222:0x22ff44, emissive:new THREE.Color(side<0?0xff0000:0x00ff00), emissiveIntensity:2.5});
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 4), tipM);
+        tip.position.set(side*2.6, -0.06, -0.2); tip.userData.isNavLight=true; tip.userData.navSide=side; g.add(tip);
+    });
+
+    // Tail fins
+    const finV = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.8), hullM);
+    finV.position.set(0, 0.32, -1.5); g.add(finV);
+    [-0.32,0.32].forEach(fx => {
+        const finH = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.05, 0.5), hullM);
+        finH.position.set(fx, 0.0, -1.6); g.add(finH);
+    });
+
+    // Twin engine nacelles
+    [-0.36,0.36].forEach(ex => {
+        const nacelle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 1.1, 7), darkM);
+        nacelle.rotation.x = Math.PI/2; nacelle.position.set(ex, -0.09, -0.55); g.add(nacelle);
+        // Engine glow at exhaust
+        const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.12, 7), glowM);
+        exhaust.rotation.x = Math.PI/2; exhaust.position.set(ex, -0.09, -1.12);
+        exhaust.userData.isEngineGlow=true; g.add(exhaust);
+    });
+
+    // Belly weapon hardpoint
+    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.6,5), darkM);
+    gun.rotation.x=Math.PI/2; gun.position.set(0,-0.18,1.3); g.add(gun);
+
+    return g;
+}
+
+// ════════════════════════════════════════════════════════
+// SPAWN AIRCRAFT
+// ════════════════════════════════════════════════════════
+function spawnAircraft(isEnemy) {
+    const model = makeWraithModel(isEnemy);
+    const bx = isEnemy?18:-20, bz = isEnemy?30:-28;
+    model.position.set(bx+(Math.random()-0.5)*18, AIR_ALTITUDE, bz+(Math.random()-0.5)*18);
+    scene.add(model);
+
+    const tag = document.createElement('div');
+    tag.className = 'nametag air' + (isEnemy?' enemy':'');
+    tag.innerText = isEnemy ? '🔴 Feind-Jäger' : '✈️ Jäger';
+    document.body.appendChild(tag);
+
+    const hpEl = document.createElement('div');
+    hpEl.className = 'hp-bar-el' + (isEnemy?' enemy':'');
+    hpEl.innerHTML = '<div class="hp-bar-fill"></div>';
+    document.body.appendChild(hpEl);
+
+    const hp = isEnemy ? E_WRAITH_HP : WRAITH_HP;
+    const unit = {
+        group:model, type:'wraith', isEnemy, hp, maxHp:hp, tag, hpEl,
+        selected:false, state:'patrol', moveTarget:null, attackTarget:null,
+        attackTimer:0, walkCycle:0,
+        speed: isEnemy ? E_WRAITH_SPEED : WRAITH_SPEED,
+        range: isEnemy ? E_WRAITH_RANGE : WRAITH_RANGE,
+        dmg:   isEnemy ? E_WRAITH_DMG  : WRAITH_DMG,
+        fireRate: WRAITH_RATE,
+        patrolAngle: Math.random()*Math.PI*2,
+        bankAngle: 0,
+    };
+    unit.overlayPos = new THREE.Vector3();
+    // Cache engine glow + nav light refs to avoid traverse() every frame
+    const _eg=[], _nl=[];
+    model.traverse(c=>{ if(c.userData.isEngineGlow) _eg.push(c); if(c.userData.isNavLight) _nl.push(c); });
+    unit.engineGlows=_eg; unit.navLights=_nl;
+
+    if (isEnemy) enemyUnits.push(unit);
+    else { playerUnits.push(unit); res.supply++; }
+    return unit;
+}
+// Blue faction helpers
+function tintBlue(unit) {
+    // Replace red/dark-red enemy hues with blue faction colors
+    const redHues = new Set([0xcc2222,0x881111,0xbb2222,0x7a2020,0x8a3030,0x3a0000,0x550000]);
+    unit.group.traverse(c => {
+        if (!c.isMesh || !c.material) return;
+        const m = c.material;
+        const hex = m.color?.getHex();
+        if (redHues.has(hex)) {
+            c.material = m.clone();
+            // Map red darkness to blue equivalent
+            if (hex===0x881111||hex===0x7a2020||hex===0x8a3030) c.material.color.setHex(0x0d3fa6);
+            else if (hex===0x3a0000||hex===0x550000) c.material.color.setHex(0x001a55);
+            else c.material.color.setHex(0x1e6fa8);
+            if (c.material.emissive) {
+                const eHex = c.material.emissive.getHex();
+                if (eHex===0x440000||eHex===0x330000||eHex===0x3a0000||eHex===0x550000)
+                    c.material.emissive.setHex(0x001a55);
+            }
+        }
+        // Visor: red → cyan-blue
+        if (hex===0xff4444) { c.material=m.clone(); c.material.color.setHex(0x00eeff); c.material.emissive?.setHex(0x004466); }
+    });
+    unit.faction = 'blue';
+    setUnitSpriteFaction(unit, 'blue');
+    unit.tag.innerText = unit.type==='wraith'?'✈️ Blau-Jäger':unit.type==='tank'?'🔵 Blau-Tank':'🔵 Blau-Marine';
+    if (unit.tag.classList.contains('enemy')) { unit.tag.classList.remove('enemy'); unit.tag.classList.add('enemy','blue-enemy'); }
+}
+function spawnBlue(type) {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return null;
+    const u = spawnUnit(type, true);
+    u.group.position.set(55+(Math.random()-0.5)*16, u.group.position.y, -48+(Math.random()-0.5)*16);
+    tintBlue(u);
+    return u;
+}
+function spawnBlueAir() {
+    const u = spawnAircraft(true);
+    u.group.position.set(55+(Math.random()-0.5)*16, AIR_ALTITUDE, -48+(Math.random()-0.5)*16);
+    tintBlue(u);
+    return u;
+}
+
+// ── BLACK ALLY helpers ───────────────────────────────────
+function tintBlack(unit) {
+    const redHues = new Set([0xcc2222,0x881111,0xbb2222,0x7a2020,0x8a3030,0x3a0000,0x550000,0x22bb55,0x116633,0x229955,0x2a6a40]);
+    unit.group.traverse(c => {
+        if (!c.isMesh || !c.material) return;
+        const m = c.material;
+        const hex = m.color?.getHex();
+        if (redHues.has(hex) || (hex > 0x003300 && hex < 0x5aaa55)) {
+            c.material = m.clone();
+            c.material.color.setHex(0x1c1c1c);
+            c.material.roughness = 0.3;
+            c.material.metalness = 0.85;
+            if (c.material.emissive) c.material.emissive.setHex(0x002222);
+        }
+        // Visor → teal glow (ally signature)
+        if (hex===0x44aaff||hex===0xff4444||hex===0x00eeff) {
+            c.material = m.clone();
+            c.material.color.setHex(0x00ffcc);
+            if (c.material.emissive) c.material.emissive.setHex(0x004433);
+            c.material.emissiveIntensity = 1.2;
+        }
+    });
+    unit.isAlly = true;
+    unit.faction = 'black';
+    setUnitSpriteFaction(unit, 'black');
+    const typeLabel = unit.type==='wraith'?'✈️':unit.type==='tank'?'🖤':'⬛';
+    unit.tag.innerText = typeLabel + ' Verbündete';
+    unit.tag.className = (unit.tag.className||'nametag') + ' ally';
+}
+function spawnAlly(type) {
+    // Spawn in allyUnits array — start near black base, march to help green
+    const u = spawnUnit(type, false);
+    // Move from playerUnits to allyUnits
+    const idx = playerUnits.indexOf(u);
+    if (idx >= 0) { playerUnits.splice(idx, 1); res.supply--; }
+    allyUnits.push(u);
+    u.group.position.set(-55+(Math.random()-0.5)*14, u.group.position.y, 48+(Math.random()-0.5)*14);
+    // Initial order: march toward player base
+    u.state = 'moving';
+    u.moveTarget = new THREE.Vector3(-22+(Math.random()-0.5)*18, 0, -28+(Math.random()-0.5)*18);
+    tintBlack(u);
+    return u;
+}
+function spawnAllyAir() {
+    const u = spawnAircraft(false);
+    const idx = playerUnits.indexOf(u);
+    if (idx >= 0) { playerUnits.splice(idx, 1); res.supply--; }
+    allyUnits.push(u);
+    u.group.position.set(-55+(Math.random()-0.5)*14, AIR_ALTITUDE, 48+(Math.random()-0.5)*14);
+    u.patrolAngle = Math.random()*Math.PI*2;
+    tintBlack(u);
+    return u;
+}
+
+// ════════════════════════════════════════════════════════
+// SPAWN UNIT
+// ════════════════════════════════════════════════════════
+const UNIT_SPRITE_LOD_DISTANCE_SQ = 50 * 50;
+const unitSpriteTextures = new Map();
+const unitSpriteMaterials = new Map();
+const unitSpriteLoader = new THREE.TextureLoader();
+
+function getUnitSpriteMaterial(type, faction) {
+    const spriteFaction = faction === 'black' ? 'green' : faction;
+    const assetName = type === 'worker'
+        ? 'starcraft-worker.png'
+        : `starcraft-${type}-${spriteFaction}.png`;
+    const tint = faction === 'black' ? 0x829c98 : 0xffffff;
+    const key = `${assetName}:${tint}`;
+    if (unitSpriteMaterials.has(key)) return unitSpriteMaterials.get(key);
+
+    let texture = unitSpriteTextures.get(assetName);
+    if (!texture) {
+        texture = unitSpriteLoader.load(
+            `assets/${assetName}`,
+            loadedTexture => {
+                loadedTexture.colorSpace = THREE.SRGBColorSpace;
+                loadedTexture.needsUpdate = true;
+            },
+            undefined,
+            error => console.warn(`Unit sprite failed to load: ${assetName}`, error)
+        );
+        texture.colorSpace = THREE.SRGBColorSpace;
+        unitSpriteTextures.set(assetName, texture);
+    }
+
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        color: tint,
+        transparent: true,
+        alphaTest: 0.12,
+        depthWrite: false,
+    });
+    unitSpriteMaterials.set(key, material);
+    return material;
+}
+
+function addUnitLodSprite(model, type, faction) {
+    const sizes = {
+        marine: [1.9, 2.6],
+        tank: [4.0, 3.4],
+        worker: [2.1, 1.8],
+    };
+    const size = sizes[type];
+    if (!size) return null;
+
+    const detailModel = new THREE.Group();
+    for (const child of model.children.slice()) detailModel.add(child);
+    model.add(detailModel);
+
+    const sprite = new THREE.Sprite(getUnitSpriteMaterial(type, faction));
+    sprite.name = `${type}-lod-sprite`;
+    sprite.scale.set(size[0], size[1], 1);
+    sprite.position.y = size[1] * 0.5;
+    sprite.visible = false;
+    model.add(sprite);
+
+    model.userData.detailModel = detailModel;
+    model.userData.lodSprite = sprite;
+    return sprite;
+}
+
+function setUnitSpriteFaction(unit, faction) {
+    const sprite = unit?.group?.userData?.lodSprite;
+    if (sprite) sprite.material = getUnitSpriteMaterial(unit.type, faction);
+}
+
+function syncUnitLod(unit) {
+    const detailModel = unit.group.userData.detailModel;
+    const sprite = unit.group.userData.lodSprite;
+    if (!detailModel || !sprite || !camera) return;
+    const image = sprite.material.map?.image;
+    const spriteReady = Boolean(image && image.width > 0 && image.height > 0);
+    const useSprite = spriteReady
+        && camera.position.distanceToSquared(unit.group.position) > UNIT_SPRITE_LOD_DISTANCE_SQ;
+    detailModel.visible = !useSprite;
+    sprite.visible = useSprite;
+}
+
+function spawnUnit(type, isEnemy) {
+    const model = type==='tank' ? makeTankModel(isEnemy) : makeMarineModel(isEnemy);
+    addUnitLodSprite(model, type, isEnemy ? 'red' : 'green');
+    const bx = isEnemy?18:-20, bz = isEnemy?30:-28, sp=14;
+    model.position.set(bx+(Math.random()-0.5)*sp, 0, bz+(Math.random()-0.5)*sp);
+    setGroupShadow(model);
+    scene.add(model);
+
+    const tag = document.createElement('div');
+    tag.className='nametag'+(isEnemy?' enemy':'');
+    tag.innerText = isEnemy?(type==='tank'?'🔴 Feind-Tank':'👹 Feind-Marine'):(type==='tank'?'🚀 Tank':'🪖 Marine');
+    document.body.appendChild(tag);
+
+    const hpEl = document.createElement('div');
+    hpEl.className='hp-bar-el'+(isEnemy?' enemy':'');
+    hpEl.innerHTML='<div class="hp-bar-fill"></div>';
+    document.body.appendChild(hpEl);
+
+    const hp=isEnemy?(type==='tank'?E_TANK_HP:E_MARINE_HP):(type==='tank'?TANK_HP:MARINE_HP);
+    const unit = {
+        group:model, type, isEnemy, hp, maxHp:hp, tag, hpEl,
+        selected:false, state:'idle', moveTarget:null, attackTarget:null,
+        attackTimer:0, walkCycle:0,
+        speed: isEnemy?(type==='tank'?E_TANK_SPEED:E_MARINE_SPEED):(type==='tank'?TANK_SPEED:MARINE_SPEED),
+        range: isEnemy?(type==='tank'?E_TANK_RANGE:E_MARINE_RANGE):(type==='tank'?TANK_RANGE:MARINE_RANGE),
+        dmg:   isEnemy?(type==='tank'?E_TANK_DMG:E_MARINE_DMG):(type==='tank'?TANK_DMG:MARINE_DMG),
+        fireRate: type==='tank'?TANK_RATE:MARINE_RATE,
+    };
+    unit.tankTurret = model.userData.tankTurret || null;
+    unit.lodSprite = model.userData.lodSprite || null;
+    if (unit.lodSprite) unit.lodSprite.userData._unit = unit;
+    unit.overlayPos = new THREE.Vector3();
+    if (isEnemy) enemyUnits.push(unit);
+    else { playerUnits.push(unit); res.supply++; }
+    return unit;
+}
+
+function spawnEnemy(type) {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return null;
+    const u = spawnUnit(type,true);
+    if (u) u.faction = 'red';
+    return u;
+}
+function spawnRedAir() {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return null;
+    const u = spawnAircraft(true);
+    if (u) u.faction = 'red';
+    return u;
+}
+
+// ════════════════════════════════════════════════════════
+// WORKERS (WBFs — mineral collectors)
+// ════════════════════════════════════════════════════════
+function spawnWorker() {
+    const cmd = playerBuildings.find(b=>b.type==='command');
+    const sx = cmd ? cmd.cx : -20;
+    const sz = cmd ? cmd.cz : -32;
+    const model = makeWorkerModel();
+    addUnitLodSprite(model, 'worker', 'green');
+    model.position.set(sx+(Math.random()-0.5)*8, 1.0, sz+(Math.random()-0.5)*8);
+    setGroupShadow(model);
+    scene.add(model);
+
+    const tag = document.createElement('div');
+    tag.className='nametag worker';
+    tag.innerText='⛏️ WBF';
+    document.body.appendChild(tag);
+
+    const hpEl = document.createElement('div');
+    hpEl.className='hp-bar-el';
+    hpEl.innerHTML='<div class="hp-bar-fill" style="background:#38bdf8"></div>';
+    document.body.appendChild(hpEl);
+
+    const worker = {
+        group:model, type:'worker', isEnemy:false,
+        hp:40, maxHp:40, tag, hpEl,
+        state:'idle',         // idle | to_mineral | mining | returning
+        targetDeposit:null,   // mineralDeposit object
+        mineTimer:0,          // countdown for mining
+        carrying:0,           // minerals currently carried
+        selected:false,
+        walkCycle:0,
+    };
+    worker.propellers = model.userData.propellers;
+    worker.lodSprite = model.userData.lodSprite || null;
+    if (worker.lodSprite) worker.lodSprite.userData._unit = worker;
+    worker.overlayPos = new THREE.Vector3();
+    workers.push(worker);
+}
+
+function updateWorkers(dt) {
+    const cmd = playerBuildings.find(b=>b.type==='command'&&b.hp>0);
+    const basePos = workerBasePosition;
+    if (cmd) {
+        basePos.set(
+            cmd.group.position.x + cmd.def.w/2,
+            cmd.group.position.y,
+            cmd.group.position.z + cmd.def.d/2
+        );
+    } else {
+        basePos.set(-20,0,-32);
+    }
+
+    for (const w of workers) {
+        const pos = w.group.position;
+        w.walkCycle += dt*6;
+
+        // Spin propellers
+        for (let i=0;i<w.propellers.length;i++) w.propellers[i].rotation.y += dt*15;
+
+        // Hover bob
+        pos.y = 1.0 + Math.sin(w.walkCycle)*0.15;
+
+        if (w.state==='idle') {
+            // Pick nearest deposit
+            let best=null, bestD=Infinity;
+            for (const dep of mineralDeposits) {
+                const d = pos.distanceTo(dep.pos);
+                // check no other worker targeting this (allow overlap for now)
+                if (d<bestD) { bestD=d; best=dep; }
+            }
+            if (best) { w.targetDeposit=best; w.state='to_mineral'; }
+
+        } else if (w.state==='to_mineral' && w.targetDeposit) {
+            const target = w.targetDeposit.pos;
+            const dx=target.x-pos.x, dz=target.z-pos.z;
+            const d=Math.sqrt(dx*dx+dz*dz);
+            if (d < 2.5) {
+                w.state='mining'; w.mineTimer=WORKER_MINE_TIME;
+                // Animate mining: tilt
+                w.group.rotation.x=0.3;
+            } else {
+                pos.x += (dx/d)*WORKER_SPEED*dt;
+                pos.z += (dz/d)*WORKER_SPEED*dt;
+                w.group.rotation.y = Math.atan2(dx,dz)+Math.PI;
+            }
+
+        } else if (w.state==='mining') {
+            w.mineTimer -= dt;
+            // Pulse crystal glow
+            if (w.targetDeposit) {
+                w.targetDeposit.crystals.forEach(c=>{
+                    c.material.emissiveIntensity = 0.5+Math.abs(Math.sin(w.walkCycle*2))*1.5;
+                });
+            }
+            if (w.mineTimer <= 0) {
+                w.carrying = WORKER_CARRY;
+                w.state = 'returning';
+                w.group.rotation.x = 0;
+                if (w.targetDeposit) {
+                    w.targetDeposit.crystals.forEach(c=>{ c.material.emissiveIntensity=1.0; });
+                }
+            }
+
+        } else if (w.state==='returning') {
+            const dx=basePos.x-pos.x, dz=basePos.z-pos.z;
+            const d=Math.sqrt(dx*dx+dz*dz);
+            if (d < 3.5) {
+                // Deposit minerals
+                res.minerals += w.carrying;
+                w.carrying = 0;
+                w.state = 'idle';
+                w.targetDeposit = null;
+                updateHUD();
+            } else {
+                pos.x += (dx/d)*WORKER_SPEED*dt;
+                pos.z += (dz/d)*WORKER_SPEED*dt;
+                w.group.rotation.y = Math.atan2(dx,dz)+Math.PI;
+            }
+        }
+    }
+}
+
+function updateWorkerOverlay(w) {
+    syncUnitLod(w);
+    const pos3d = w.overlayPos;
+    pos3d.copy(w.group.position);
+    pos3d.y += 1.8;
+    const proj  = pos3d.project(camera);
+    const dist  = camera.position.distanceTo(w.group.position);
+    if (proj.z>1 || dist>90) { w.hpEl.style.display='none'; w.tag.style.display='none'; return; }
+    const sx=(proj.x*0.5+0.5)*innerWidth, sy=(-proj.y*0.5+0.5)*innerHeight;
+    // Show mining status in tag
+    const stateStr = w.state==='mining'?'⛏️ Abbau...':w.state==='returning'?`📦 +${w.carrying}💎`:w.state==='to_mineral'?'➡️ Mine':'🔵 Bereit';
+    w.tag.innerText = `⛏️ WBF · ${stateStr}`;
+    w.tag.style.display = dist<60?'block':'none';
+    w.tag.style.left=sx+'px'; w.tag.style.top=sy+'px';
+    // HP bar (show as "fuel")
+    w.hpEl.style.display='block';
+    w.hpEl.style.left=sx+'px'; w.hpEl.style.top=(sy-9)+'px';
+}
+
+// ════════════════════════════════════════════════════════
+// AIR UNITS
+// ════════════════════════════════════════════════════════
+function updateAirUnits(dt) {
+    const all = fillUnitScratch();
+    for (const unit of all) {
+        if ((unit.type!=='wraith'&&unit.type!=='sphere')||unit.hp<=0) continue;
+        unit.attackTimer = Math.max(0, unit.attackTimer-dt);
+        unit.walkCycle += dt;
+        const pos = unit.group.position;
+
+        // Always smooth-approach flight altitude (spheres fly higher)
+        const targetAlt = unit.type==='sphere' ? SPHERE_ALTITUDE : AIR_ALTITUDE;
+        pos.y += (targetAlt - pos.y) * 0.06;
+
+        // Nearest enemy (both ground and air)
+        const {target:autoT, dist:autoDist} = getClosestEnemy(unit);
+        if(unit.attackTarget&&unit.attackTarget.hp<=0){ unit.attackTarget=null; unit.state='patrol'; }
+
+        let dx=0, dz=0, d=0, targetYaw=unit.group.rotation.y;
+
+        if (unit.state==='attacking'&&unit.attackTarget&&unit.attackTarget.hp>0) {
+            const tPos=unit.attackTarget.group.position;
+            dx=tPos.x-pos.x; dz=tPos.z-pos.z; d=Math.sqrt(dx*dx+dz*dz);
+            if (d>unit.range*0.65) {
+                // Close in fast
+                pos.x+=(dx/d)*unit.speed*dt; pos.z+=(dz/d)*unit.speed*dt;
+                targetYaw=Math.atan2(dx,dz)+Math.PI;
+            } else {
+                // Orbit at combat range — circle the target
+                unit.patrolAngle+=dt*0.9;
+                const cx=tPos.x+Math.cos(unit.patrolAngle)*unit.range*0.6;
+                const cz=tPos.z+Math.sin(unit.patrolAngle)*unit.range*0.6;
+                const ox=cx-pos.x, oz=cz-pos.z, od=Math.sqrt(ox*ox+oz*oz);
+                if(od>1){ pos.x+=(ox/od)*unit.speed*dt; pos.z+=(oz/od)*unit.speed*dt; }
+                targetYaw=Math.atan2(ox,oz)+Math.PI;
+            }
+            if(unit.attackTimer<=0) doFire(unit,unit.attackTarget);
+
+        } else if (unit.state==='moving'&&unit.moveTarget) {
+            dx=unit.moveTarget.x-pos.x; dz=unit.moveTarget.z-pos.z; d=Math.sqrt(dx*dx+dz*dz);
+            if(d<1.5){ unit.state='patrol'; unit.moveTarget=null; }
+            else { pos.x+=(dx/d)*unit.speed*dt; pos.z+=(dz/d)*unit.speed*dt; targetYaw=Math.atan2(dx,dz)+Math.PI; }
+            if(autoT&&autoDist<unit.range&&unit.attackTimer<=0) doFire(unit,autoT);
+
+        } else {
+            // PATROL — wide circle around own base
+            const bx=unit.patrolBase?.bx ?? (unit.isEnemy?18:-20);
+            const bz=unit.patrolBase?.bz ?? (unit.isEnemy?30:-28);
+            unit.patrolAngle+=dt*(0.25+unit.speed*0.012);
+            const pr=24;
+            const px=bx+Math.cos(unit.patrolAngle)*pr;
+            const pz=bz+Math.sin(unit.patrolAngle)*pr;
+            dx=px-pos.x; dz=pz-pos.z; d=Math.sqrt(dx*dx+dz*dz);
+            if(d>1){ pos.x+=(dx/d)*unit.speed*dt; pos.z+=(dz/d)*unit.speed*dt; }
+            targetYaw=Math.atan2(dx,dz)+Math.PI;
+
+            // Auto-detect & engage
+            if(autoT&&autoDist<unit.range){ unit.attackTarget=autoT; unit.state='attacking'; }
+            if(unit.isEnemy&&Math.random()<0.003){
+                const pT=[...playerBuildings.filter(b=>b.hp>0),...playerUnits.filter(u=>u.hp>0&&u.type!=='wraith')];
+                if(pT.length>0){ unit.attackTarget=pT[Math.floor(Math.random()*pT.length)]; unit.state='attacking'; }
+            }
+        }
+
+        // Smooth yaw toward target heading
+        let diff=targetYaw-unit.group.rotation.y;
+        while(diff> Math.PI) diff-=Math.PI*2;
+        while(diff<-Math.PI) diff+=Math.PI*2;
+        unit.group.rotation.y+=diff*Math.min(1,3.5*dt);
+
+        // Roll/bank into turns
+        unit.bankAngle+=(diff*-0.7-unit.bankAngle)*Math.min(1,5*dt);
+        unit.group.rotation.z=unit.bankAngle;
+
+        // Animations: use cached refs — zero traverse() calls in hot loop
+        if (unit.type==='sphere' && unit.sphereRings) {
+            const [sr1,sr2,sr3] = unit.sphereRings;
+            sr1.rotation.y += dt*1.3;
+            sr2.rotation.y -= dt*0.9; sr2.rotation.x += dt*0.5;
+            sr3.rotation.z += dt*0.7; sr3.rotation.y -= dt*0.4;
+            if (unit.sphereCore) unit.sphereCore.material.emissiveIntensity = 2.5+Math.sin(unit.walkCycle*3.5)*1.0;
+        } else if (unit.type==='wraith') {
+            const eg = unit.engineGlows||[], nl = unit.navLights||[];
+            const ei = 1.8+Math.sin(unit.walkCycle*9)*0.5;
+            for (let j=0;j<eg.length;j++) eg[j].material.emissiveIntensity=ei;
+            for (let j=0;j<nl.length;j++) {
+                const c=nl[j];
+                const blink=c.userData.navSide<0?(Math.floor(unit.walkCycle*1.5)%2===0):(Math.floor(unit.walkCycle*2.2)%3!==0);
+                c.material.emissiveIntensity=blink?2.5:0.1;
+            }
+        }
+
+        // Shadow patch on ground
+        if(unit.selRing) unit.selRing.position.set(pos.x,0.06,pos.z);
+        updateUnitOverlay(unit);
+    }
+
+    // Remove dead aircraft (all factions)
+    for(let groupIndex=0;groupIndex<3;groupIndex++){
+        const arr=groupIndex===0?playerUnits:groupIndex===1?allyUnits:enemyUnits;
+        for(let i=arr.length-1;i>=0;i--){
+            const u=arr[i];
+            if(u.type==='wraith'&&u.hp<=0){
+                scene.remove(u.group); u.tag.remove(); u.hpEl.remove();
+                if(u.selRing){scene.remove(u.selRing);u.selRing=null;}
+                selectedUnits=selectedUnits.filter(s=>s!==u);
+                if(u.isEnemy) res.kills++;
+                if(!u.isEnemy&&!u.isAlly) res.supply--;
+                blast(u.group.position,1.8); arr.splice(i,1);
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// COMBAT
+// ════════════════════════════════════════════════════════
+function fireProjectile(fromPos,toPos,dmg,isEnemyShot) {
+    // Elongated tracer round instead of blob
+    const dir3=new THREE.Vector3(toPos.x-fromPos.x, toPos.y-fromPos.y, toPos.z-fromPos.z).normalize();
+    const mesh=new THREE.Mesh(projectileGeometry, isEnemyShot?projectileMaterials.enemy:projectileMaterials.friendly);
+    mesh.position.set(fromPos.x, fromPos.y, fromPos.z);
+    // Orient the tracer in direction of travel (box long axis = Z → atan2 + PI)
+    mesh.rotation.y=Math.atan2(dir3.x, dir3.z)+Math.PI;
+    const vel=new THREE.Vector3(toPos.x-fromPos.x, 0, toPos.z-fromPos.z).normalize().multiplyScalar(28);
+    scene.add(mesh);
+    projectiles.push({mesh, vel, dmg, isEnemy:isEnemyShot, life:2.2});
+}
+
+function projectileHitTargetIn(p, targets) {
+    for (let i=0;i<targets.length;i++) {
+        const target=targets[i];
+        if(target.hp<=0) continue;
+        const radius=target.type==='tank'?3.4:(target.def?Math.max(target.def.w,target.def.d)*0.5:2.0);
+        const targetPos=target.group.position;
+        const dx=p.mesh.position.x-targetPos.x, dz=p.mesh.position.z-targetPos.z;
+        if(dx*dx+dz*dz<radius*radius) {
+            target.hp-=p.dmg;
+            const flash=new THREE.Mesh(projectileImpactGeometry,projectileImpactMaterial);
+            flash.position.copy(p.mesh.position);
+            scene.add(flash);
+            setTimeout(()=>scene.remove(flash),100);
+            return true;
+        }
+    }
+    return false;
+}
+
+function updateProjectiles(dt) {
+    for (let i=projectiles.length-1;i>=0;i--) {
+        const p=projectiles[i];
+        p.life-=dt; p.mesh.position.addScaledVector(p.vel,dt);
+        let hit=false;
+        if (p.isEnemy) {
+            hit=projectileHitTargetIn(p,playerUnits)
+                ||projectileHitTargetIn(p,allyUnits)
+                ||projectileHitTargetIn(p,playerBuildings)
+                ||projectileHitTargetIn(p,allyBuildings);
+        } else {
+            hit=projectileHitTargetIn(p,enemyUnits)
+                ||projectileHitTargetIn(p,enemyBuildings);
+        }
+        if(p.life<=0||hit){ scene.remove(p.mesh); projectiles.splice(i,1); }
+    }
+}
+
+function scanNearestTargets(origin, targets, result) {
+    for(let i=0;i<targets.length;i++) {
+        const target=targets[i];
+        if(target.hp<=0) continue;
+        const pos=target.group.position;
+        const dx=pos.x-origin.x, dy=pos.y-origin.y, dz=pos.z-origin.z;
+        const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(distance<result.dist){result.dist=distance;result.target=target;}
+    }
+}
+
+function getClosestEnemy(unit) {
+    const result=unit.closestEnemyResult||(unit.closestEnemyResult={target:null,dist:Infinity});
+    result.target=null;
+    result.dist=Infinity;
+    const origin=unit.group.position;
+    if (unit.isEnemy) {
+        // Red/Blue attack: players, allies, their buildings
+        scanNearestTargets(origin,playerUnits,result);
+        scanNearestTargets(origin,allyUnits,result);
+        scanNearestTargets(origin,playerBuildings,result);
+        scanNearestTargets(origin,allyBuildings,result);
+    } else {
+        // Players/Allies attack: all enemy units and buildings
+        scanNearestTargets(origin,enemyUnits,result);
+        scanNearestTargets(origin,enemyBuildings,result);
+    }
+    return result;
+}
+
+// ════════════════════════════════════════════════════════
+// UPDATE UNITS
+// ════════════════════════════════════════════════════════
+// Cheap building-avoidance: ground units have no real pathfinding, so a
+// straight-line chase can walk a unit's center straight into a building's
+// footprint. Rather than full A*, just push the unit back out to the
+// nearest edge of any AABB it ends up inside (padded a bit for clearance).
+// Not perfect around concave corners, but stops the common "stuck inside
+// a wall" case cheaply for every ground unit every frame.
+function clampOutOfBuildings(pos) {
+    for (let i=0;i<playerBuildings.length;i++) pushOutOfOne(pos, playerBuildings[i]);
+    for (let i=0;i<enemyBuildings.length;i++)  pushOutOfOne(pos, enemyBuildings[i]);
+    for (let i=0;i<allyBuildings.length;i++)   pushOutOfOne(pos, allyBuildings[i]);
+}
+function pushOutOfOne(pos, b) {
+    if (b.hp<=0) return;
+    const hw=b.def.w/2+1.0, hd=b.def.d/2+1.0;
+    const dx=pos.x-b.cx, dz=pos.z-b.cz;
+    if (Math.abs(dx)>hw || Math.abs(dz)>hd) return;
+    // Inside the padded footprint — push out along the shorter axis.
+    const overlapX = hw-Math.abs(dx), overlapZ = hd-Math.abs(dz);
+    if (overlapX<overlapZ) pos.x = b.cx + Math.sign(dx||1)*hw;
+    else                   pos.z = b.cz + Math.sign(dz||1)*hd;
+}
+
+function updateUnits(dt) {
+    const all=fillUnitScratch();
+    for(const unit of all) {
+        if(unit.hp<=0||unit.type==='wraith') continue; // wraiths handled by updateAirUnits
+        unit.attackTimer=Math.max(0,unit.attackTimer-dt);
+        const pos=unit.group.position;
+        if(unit.attackTarget&&unit.attackTarget.hp<=0){unit.attackTarget=null;unit.state='idle';}
+        const {target:autoT, dist:autoDist}=getClosestEnemy(unit);
+
+        if(unit.state==='moving'&&unit.moveTarget) {
+            const dx=unit.moveTarget.x-pos.x, dz=unit.moveTarget.z-pos.z, d=Math.sqrt(dx*dx+dz*dz);
+            if(d<0.8){unit.state='idle';unit.moveTarget=null;}
+            else{ const spd=unit.speed*dt; pos.x+=(dx/d)*spd; pos.z+=(dz/d)*spd; clampOutOfBuildings(pos); unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*8; }
+            if(autoT&&autoDist<unit.range&&unit.attackTimer<=0) doFire(unit,autoT);
+
+        } else if(unit.state==='attacking'&&unit.attackTarget&&unit.attackTarget.hp>0) {
+            const tPos=unit.attackTarget.group.position, d=pos.distanceTo(tPos);
+            if(d>unit.range*1.15){
+                const dx=tPos.x-pos.x,dz=tPos.z-pos.z,dd=Math.sqrt(dx*dx+dz*dz);
+                pos.x+=(dx/dd)*unit.speed*dt; pos.z+=(dz/dd)*unit.speed*dt;
+                clampOutOfBuildings(pos);
+                unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*7;
+            } else if(unit.attackTimer<=0) doFire(unit,unit.attackTarget);
+
+        } else {
+            if(autoT&&autoDist<unit.range&&unit.attackTimer<=0) doFire(unit,autoT);
+            if(unit.isEnemy&&!unit.moveTarget&&Math.random()<0.003) {
+                const pT=[...playerBuildings.filter(b=>b.hp>0),...playerUnits.filter(u=>u.hp>0)];
+                if(pT.length>0){const t=pT[Math.floor(Math.random()*pT.length)];unit.attackTarget=t;unit.state='attacking';}
+            }
+        }
+        // Walk animation: marines bob, tanks stay grounded
+        if(unit.type==='marine' && (unit.state==='moving'||unit.state==='attacking')){
+            pos.y = Math.abs(Math.sin(unit.walkCycle*1.8))*0.22;
+        } else {
+            pos.y=0;
+        }
+        // Tank: turret continuously tracks nearest enemy in local space
+        if(unit.type==='tank' && autoT){
+            const ex=autoT.group.position.x-pos.x, ez=autoT.group.position.z-pos.z;
+            const worldAim=Math.atan2(ex,ez)+Math.PI;
+            const turret=unit.tankTurret;
+            if(turret){
+                let diff=(worldAim-unit.group.rotation.y)-turret.rotation.y;
+                while(diff> Math.PI) diff-=Math.PI*2;
+                while(diff<-Math.PI) diff+=Math.PI*2;
+                turret.rotation.y += diff*Math.min(1,5*dt);
+            }
+        }
+        updateUnitOverlay(unit);
+    }
+
+    // Remove dead (player, ally, enemy)
+    for(let groupIndex=0;groupIndex<3;groupIndex++) {
+        const arr=groupIndex===0?playerUnits:groupIndex===1?allyUnits:enemyUnits;
+        for(let i=arr.length-1;i>=0;i--){
+            const u=arr[i];
+            if(u.hp<=0){
+                scene.remove(u.group); u.tag.remove(); u.hpEl.remove();
+                if(u.selRing){scene.remove(u.selRing);u.selRing=null;}
+                selectedUnits=selectedUnits.filter(s=>s!==u);
+                if(u.isEnemy) res.kills++;
+                if(!u.isEnemy&&!u.isAlly) res.supply--;
+                arr.splice(i,1);
+                blast(u.group.position, u.type==='tank'?2.5:1.0);
+                sfxExplosion(u.type==='tank'||u.type==='sphere');
+            }
+        }
+    }
+}
+
+function doFire(unit,target) {
+    unit.attackTimer=unit.fireRate;
+    if (unit.type==='sphere') {
+        sfxLaser();
+        const fromPos=unit.group.position.clone();
+        const toPos=target.group.position.clone();
+        fireLaserBeam(fromPos, toPos, target, unit.dmg, unit.isEnemy, unit.laserColor||0x22ff66);
+        return;
+    }
+    sfxShoot();
+    fireProjectile(unit.group.position, target.group.position, unit.dmg, unit.isEnemy);
+    const dx=target.group.position.x-unit.group.position.x, dz=target.group.position.z-unit.group.position.z;
+    const aimAngle = Math.atan2(dx,dz)+Math.PI;
+    if (unit.type==='marine') {
+        unit.group.rotation.y = aimAngle;
+    } else if (unit.type==='tank') {
+        unit.group.traverse(c=>{
+            if(c.userData.isTankTurret){
+                c.rotation.y = aimAngle - unit.group.rotation.y;
+            }
+        });
+    }
+    // Muzzle flash
+    const flashY = unit.type==='tank'?2.2:unit.type==='wraith'?unit.group.position.y:1.1;
+    const flash=new THREE.Mesh(new THREE.SphereGeometry(unit.type==='tank'?0.55:0.32,6,5),
+        new THREE.MeshBasicMaterial({color:unit.isEnemy?0xff9900:0xccff44}));
+    flash.position.copy(unit.group.position).setY(flashY);
+    scene.add(flash); setTimeout(()=>scene.remove(flash),55);
+}
+
+function blast(pos,r) {
+    // Fireball core
+    const ex=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),
+        new THREE.MeshStandardMaterial({color:0xff6600,emissive:new THREE.Color(0xff2200),emissiveIntensity:3.5,transparent:true,opacity:0.98}));
+    ex.position.copy(pos).setY(r*0.6); scene.add(ex);
+    // Shockwave ring
+    const ring=new THREE.Mesh(new THREE.RingGeometry(r*0.5,r*1.2,28),
+        new THREE.MeshBasicMaterial({color:0xffaa33,transparent:true,opacity:0.75,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2; ring.position.copy(pos).setY(0.2); scene.add(ring);
+    // Point light flash
+    const flash=new THREE.PointLight(0xff6600,8,r*12); flash.position.copy(pos).setY(r); scene.add(flash);
+    let life=0;
+    const expand=()=>{
+        life+=0.04;
+        ring.scale.setScalar(1+life*4); ring.material.opacity=0.75*(1-life*1.8);
+        ex.material.opacity=Math.max(0,0.98-life*3); ex.scale.setScalar(1+life*0.6);
+        flash.intensity=Math.max(0,8-life*40);
+        if(life<0.55) requestAnimationFrame(expand);
+        else{ scene.remove(ex); scene.remove(ring); scene.remove(flash); }
+    };
+    requestAnimationFrame(expand);
+}
+
+// ════════════════════════════════════════════════════════
+// TURRETS
+// ════════════════════════════════════════════════════════
+function updateTurrets(dt) {
+    for(const bld of [...playerBuildings,...allyBuildings,...enemyBuildings]) {
+        if(bld.type!=='turret'||bld.hp<=0) continue;
+        bld.attackTimer=(bld.attackTimer||0)-dt;
+        // Ally+player turrets → shoot enemies; enemy turrets → shoot players + allies
+        const enemies=bld.isEnemy?[...playerUnits,...allyUnits]:[...enemyUnits];
+        let closest=null,closestD=TURRET_RANGE;
+        for(const e of enemies){ if(e.hp<=0) continue; const d=bld.group.position.distanceTo(e.group.position); if(d<closestD){closestD=d;closest=e;} }
+        // Rotate turret head to face closest enemy (or spin slowly if none)
+        bld.group.traverse(c=>{
+            if(c.userData.isTurretHead){
+                if(closest){
+                    // World direction from turret center to enemy
+                    const cx=bld.group.position.x+c.position.x, cz=bld.group.position.z+c.position.z;
+                    const tdx=closest.group.position.x-cx, tdz=closest.group.position.z-cz;
+                    const targetAngle=Math.atan2(tdx,tdz)+Math.PI;
+                    // Smooth rotation toward target (3 rad/s)
+                    let diff=targetAngle-c.rotation.y;
+                    while(diff> Math.PI) diff-=Math.PI*2;
+                    while(diff<-Math.PI) diff+=Math.PI*2;
+                    c.rotation.y += diff * Math.min(1, 4*dt);
+                } else {
+                    c.rotation.y += dt*0.4; // slow idle spin when no enemy
+                }
+            }
+            if(c.userData.isRadar) c.rotation.y+=dt*2.2;
+        });
+        if(closest&&bld.attackTimer<=0){
+            bld.attackTimer=TURRET_RATE;
+            fireProjectile(bld.group.position.clone().setY(4), closest.group.position, TURRET_DMG, bld.isEnemy);
+        }
+    }
+    // Remove dead buildings (all factions)
+    for(const arr of [playerBuildings,allyBuildings,enemyBuildings]) {
+        for(let i=arr.length-1;i>=0;i--){
+            const b=arr[i];
+            if(b.hp<=0&&b.hp>-9999){
+                b.hp=-9999; scene.remove(b.group); b.tag.remove(); b.hpEl.remove();
+                if(b.isEnemy) res.kills+=3;
+                if(!b.isEnemy&&!b.isAlly&&b.def.supply) res.maxSupply-=b.def.supply;
+                arr.splice(i,1); blast(b.group.position,4);
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// ALLY REINFORCEMENTS (BLACK faction sends help to GREEN)
+// ════════════════════════════════════════════════════════
+function updateAllyReinforcements(dt) {
+    allyReinforceTimer -= dt;
+    if (allyReinforceTimer > 0) return;
+    const wave = Math.floor(aiGameTime / 90) + 1; // scale with game time (replaces waveCount)
+    const marines = Math.min(2 + wave, 5);
+    const tanks   = Math.floor(wave / 2);
+    const air     = wave >= 3 ? 1 : 0;
+    const allySpheresCount = Math.max(1, waveCount); // matches enemy escalation — 1 per wave
+    for (let i=0;i<marines;i++) spawnAlly('marine');
+    for (let i=0;i<tanks;i++)   spawnAlly('tank');
+    for (let i=0;i<air;i++)     spawnAllyAir();
+    for (let i=0;i<allySpheresCount;i++) spawnAllySphere();
+    allyReinforceTimer = Math.max(35, 80 - wave * 5);
+    sfxAllyAlert();
+    const wa = document.getElementById('wave-alert');
+    wa.innerHTML = `🤝 VERBÜNDETE VERSTÄRKUNG!<br><span style="font-size:12px;letter-spacing:1px">${marines}× Marines${tanks?` · ${tanks}× Tanks`:''}${air?' · 1× Jäger':''} · 🌐 ${allySpheresCount}× Sphären marschieren!</span>`;
+    wa.style.setProperty('--wave-col','#22d3a5');
+    wa.classList.add('show');
+    setTimeout(() => { wa.classList.remove('show'); wa.style.removeProperty('--wave-col'); }, 3500);
+    // Toast
+    showToast(`🖤 +${marines+tanks+air} Verbündete unterwegs!`);
+    updateHUD();
+}
+
+// ════════════════════════════════════════════════════════
+// STRATEGIC AI — C&C STYLE (replaces wave system entirely)
+// ════════════════════════════════════════════════════════
+
+function getAIUnits(faction) {
+    return enemyUnits.filter(u=>u.hp>0&&u.faction===faction);
+}
+
+// Give a faction's army attack orders toward the enemy player/ally base
+function orderAttack(faction) {
+    const pCmd  = playerBuildings.find(b=>b.type==='command'&&b.hp>0);
+    const aCmd  = allyBuildings.find(b=>b.type==='command'&&b.hp>0);
+    const pAny  = [...playerBuildings,...allyBuildings].filter(b=>b.hp>0);
+    // Red hits GREEN base first; Blue flanks via ALLY base
+    const target = faction==='red'
+        ? (pCmd||aCmd||pAny[0])
+        : (aCmd||pCmd||pAny[0]);
+    if (!target) return;
+    const tp = target.group.position;
+    getAIUnits(faction).forEach(u=>{
+        u.moveTarget   = new THREE.Vector3(tp.x+(Math.random()-0.5)*20,0,tp.z+(Math.random()-0.5)*20);
+        u.attackTarget = null;
+        u.state        = 'moving';
+    });
+}
+
+// Buy one unit using faction resources — priority-based, not RNG-gated
+function tryBuildUnit(ai, fRes) {
+    if (enemyUnits.filter(u=>u.hp>0).length >= MAX_ENEMY_UNITS) return;
+    const t = aiGameTime;
+    const myCount = getAIUnits(ai.faction).length;
+    let u = null;
+
+    // Sphere: 30% chance when flush and mid/late game
+    if (fRes.minerals>=600 && t>120 && myCount>=3 && Math.random()<0.30) {
+        u = ai.faction==='red' ? spawnEnemySphere() : spawnBlueSphere();
+        if (u) fRes.minerals -= 600;
+
+    // Rich (250+): heavy mix — 45% tank, 30% wraith, 25% marine
+    } else if (fRes.minerals>=250) {
+        const r = Math.random();
+        if (r<0.45) {
+            u = ai.faction==='red' ? spawnEnemy('tank') : spawnBlue('tank');
+            if (u) fRes.minerals -= 150;
+        } else if (r<0.75) {
+            u = ai.faction==='red' ? spawnRedAir() : spawnBlueAir();
+            if (u) fRes.minerals -= 100;
+        } else {
+            u = ai.faction==='red' ? spawnEnemy('marine') : spawnBlue('marine');
+            if (u) fRes.minerals -= 50;
+        }
+    // Medium (100–250): 50% tank/wraith, 50% marine
+    } else if (fRes.minerals>=150) {
+        const r = Math.random();
+        if (r<0.5) {
+            u = ai.faction==='red' ? spawnEnemy('tank') : spawnBlue('tank');
+            if (u) fRes.minerals -= 150;
+        } else if (r<0.72 && fRes.minerals>=100) {
+            u = ai.faction==='red' ? spawnRedAir() : spawnBlueAir();
+            if (u) fRes.minerals -= 100;
+        } else {
+            u = ai.faction==='red' ? spawnEnemy('marine') : spawnBlue('marine');
+            if (u) fRes.minerals -= 50;
+        }
+    } else if (fRes.minerals>=100) {
+        if (Math.random()<0.45) {
+            u = ai.faction==='red' ? spawnRedAir() : spawnBlueAir();
+            if (u) fRes.minerals -= 100;
+        } else {
+            u = ai.faction==='red' ? spawnEnemy('marine') : spawnBlue('marine');
+            if (u) fRes.minerals -= 50;
+        }
+    } else if (fRes.minerals>=50) {
+        u = ai.faction==='red' ? spawnEnemy('marine') : spawnBlue('marine');
+        if (u) fRes.minerals -= 50;
+    }
+
+    // Rally new unit to the shared massing point (not if already attacking)
+    if (u && ai.state!=='attack') {
+        u.moveTarget = new THREE.Vector3(
+            ai.rallyX+(Math.random()-0.5)*12, 0,
+            ai.rallyZ+(Math.random()-0.5)*12);
+        u.state = 'moving';
+    }
+}
+
+// Per-faction AI tick
+function updateAIFaction(dt, ai, fRes, fWorkers) {
+    ai.buildTimer  -= dt;
+    ai.workerTimer -= dt;
+    const myUnits = getAIUnits(ai.faction);
+
+    // ── ECONOMY: workers ──
+    if (ai.workerTimer <= 0) {
+        const alive = fWorkers.filter(w=>w.hp>0).length;
+        const maxW  = Math.min(5, 2+Math.floor(aiGameTime/60));
+        if (alive < maxW) spawnEnemyWorker(ai.faction);
+        ai.workerTimer = Math.max(5, 15-aiGameTime/30);
+    }
+
+    // ── PRODUCTION (aggressive — ramps to 1.5s per unit) ──
+    if (ai.buildTimer<=0 && ai.state!=='retreat') {
+        tryBuildUnit(ai, fRes);
+        ai.buildTimer = Math.max(1.5, 4-aiGameTime/40);
+    }
+
+    // ── STATE MACHINE ──
+    if (ai.state==='economy' && myUnits.length>=2) ai.state='buildup';
+
+    if (ai.state==='attack') {
+        ai.attackRefreshTimer -= dt;
+        if (ai.attackRefreshTimer<=0) { orderAttack(ai.faction); ai.attackRefreshTimer=15; }
+        if (myUnits.length<2) { ai.state='retreat'; ai.retreatTimer=25; }
+    }
+
+    if (ai.state==='retreat') {
+        ai.retreatTimer -= dt;
+        if (ai.retreatTimer<=0) ai.state='economy';
+        if (frameCount%90===0) myUnits.forEach(u=>{
+            if (!u.attackTarget) {
+                u.moveTarget = new THREE.Vector3(ai.rallyX+(Math.random()-0.5)*12,0,ai.rallyZ+(Math.random()-0.5)*12);
+                u.attackTarget = null;
+            }
+        });
+    }
+}
+
+// Check if either faction is strong enough — both attack together from shared rally
+function tryCoordinatedAttack() {
+    const ru = getAIUnits('red'), bu = getAIUnits('blue');
+    const redR  = redAI.state ==='buildup' && ru.length >= redAI.attackThreshold;
+    const blueR = blueAI.state==='buildup' && bu.length >= blueAI.attackThreshold;
+    if (!redR && !blueR) return;
+
+    const both = redR && blueR;
+
+    // If BOTH ready: mass everyone at the shared rally point first, then attack
+    if (both) {
+        // Move all units to shared rally (SHARED_RALLY_X, SHARED_RALLY_Z)
+        // The rally point is center-map — both armies visibly converge there
+        [...ru,...bu].forEach(u=>{
+            u.moveTarget = new THREE.Vector3(
+                SHARED_RALLY_X+(Math.random()-0.5)*18, 0,
+                SHARED_RALLY_Z+(Math.random()-0.5)*18);
+            u.attackTarget=null; u.state='moving';
+        });
+        redAI.state='attack';  redAI.attackRefreshTimer=12; // 12s to let them mass, THEN attack order fires
+        blueAI.state='attack'; blueAI.attackRefreshTimer=12;
+    } else {
+        if (redR)  { redAI.state='attack';  redAI.attackRefreshTimer=0;  orderAttack('red');  }
+        if (blueR) { blueAI.state='attack'; blueAI.attackRefreshTimer=0; orderAttack('blue'); }
+    }
+
+    const wa = document.getElementById('wave-alert');
+    if (both) {
+        wa.innerHTML=`⚔️ KOORDINIERTER STURM!<br><span style="font-size:12px;letter-spacing:1px">${ru.length}× ROT + ${bu.length}× BLAU sammeln sich — dann VOLLER ANGRIFF!</span>`;
+        wa.style.setProperty('--wave-col','#dc2626');
+    } else if (redR) {
+        wa.innerHTML=`🔴 ROT GREIFT AN!<br><span style="font-size:12px;letter-spacing:1px">${ru.length} Einheiten marschieren auf deine Basis!</span>`;
+        wa.style.setProperty('--wave-col','#ff4422');
+    } else {
+        wa.innerHTML=`🔵 BLAU GREIFT AN!<br><span style="font-size:12px;letter-spacing:1px">${bu.length} Einheiten greifen Verbündete an!</span>`;
+        wa.style.setProperty('--wave-col','#3b82f6');
+    }
+    wa.classList.add('show');
+    setTimeout(()=>{ wa.classList.remove('show'); wa.style.removeProperty('--wave-col'); }, 5000);
+    showToast(both?'⚔️ ROT + BLAU sammeln Armee — Koordinierter Angriff kommt!':redR?'🔴 Roter Angriff!':'🔵 Blauer Angriff!');
+}
+
+// ── ENEMY WORKER SPAWN ──
+function spawnEnemyWorker(faction) {
+    const isRed = faction==='red';
+    const ai    = isRed ? redAI : blueAI;
+    const model = makeWorkerModel();
+    model.position.set(ai.cmdX+(Math.random()-0.5)*14, 1.0, ai.cmdZ+(Math.random()-0.5)*14);
+    // Tint to faction color
+    model.traverse(c=>{
+        if (!c.isMesh) return;
+        c.material = c.material.clone();
+        c.material.color.setHex(isRed ? 0xcc3322 : 0x2244cc);
+        if (c.material.emissive) c.material.emissive.setHex(isRed ? 0x440011 : 0x001144);
+        c.material.emissiveIntensity = 0.4;
+    });
+    scene.add(model);
+    const tag = document.createElement('div');
+    tag.className = 'nametag '+(isRed?'enemy':'enemy blue-enemy');
+    tag.innerText  = isRed ? '🔴 ROT-WBF' : '🔵 BLAU-WBF';
+    document.body.appendChild(tag);
+    const hpEl = document.createElement('div');
+    hpEl.className = 'hp-bar-el enemy';
+    hpEl.innerHTML = `<div class="hp-bar-fill" style="background:${isRed?'#ef4444':'#3b82f6'}"></div>`;
+    document.body.appendChild(hpEl);
+    const w = {
+        group:model, type:'worker', faction, isEnemy:true,
+        hp:40, maxHp:40, tag, hpEl,
+        state:'idle', targetDeposit:null, mineTimer:0, carrying:0, walkCycle:0,
+    };
+    (isRed?redWorkers:blueWorkers).push(w);
+    return w;
+}
+
+// ── ENEMY WORKER UPDATE ──
+function updateEnemyWorkers(dt) {
+    for (const faction of ['red','blue']) {
+        const wArr = faction==='red' ? redWorkers : blueWorkers;
+        const fRes = faction==='red' ? redRes     : blueRes;
+        const ai   = faction==='red' ? redAI      : blueAI;
+
+        for (let i=wArr.length-1; i>=0; i--) {
+            const w = wArr[i];
+            if (w.hp<=0) {
+                scene.remove(w.group); w.tag.remove(); w.hpEl.remove();
+                wArr.splice(i,1); continue;
+            }
+            const pos = w.group.position;
+            w.walkCycle += dt*6;
+            w.group.traverse(c=>{ if(c.userData.isProp) c.rotation.y+=dt*15; });
+            pos.y = 1.0+Math.sin(w.walkCycle)*0.15;
+
+            if (w.state==='idle') {
+                let best=null, bestD=Infinity;
+                mineralDeposits.forEach(dep=>{ const d=pos.distanceTo(dep.pos); if(d<bestD){bestD=d;best=dep;} });
+                if (best) { w.targetDeposit=best; w.state='to_mineral'; }
+
+            } else if (w.state==='to_mineral'&&w.targetDeposit) {
+                const t=w.targetDeposit.pos;
+                const dx=t.x-pos.x, dz=t.z-pos.z, d=Math.sqrt(dx*dx+dz*dz);
+                if (d<2.5) { w.state='mining'; w.mineTimer=WORKER_MINE_TIME; w.group.rotation.x=0.3; }
+                else { pos.x+=(dx/d)*WORKER_SPEED*dt; pos.z+=(dz/d)*WORKER_SPEED*dt; w.group.rotation.y=Math.atan2(dx,dz)+Math.PI; }
+
+            } else if (w.state==='mining') {
+                w.mineTimer -= dt;
+                if (w.mineTimer<=0) { w.carrying=WORKER_CARRY; w.state='returning'; w.group.rotation.x=0; }
+
+            } else if (w.state==='returning') {
+                const dx=ai.cmdX-pos.x, dz=ai.cmdZ-pos.z, d=Math.sqrt(dx*dx+dz*dz);
+                if (d<4) {
+                    fRes.minerals += w.carrying; w.carrying=0; w.state='idle'; w.targetDeposit=null;
+                } else {
+                    pos.x+=(dx/d)*WORKER_SPEED*dt; pos.z+=(dz/d)*WORKER_SPEED*dt;
+                    w.group.rotation.y=Math.atan2(dx,dz)+Math.PI;
+                }
+            }
+            if (frameCount%2===0) updateUnitOverlay(w);
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// JOINT ASSAULT WAVES  (layered on top of AI economy)
+// Hard units only — tanks + wraiths → spheres late game
+// Both RED and BLUE hit GREEN together every wave
+// ════════════════════════════════════════════════════════
+function updateJointWaves(dt) {
+    jointWaveTimer -= dt;
+    if (jointWaveTimer > 0) return;
+    waveCount++;
+
+    // Escalating composition — NO lone marines, only heavy units
+    const tanks   = Math.min(2 + Math.floor(waveCount * 0.6), 6);   // 2→2→3→3→4→5→6
+    const wraiths = Math.min(Math.floor(waveCount * 0.7), 4);        // 0→0→1→2→2→3→4
+    const spheres = Math.min(waveCount, 4);  // +1 sphere every wave, capped at 4 — MAX_ENEMY_UNITS
+                                              // already caps total headcount, but an unbounded
+                                              // target here used to queue up requests far beyond
+                                              // what the cap would ever let spawn.
+
+    // Find player command center — BOTH factions aim for GREEN
+    const pCmd = playerBuildings.find(b=>b.type==='command'&&b.hp>0);
+    const tx = pCmd ? pCmd.cx : -20;
+    const tz = pCmd ? pCmd.cz : -28;
+
+    const rush = (u) => {
+        if (!u) return;
+        u.moveTarget   = new THREE.Vector3(tx+(Math.random()-0.5)*22, 0, tz+(Math.random()-0.5)*22);
+        u.attackTarget = null;
+        u.state        = 'moving';
+    };
+
+    // ── RED wave units rush GREEN ──
+    for (let i=0;i<tanks;i++)   rush(spawnEnemy('tank'));
+    for (let i=0;i<wraiths;i++) rush(spawnRedAir());
+    for (let i=0;i<spheres;i++) rush(spawnEnemySphere());
+
+    // ── BLUE wave units ALSO rush GREEN (coordinated pincer) ──
+    for (let i=0;i<tanks;i++)   rush(spawnBlue('tank'));
+    for (let i=0;i<wraiths;i++) rush(spawnBlueAir());
+    for (let i=0;i<spheres;i++) rush(spawnBlueSphere());
+
+    // Next wave timer — shortens as game goes on
+    jointWaveTimer = Math.max(28, 52 - waveCount * 3);
+
+    sfxWaveAlert();
+
+    // Alert banner
+    const total = (tanks + wraiths + spheres) * 2;
+    const wa = document.getElementById('wave-alert');
+    wa.innerHTML = `⚔️ ANGRIFFSWELLE ${waveCount}! ROT + BLAU!<br>`
+        + `<span style="font-size:12px;letter-spacing:1px">`
+        + `${tanks*2}× Tanks`
+        + (wraiths ? ` · ${wraiths*2}× Jäger` : '')
+        + (spheres ? ` · ${spheres*2}× 🌐 Sphären` : '')
+        + ` — ${total} Einheiten auf GREEN!</span>`;
+    wa.style.setProperty('--wave-col','#dc2626');
+    wa.classList.add('show');
+    setTimeout(()=>{ wa.classList.remove('show'); wa.style.removeProperty('--wave-col'); }, 5000);
+    showToast(`⚔️ Welle ${waveCount}: ${total} schwere Einheiten unterwegs!`);
+}
+
+// ── MAIN AI TICK (called every frame instead of updateWaves) ──
+function updateEnemyAI(dt) {
+    aiGameTime += dt;
+    updateAIFaction(dt, redAI,  redRes,  redWorkers);
+    updateAIFaction(dt, blueAI, blueRes, blueWorkers);
+    updateEnemyWorkers(dt);
+    updateJointWaves(dt);                              // ← assault waves on top
+    coordCheckTimer -= dt;
+    if (coordCheckTimer<=0) { coordCheckTimer=5; tryCoordinatedAttack(); }
+}
+
+// ════════════════════════════════════════════════════════
+// OVERLAYS
+// ════════════════════════════════════════════════════════
+function updateUnitOverlay(unit) {
+    if (frameCount%3!==0) return; // 20fps is enough for HP bar positioning
+    syncUnitLod(unit);
+    const hOff = unit.type==='sphere'?4.5:unit.type==='tank'?4.2:unit.type==='wraith'?1.2:2.8;
+    const pos3d = unit.overlayPos||(unit.overlayPos=new THREE.Vector3());
+    pos3d.copy(unit.group.position);
+    pos3d.y += hOff;
+    const proj  = pos3d.project(camera);
+    const dist  = camera.position.distanceTo(unit.group.position);
+    if(proj.z>1||dist>120){ unit.hpEl.style.display='none'; unit.tag.style.display='none'; return; }
+    const sx=(proj.x*0.5+0.5)*innerWidth, sy=(-proj.y*0.5+0.5)*innerHeight;
+
+    // HP bar (always show)
+    const hpPct=Math.max(0,unit.hp/unit.maxHp*100);
+    const fill=unit.hpEl.querySelector('.hp-bar-fill');
+    fill.style.width=hpPct+'%';
+    // Color by HP
+    unit.hpEl.className='hp-bar-el'+(unit.isEnemy?' enemy':'')+(hpPct<25?' low':hpPct<55?' mid':'');
+    if(!unit.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#22c55e'; }
+    unit.hpEl.style.display='block';
+    unit.hpEl.style.left=sx+'px'; unit.hpEl.style.top=(sy-10)+'px';
+
+    // Nametag
+    const showTag = unit.selected || dist<45;
+    unit.tag.style.display=showTag?'block':'none';
+    unit.tag.style.left=sx+'px'; unit.tag.style.top=sy+'px';
+}
+
+function updateBuildingOverlays() {
+    if (frameCount%3!==0) return; // buildings don't move — 20fps is fine
+    for(let groupIndex=0;groupIndex<3;groupIndex++) {
+    const buildings=groupIndex===0?playerBuildings:groupIndex===1?allyBuildings:enemyBuildings;
+    for(const bld of buildings) {
+        if(!bld.hpEl) continue;
+        const dist=camera.position.distanceTo(bld.group.position);
+        const hOff=(bld.def?.h||5)+2.5;
+        const pos3d=bld.overlayPos||(bld.overlayPos=new THREE.Vector3());
+        pos3d.copy(bld.group.position);
+        pos3d.y += hOff;
+        const proj=pos3d.project(camera);
+        if(proj.z>1||dist>120){ bld.tag.style.display='none'; bld.hpEl.style.display='none'; continue; }
+        const sx=(proj.x*0.5+0.5)*innerWidth, sy=(-proj.y*0.5+0.5)*innerHeight;
+
+        // Building HP bar
+        const hpPct=Math.max(0,bld.hp/bld.maxHp*100);
+        const fill=bld.hpEl.querySelector('.hp-bar-fill');
+        fill.style.width=hpPct+'%';
+        if(!bld.isEnemy) { fill.style.background=hpPct<25?'#ef4444':hpPct<55?'#f59e0b':'#22c55e'; }
+        bld.hpEl.style.display='block';
+        bld.hpEl.style.left=sx+'px'; bld.hpEl.style.top=(sy-12)+'px';
+
+        // Nametag (show HP in tag)
+        bld.tag.innerText=(bld.isEnemy?'⚠️ ':'🟢 ')+bld.label+` [${Math.round(hpPct)}%]`;
+        bld.tag.style.display='block';
+        bld.tag.style.left=sx+'px'; bld.tag.style.top=sy+'px';
+    }
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// SELECTION
+// ════════════════════════════════════════════════════════
+function selectUnit(u) {
+    u.selected=true; u.tag.classList.add('selected');
+    // Store original emissive, apply mild selection tint
+    u.group.traverse(c=>{ if(c.isMesh&&c.material?.emissive){
+        if(!c._orig) c._orig={hex:c.material.emissive.getHex(), int:c.material.emissiveIntensity};
+        c.material.emissive.setHex(0x22aa55); c.material.emissiveIntensity=0.45;
+    }});
+    // Glowing ring on ground (aircraft: larger dashed ring at ground = shadow circle)
+    if (!u.selRing) {
+        const r = u.type==='tank'?2.4:u.type==='worker'?0.8:u.type==='wraith'?2.8:1.3;
+        const ring=new THREE.Mesh(
+            new THREE.RingGeometry(r, r+0.35, 36),
+            new THREE.MeshBasicMaterial({color:0x22ff88, transparent:true, opacity:0.88, side:THREE.DoubleSide})
+        );
+        ring.rotation.x=-Math.PI/2; scene.add(ring);
+        u.selRing=ring;
+    }
+}
+function deselectUnit(u) {
+    u.selected=false; u.tag.classList.remove('selected');
+    // Restore original emissive values
+    u.group.traverse(c=>{ if(c.isMesh&&c.material?.emissive){
+        if(c._orig){ c.material.emissive.setHex(c._orig.hex); c.material.emissiveIntensity=c._orig.int; }
+        else { c.material.emissiveIntensity=0; }
+    }});
+    if (u.selRing) { scene.remove(u.selRing); u.selRing=null; }
+}
+function clearSelection() { selectedUnits.forEach(u=>deselectUnit(u)); selectedUnits=[]; updateUnitInfoPanel(); }
+function addToSelection(u) { if(!selectedUnits.includes(u)){selectedUnits.push(u);selectUnit(u);} }
+
+function updateUnitInfoPanel() {
+    const panel=document.getElementById('unit-info');
+    if(selectedUnits.length===0){ panel.style.display='none'; return; }
+    panel.style.display='block';
+    const u=selectedUnits[0];
+    document.getElementById('unit-portrait').innerText=u.type==='tank'?'🚀':u.type==='worker'?'⛏️':u.type==='wraith'?'✈️':'🪖';
+    document.getElementById('unit-info-title').innerText=selectedUnits.length>1?`${selectedUnits.length}× EINHEITEN`:(u.type==='sphere'?'🌐 QUANTEN-SPHÄRE':u.type==='tank'?'KAMPFTANK':u.type==='worker'?'WBF-ARBEITER':u.type==='wraith'?'JÄGER WRAITH':'MARINE');
+    const hpPct=Math.round(u.hp/u.maxHp*100);
+    const hpClass=hpPct>55?'':'  '+( hpPct>25?'mid':'low');
+    document.getElementById('unit-stats').innerHTML=`
+        <div class="stat-row">
+            <div class="stat-lbl">HP</div>
+            <div class="stat-bar-bg"><div class="stat-bar-fill${hpClass}" style="width:${hpPct}%"></div></div>
+            <div class="stat-val">${Math.round(u.hp)}/${u.maxHp}</div>
+        </div>
+        <div class="stat-row">
+            <div class="stat-lbl">Status</div>
+            <div style="font-size:9px;color:#64748b;font-family:monospace;">${u.state==='moving'?'⬆️ Bewegt':u.state==='attacking'?'⚔️ Angriff':u.state==='mining'?'⛏️ Abbau':u.state==='returning'?'📦 Rückkehr':'🔵 Bereit'}</div>
+        </div>`;
+    document.getElementById('unit-count').innerText=selectedUnits.length>1
+        ?`${selectedUnits.length} Einh.`
+        :(u.type==='worker'?`Trägt: ${u.carrying||0}💎 · Abbau: ${WORKER_CARRY}💎/Trip`:`DMG:${u.dmg} · RNG:${u.range} · SPD:${u.speed}`);
+}
+
+// ════════════════════════════════════════════════════════
+// POINTER EVENTS
+// ════════════════════════════════════════════════════════
+function onPointerDown(e) {
+    if(e.target.tagName!=='CANVAS') return;
+    initAudio(); // start audio context on first canvas touch (browser policy)
+    mouseIsDown=true; isDraggingSelect=false;
+    mouseDownPos={x:e.clientX,y:e.clientY};
+    if(e.button===2){handleRightClick(e);return;}
+    if(e.button!==0) return;
+    if(gameMode==='command') selectBoxStart={x:e.clientX,y:e.clientY};
+    if(gameMode==='build') handleBuildClick(e);
+}
+
+function onPointerMove(e) {
+    if(!mouseIsDown){
+        if(gameMode==='build'&&buildType&&buildPreview){
+            updateMouse(e); raycaster.setFromCamera(mouse,camera);
+            const pt=new THREE.Vector3(); raycaster.ray.intersectPlane(groundPlane,pt);
+            const def=BLDG[buildType];
+            buildPreview.position.set(Math.round(pt.x/2)*2,def.h/2+0.4,Math.round(pt.z/2)*2);
+        }
+        return;
+    }
+    const dx=e.clientX-mouseDownPos.x, dy=e.clientY-mouseDownPos.y;
+    if(Math.sqrt(dx*dx+dy*dy)>DRAG_THRESH) isDraggingSelect=true;
+    if(gameMode==='command'&&selectBoxStart&&e.buttons===1) {
+        const box=document.getElementById('select-box');
+        const sx=Math.min(selectBoxStart.x,e.clientX), sy=Math.min(selectBoxStart.y,e.clientY);
+        box.style.cssText=`display:block;left:${sx}px;top:${sy}px;width:${Math.abs(dx)}px;height:${Math.abs(dy)}px;`;
+        selectBoxActive=Math.abs(dx)>DRAG_THRESH;
+    }
+}
+
+function onPointerUp(e) {
+    mouseIsDown=false;
+    document.getElementById('select-box').style.display='none';
+    if(e.button!==0||gameMode!=='command'){selectBoxActive=false;selectBoxStart=null;return;}
+    if(selectBoxActive&&selectBoxStart){
+        const bx1=Math.min(selectBoxStart.x,e.clientX),by1=Math.min(selectBoxStart.y,e.clientY);
+        const bx2=Math.max(selectBoxStart.x,e.clientX),by2=Math.max(selectBoxStart.y,e.clientY);
+        if(!e.shiftKey) clearSelection();
+        [...playerUnits,...workers].forEach(u=>{
+            // For aircraft, project their ground position so box selection works intuitively
+            const projPos = u.type==='wraith'
+                ? new THREE.Vector3(u.group.position.x,0,u.group.position.z).project(camera)
+                : u.group.position.clone().project(camera);
+            const sx=(projPos.x*0.5+0.5)*innerWidth, sy=(-projPos.y*0.5+0.5)*innerHeight;
+            if(sx>=bx1&&sx<=bx2&&sy>=by1&&sy<=by2) addToSelection(u);
+        });
+        updateUnitInfoPanel();
+    } else if(!isDraggingSelect){
+        updateMouse(e); raycaster.setFromCamera(mouse,camera);
+        const meshes=[];
+        [...playerUnits,...workers].forEach(u=>u.group.traverse(c=>{if(c.isMesh||c.isSprite){c.userData._unit=u;meshes.push(c);}}));
+        const hits=raycaster.intersectObjects(meshes,false);
+        if(hits.length>0&&hits[0].object.userData._unit){
+            const u=hits[0].object.userData._unit;
+            if(!e.shiftKey) clearSelection(); addToSelection(u);
+        } else { if(!e.shiftKey) clearSelection(); }
+        updateUnitInfoPanel();
+    }
+    selectBoxActive=false; selectBoxStart=null;
+}
+
+function handleRightClick(e) {
+    if(gameMode!=='command'||selectedUnits.length===0) return;
+    updateMouse(e); raycaster.setFromCamera(mouse,camera);
+    // Check enemy click
+    const em=[];
+    enemyUnits.forEach(u=>u.group.traverse(c=>{if(c.isMesh||c.isSprite){c.userData._eu=u;em.push(c);}}));
+    enemyBuildings.forEach(b=>b.group.traverse(c=>{if(c.isMesh){c.userData._eb=b;em.push(c);}}));
+    const eHits=raycaster.intersectObjects(em,false);
+    if(eHits.length>0){
+        const obj=eHits[0].object; const t=obj.userData._eu||obj.userData._eb;
+        if(t&&t.hp>0){
+            const fighters=selectedUnits.filter(u=>u.type!=='worker');
+            fighters.forEach(u=>{u.attackTarget=t;u.state='attacking';});
+            if(fighters.length>0) showToast(`⚔️ ${fighters.length} Einheiten greifen an!`);
+            return;
+        }
+    }
+    // Move order
+    const pt=new THREE.Vector3();
+    if(raycaster.ray.intersectPlane(groundPlane,pt)){
+        const formation=makeFormation(pt,selectedUnits.length);
+        selectedUnits.forEach((u,i)=>{
+            if(u.type==='worker'){ u.state='idle'; u.targetDeposit=null; }
+            else{ u.moveTarget=formation[i]; u.state='moving'; u.attackTarget=null; }
+        });
+        const marker=new THREE.Mesh(new THREE.RingGeometry(0.55,0.85,20),
+            new THREE.MeshBasicMaterial({color:0x22ff66,transparent:true,opacity:0.9,side:THREE.DoubleSide}));
+        marker.rotation.x=-Math.PI/2; marker.position.copy(pt).setY(0.08); scene.add(marker);
+        setTimeout(()=>scene.remove(marker),700);
+    }
+}
+
+function makeFormation(center,count) {
+    const out=[], cols=Math.max(1,Math.ceil(Math.sqrt(count))), sp=3.8;
+    for(let i=0;i<count;i++){
+        const col=i%cols,row=Math.floor(i/cols);
+        out.push(new THREE.Vector3(center.x+(col-(cols-1)/2)*sp,0,center.z+row*sp));
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════
+// BUILD MODE
+// ════════════════════════════════════════════════════════
+function setBuildType(type) {
+    buildType=type; buildTool='place';
+    if(buildPreview){scene.remove(buildPreview);buildPreview=null;}
+    const def=BLDG[type];
+    buildPreview=new THREE.Mesh(new THREE.BoxGeometry(def.w,def.h,def.d),
+        new THREE.MeshStandardMaterial({color:0x38bdf8,transparent:true,opacity:0.38,depthWrite:false}));
+    scene.add(buildPreview);
+    document.querySelectorAll('#build-ui button').forEach(b=>b.classList.remove('active-tool'));
+    document.getElementById('btn-'+type)?.classList.add('active-tool');
+    setStatus(`🏗️ ${def.label} — Linksklick zum Platzieren · Kosten: ${def.cost}💎`);
+}
+function setBuildTool(t) {
+    buildTool=t; buildType=null;
+    if(buildPreview){scene.remove(buildPreview);buildPreview=null;}
+    document.querySelectorAll('#build-ui button').forEach(b=>b.classList.remove('active-tool'));
+    document.getElementById('btn-'+t)?.classList.add('active-tool');
+}
+function handleBuildClick(e) {
+    if(!buildType||!buildPreview){
+        if(buildTool==='select'){
+            updateMouse(e); raycaster.setFromCamera(mouse,camera);
+            const meshes=[]; playerBuildings.forEach(b=>b.group.traverse(c=>{if(c.isMesh){c.userData._pb=b;meshes.push(c);}}));
+            const hits=raycaster.intersectObjects(meshes,false);
+            if(hits.length>0&&hits[0].object.userData._pb){
+                selectedBuilding=hits[0].object.userData._pb;
+                showToast(`📋 ${selectedBuilding.label} · HP:${Math.round(selectedBuilding.hp)}/${selectedBuilding.maxHp}`);
+            }
+        }
+        return;
+    }
+    const def=BLDG[buildType];
+    if(res.minerals<def.cost){showToast(`⚠️ Brauche ${def.cost}💎, habe ${Math.round(res.minerals)}💎!`);return;}
+    updateMouse(e); raycaster.setFromCamera(mouse,camera);
+    const pt=new THREE.Vector3(); raycaster.ray.intersectPlane(groundPlane,pt);
+    res.minerals-=def.cost;
+    buildBuilding(Math.round(pt.x/2)*2, Math.round(pt.z/2)*2, buildType, false, def.label+' '+(playerBuildings.length+1));
+    updateHUD(); showToast(`✅ ${def.label} gebaut! -${def.cost}💎`);
+}
+function deleteSelectedBuilding() {
+    if(!selectedBuilding){showToast('⚠️ Kein Gebäude ausgewählt!');return;}
+    scene.remove(selectedBuilding.group); selectedBuilding.tag.remove(); selectedBuilding.hpEl?.remove();
+    const i=playerBuildings.indexOf(selectedBuilding);
+    if(i>=0) playerBuildings.splice(i,1);
+    if(selectedBuilding.def.supply) res.maxSupply-=selectedBuilding.def.supply;
+    selectedBuilding=null; updateHUD(); showToast('🗑️ Abgerissen');
+}
+
+// ════════════════════════════════════════════════════════
+// HUD
+// ════════════════════════════════════════════════════════
+function updateHUD() {
+    document.getElementById('res-minerals').innerText=Math.round(res.minerals);
+    document.getElementById('res-supply').innerText=`${res.supply}/${res.maxSupply}`;
+    document.getElementById('res-workers').innerText=workers.length;
+    document.getElementById('res-marines').innerText=playerUnits.filter(u=>u.type==='marine').length;
+    document.getElementById('res-tanks').innerText=playerUnits.filter(u=>u.type==='tank').length;
+    document.getElementById('res-air').innerText=playerUnits.filter(u=>u.type==='wraith').length;
+    document.getElementById('res-allies').innerText=allyUnits.filter(u=>u.hp>0).length;
+    document.getElementById('res-enemies').innerText=enemyUnits.filter(u=>u.hp>0).length+enemyBuildings.filter(b=>b.hp>0).length;
+    document.getElementById('res-kills').innerText=res.kills;
+}
+
+// ════════════════════════════════════════════════════════
+// MINIMAP
+// ════════════════════════════════════════════════════════
+function drawMinimap() {
+    const canvas=document.getElementById('minimap-canvas');
+    const ctx=canvas.getContext('2d');
+    const W=canvas.width,H=canvas.height,SC=W/280,cx=W/2,cy=H/2;
+    ctx.fillStyle='#1a2a10'; ctx.fillRect(0,0,W,H);
+    // Paths
+    ctx.fillStyle='#2a3a18'; ctx.fillRect(cx-5*SC,0,10*SC,H); ctx.fillRect(0,cy-5*SC,W,10*SC);
+    // Mineral deposits
+    ctx.fillStyle='rgba(56,189,248,0.6)';
+    mineralDeposits.forEach(d=>{ ctx.beginPath();ctx.arc(cx+d.pos.x*SC,cy+d.pos.z*SC,3,0,Math.PI*2);ctx.fill(); });
+    // Lava
+    ctx.fillStyle='rgba(255,80,0,0.6)';
+    [[62,62],[-62,-62],[72,-52],[-72,52]].forEach(([lx,lz])=>{ ctx.beginPath();ctx.arc(cx+lx*SC,cy+lz*SC,4,0,Math.PI*2);ctx.fill(); });
+    // Player buildings
+    playerBuildings.forEach(b=>{
+        ctx.fillStyle=b.type==='command'?'#22c55e':b.type==='turret'?'#86efac':'#16a34a';
+        ctx.fillRect(cx+b.cx*SC-4,cy+b.cz*SC-4,8,8);
+    });
+    // Enemy buildings
+    enemyBuildings.forEach(b=>{
+        ctx.fillStyle=b.type==='command'?'#ef4444':b.type==='turret'?'#fca5a5':'#b91c1c';
+        ctx.fillRect(cx+b.cx*SC-4,cy+b.cz*SC-4,8,8);
+    });
+    // Workers (cyan)
+    ctx.fillStyle='#38bdf8';
+    workers.forEach(w=>{ ctx.beginPath();ctx.arc(cx+w.group.position.x*SC,cy+w.group.position.z*SC,2,0,Math.PI*2);ctx.fill(); });
+    // Player units (ground)
+    playerUnits.filter(u=>u.type!=='wraith').forEach(u=>{
+        ctx.fillStyle=u.selected?'#bbf7d0':(u.type==='tank'?'#4ade80':'#22c55e');
+        ctx.beginPath();ctx.arc(cx+u.group.position.x*SC,cy+u.group.position.z*SC,u.type==='tank'?3:2,0,Math.PI*2);ctx.fill();
+    });
+    // Player aircraft (purple diamond)
+    playerUnits.filter(u=>u.type==='wraith').forEach(u=>{
+        const mx=cx+u.group.position.x*SC, mz=cy+u.group.position.z*SC;
+        ctx.fillStyle=u.selected?'#e9d5ff':'#a78bfa';
+        ctx.beginPath(); ctx.moveTo(mx,mz-4); ctx.lineTo(mx+3,mz); ctx.lineTo(mx,mz+4); ctx.lineTo(mx-3,mz); ctx.closePath(); ctx.fill();
+    });
+    // Ally buildings (dark teal squares)
+    allyBuildings.forEach(b=>{
+        ctx.fillStyle=b.type==='command'?'#14b8a6':b.type==='turret'?'#5eead4':'#0d9488';
+        ctx.fillRect(cx+b.cx*SC-3,cy+b.cz*SC-3,6,6);
+    });
+    // Ally units (teal circles / diamonds for air)
+    allyUnits.filter(u=>u.type!=='wraith'&&u.type!=='sphere'&&u.hp>0).forEach(u=>{
+        ctx.fillStyle=u.type==='tank'?'#2dd4bf':'#14b8a6';
+        ctx.beginPath();ctx.arc(cx+u.group.position.x*SC,cy+u.group.position.z*SC,u.type==='tank'?3:2,0,Math.PI*2);ctx.fill();
+    });
+    // Sphere units — large glowing star on minimap (all factions)
+    const drawSphere=(unit,col)=>{
+        const mx=cx+unit.group.position.x*SC, mz=cy+unit.group.position.z*SC;
+        ctx.fillStyle=col; ctx.beginPath(); ctx.arc(mx,mz,5.5,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle=col; ctx.lineWidth=1.2;
+        for(let a=0;a<6;a++){const ra=a*Math.PI/3;ctx.beginPath();ctx.moveTo(mx+Math.cos(ra)*4,mz+Math.sin(ra)*4);ctx.lineTo(mx+Math.cos(ra)*7,mz+Math.sin(ra)*7);ctx.stroke();}
+    };
+    playerUnits.filter(u=>u.type==='sphere'&&u.hp>0).forEach(u=>drawSphere(u,'#22ff66'));
+    allyUnits.filter(u=>u.type==='sphere'&&u.hp>0).forEach(u=>drawSphere(u,'#00ffcc'));
+    enemyUnits.filter(u=>u.type==='sphere'&&u.hp>0).forEach(u=>drawSphere(u,u.faction==='blue'?'#3366ff':'#ff3311'));
+    // Enemy workers (small diamonds — visible so player can scout economy)
+    const drawWorkerDot=(w,col)=>{
+        const mx=cx+w.group.position.x*SC, mz=cy+w.group.position.z*SC;
+        ctx.fillStyle=col;
+        ctx.beginPath(); ctx.moveTo(mx,mz-3); ctx.lineTo(mx+3,mz); ctx.lineTo(mx,mz+3); ctx.lineTo(mx-3,mz); ctx.closePath(); ctx.fill();
+    };
+    redWorkers.filter(w=>w.hp>0).forEach(w=>drawWorkerDot(w,'#ff6655'));
+    blueWorkers.filter(w=>w.hp>0).forEach(w=>drawWorkerDot(w,'#6699ff'));
+    allyUnits.filter(u=>u.type==='wraith'&&u.hp>0).forEach(u=>{
+        const mx=cx+u.group.position.x*SC, mz=cy+u.group.position.z*SC;
+        ctx.fillStyle='#99f6e4';
+        ctx.beginPath(); ctx.moveTo(mx,mz-4); ctx.lineTo(mx+3,mz); ctx.lineTo(mx,mz+4); ctx.lineTo(mx-3,mz); ctx.closePath(); ctx.fill();
+    });
+    // Enemy units (ground)
+    enemyUnits.filter(u=>u.type!=='wraith').forEach(u=>{
+        ctx.fillStyle=u.type==='tank'?'#f87171':'#ef4444';
+        ctx.beginPath();ctx.arc(cx+u.group.position.x*SC,cy+u.group.position.z*SC,u.type==='tank'?3:2,0,Math.PI*2);ctx.fill();
+    });
+    // Enemy aircraft (dark red diamond)
+    enemyUnits.filter(u=>u.type==='wraith').forEach(u=>{
+        const mx=cx+u.group.position.x*SC, mz=cy+u.group.position.z*SC;
+        ctx.fillStyle='#fca5a5';
+        ctx.beginPath(); ctx.moveTo(mx,mz-4); ctx.lineTo(mx+3,mz); ctx.lineTo(mx,mz+4); ctx.lineTo(mx-3,mz); ctx.closePath(); ctx.fill();
+    });
+    // Camera indicator
+    const t=orbitControls.target;
+    ctx.strokeStyle='#38bdf8'; ctx.lineWidth=1.5;
+    ctx.strokeRect(cx+t.x*SC-9,cy+t.z*SC-9,18,18);
+    ctx.strokeStyle='#2a4a20'; ctx.lineWidth=2; ctx.strokeRect(0,0,W,H);
+}
+
+// ════════════════════════════════════════════════════════
+// MODE SWITCH
+// ════════════════════════════════════════════════════════
+function switchMode(m) {
+    if (m === 'micro') {
+        if (selectedUnits.length === 0) { showToast('⚠️ Erst eine Einheit auswählen, dann F3 / MIKRO!'); return; }
+        microMode = true;
+        microTarget = selectedUnits[0];
+        // Save camera state
+        savedCamPos    = camera.position.clone();
+        savedCamTarget = orbitControls.target.clone();
+        // Allow steeper angle in micro
+        orbitControls.maxPolarAngle = Math.PI / 1.65;
+        orbitControls.minDistance   = 3;
+        orbitControls.maxDistance   = 28;
+        document.getElementById('mode-cmd').className='mode-btn';
+        document.getElementById('mode-build').className='mode-btn';
+        document.getElementById('mode-micro').className='mode-btn micro-active';
+        document.getElementById('build-ui').style.display='none';
+        document.getElementById('prod-panel').style.display='flex';
+        setStatus('🔍 MIKRO: RMB-Drag=Kamera · Scroll=Zoom · Pfeiltasten=Pan · [R]=nächste Einheit · [ESC]=zurück · RMB auf Feind=Angriff');
+        showToast(`🔍 MIKRO-MODUS: Fokus auf ${microTarget.tag.innerText.replace(/[⚠️🟢⛏️]/g,'').trim()}`);
+        return;
+    }
+    // If leaving micro, restore camera to saved overview position
+    if (microMode && savedCamPos) {
+        camera.position.copy(savedCamPos);
+        orbitControls.target.copy(savedCamTarget);
+    }
+    microMode = false; microTarget = null;
+    savedCamPos = null; savedCamTarget = null;
+    gameMode = m;
+    document.getElementById('build-ui').style.display=m==='build'?'flex':'none';
+    document.getElementById('prod-panel').style.display=m==='command'?'flex':'none';
+    document.getElementById('mode-cmd').className='mode-btn'+(m==='command'?' active':'');
+    document.getElementById('mode-build').className='mode-btn'+(m==='build'?' build-active':'');
+    document.getElementById('mode-micro').className='mode-btn';
+    // Restore orbit limits
+    orbitControls.maxPolarAngle = Math.PI/2.05;
+    orbitControls.minDistance   = 4;
+    orbitControls.maxDistance   = 220;
+    if(buildPreview){scene.remove(buildPreview);buildPreview=null;} buildType=null;
+    setStatus(m==='build'
+        ?'🏗️ BAUEN: Gebäude wählen → Linksklick platzieren · Mittelmaus=Pan · RMB-Drag=Kamera · Scroll=Zoom'
+        :'⚔️ BEFEHLE: Klick=auswählen · Drag=Box · RMB=bewegen/angreifen · Pfeiltasten=Pan · [A]=Alle · [S]=Stopp · [F3]=Mikro');
+}
+
+function exitMicroMode() {
+    microMode = false; microTarget = null;
+    gameMode = 'command';
+    // Restore camera
+    if (savedCamPos)    { camera.position.copy(savedCamPos); }
+    if (savedCamTarget) { orbitControls.target.copy(savedCamTarget); }
+    savedCamPos = null; savedCamTarget = null;
+    // Restore orbit limits
+    orbitControls.maxPolarAngle = Math.PI/2.05;
+    orbitControls.minDistance   = 4;
+    orbitControls.maxDistance   = 220;
+    document.getElementById('mode-cmd').className='mode-btn active';
+    document.getElementById('mode-build').className='mode-btn';
+    document.getElementById('mode-micro').className='mode-btn';
+    document.getElementById('prod-panel').style.display='flex';
+    setStatus('⚔️ BEFEHLE: Klick=auswählen · RMB=bewegen/angreifen · Pfeiltasten=Pan · [A]=Alle · [F3]=Mikro');
+    showToast('↩️ Zurück zum Überblick');
+}
+
+// ════════════════════════════════════════════════════════
+// KEYBOARD
+// ════════════════════════════════════════════════════════
+function onKey(e) {
+    if(e.target.tagName==='INPUT') return;
+    // Arrow keys handled in animate — prevent page scroll only
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+    if(e.code==='Escape'){
+        if(microMode){ exitMicroMode(); return; }
+        clearSelection(); if(buildPreview){scene.remove(buildPreview);buildPreview=null;} buildType=null;
+    }
+    if(e.code==='KeyA'&&(gameMode==='command'||microMode)){
+        clearSelection(); [...playerUnits,...workers].forEach(u=>addToSelection(u));
+        updateUnitInfoPanel(); showToast(`✅ Alle ${selectedUnits.length} Einheiten ausgewählt`);
+    }
+    if(e.code==='KeyS'&&(gameMode==='command'||microMode)){ selectedUnits.forEach(u=>{u.state='idle';u.moveTarget=null;u.attackTarget=null;}); if(selectedUnits.length>0) showToast('⏹ Stopp!'); }
+    if(e.code==='KeyH'&&(gameMode==='command'||microMode)){ selectedUnits.forEach(u=>{u.moveTarget=null;}); if(selectedUnits.length>0) showToast('🛡️ Position halten!'); }
+    if(e.code==='KeyR'&&microMode&&selectedUnits.length>0){ 
+        // Cycle micro target to next selected unit
+        const idx=(selectedUnits.indexOf(microTarget)+1)%selectedUnits.length;
+        microTarget=selectedUnits[idx]; showToast(`🔍 Fokus: ${microTarget.tag.innerText.slice(3,20)}`);
+    }
+    if(e.code==='F1'){e.preventDefault();switchMode('command');}
+    if(e.code==='F2'){e.preventDefault();switchMode('build');}
+    if(e.code==='F3'){e.preventDefault();switchMode('micro');}
+    // [N] = PANIK — alle Einheiten greifen sofort den nächsten Feind an
+    if(e.code==='KeyN'&&(gameMode==='command'||microMode)){
+        let cnt=0;
+        [...playerUnits,...workers.filter(w=>w.hp>0)].forEach(u=>{
+            const {target,dist}=getClosestEnemy(u);
+            if(target){u.attackTarget=target;u.state='attacking';cnt++;}
+        });
+        if(cnt>0) showToast(`⚠️ PANIK! ${cnt} Einheiten stürmen vor!`);
+    }
+    // [F] = Reparatur — ausgewählte Einheiten für 30💎 heilen (+50 HP)
+    if(e.code==='KeyF'&&(gameMode==='command'||microMode)){
+        const damaged=selectedUnits.filter(u=>u.hp<u.maxHp&&!u.isEnemy);
+        if(damaged.length===0){showToast('⚠️ Keine beschädigten Einheiten ausgewählt!');return;}
+        const cost=damaged.length*30;
+        if(res.minerals<cost){showToast(`❌ Brauche ${cost}💎 zum Reparieren!`);return;}
+        res.minerals-=cost;
+        damaged.forEach(u=>{ u.hp=Math.min(u.maxHp, u.hp+50); });
+        updateHUD(); showToast(`🔧 ${damaged.length} Einheiten repariert! -${cost}💎`);
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════
+function updateMouse(e){ mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=-(e.clientY/innerHeight)*2+1; }
+function setGroupShadow(g){ g.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}}); }
+function setStatus(msg){ document.getElementById('status-bar').innerText=msg; }
+function showToast(msg){
+    const t=document.getElementById('toast');
+    t.innerText=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
+
+// ════════════════════════════════════════════════════════
+// RENDER LOOP
+// ════════════════════════════════════════════════════════
+let lastTime=performance.now();
+
+function updateAdaptiveRenderScale(frameMs) {
+    if (document.hidden) {
+        renderScaleWindowMs = 0;
+        renderScaleWindowFrames = 0;
+        return;
+    }
+
+    renderScaleWindowMs += Math.min(frameMs, 250);
+    renderScaleWindowFrames++;
+    if (renderScaleWindowMs < 1800) return;
+
+    const averageFrameMs = renderScaleWindowMs / renderScaleWindowFrames;
+    const nextScale = averageFrameMs > 50
+        ? Math.max(MIN_RENDER_SCALE, renderScale - 0.15)
+        : averageFrameMs < 32
+            ? Math.min(MAX_RENDER_SCALE, renderScale + 0.05)
+            : renderScale;
+
+    if (Math.abs(nextScale - renderScale) >= 0.01) {
+        renderScale = Number(nextScale.toFixed(2));
+        renderer.setPixelRatio(renderScale);
+    }
+    renderScaleWindowMs = 0;
+    renderScaleWindowFrames = 0;
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    frameCount++;
+    const now=performance.now(), elapsedMs=now-lastTime; const dt=Math.min(elapsedMs/1000,0.08); lastTime=now;
+
+    // ── ARROW KEY CAMERA PAN (works in all modes) ──
+    if (!microMode) {
+        const panSpd = CAM_PAN_SPEED * (1 + camera.position.y * 0.012);
+        camera.getWorldDirection(cameraDirectionScratch);
+        cameraForwardScratch.copy(cameraDirectionScratch).cross(camera.up).normalize();
+        cameraDirectionScratch.crossVectors(cameraForwardScratch, camera.up).normalize();
+        const tgt = orbitControls.target;
+        if (keys['ArrowUp']   ||keys['Numpad8']) { tgt.addScaledVector(cameraForwardScratch,  panSpd); camera.position.addScaledVector(cameraForwardScratch,  panSpd); }
+        if (keys['ArrowDown'] ||keys['Numpad2']) { tgt.addScaledVector(cameraForwardScratch, -panSpd); camera.position.addScaledVector(cameraForwardScratch, -panSpd); }
+        if (keys['ArrowLeft'] ||keys['Numpad4']) { tgt.addScaledVector(cameraDirectionScratch,-panSpd); camera.position.addScaledVector(cameraDirectionScratch,-panSpd); }
+        if (keys['ArrowRight']||keys['Numpad6']) { tgt.addScaledVector(cameraDirectionScratch, panSpd); camera.position.addScaledVector(cameraDirectionScratch, panSpd); }
+    }
+
+    // ── MICRO MODE CAMERA FOLLOW ──
+    if (microMode && microTarget && microTarget.hp > 0) {
+        const uPos = microTarget.group.position;
+        const tgtGoal = microTargetScratch.set(uPos.x, 0, uPos.z);
+        orbitControls.target.lerp(tgtGoal, 0.08);
+        // keep camera zoom tight if not already close
+        const camToTgt = camera.position.distanceTo(orbitControls.target);
+        if (camToTgt > 22) {
+            const dir = microDirectionScratch.copy(camera.position).sub(orbitControls.target).normalize();
+            camera.position.copy(orbitControls.target).addScaledVector(dir, 14);
+        }
+    } else if (microMode && (!microTarget || microTarget.hp <= 0)) {
+        exitMicroMode();
+    }
+
+    orbitControls.update();
+    updateUnits(dt);
+    updateAirUnits(dt);
+    updateWorkers(dt);
+    updateProjectiles(dt);
+    updateTurrets(dt);
+    if (!gameEnded) {
+        updateEnemyAI(dt);
+        updateAllyReinforcements(dt);
+        winCheckTimer += dt;
+        if (winCheckTimer >= 1.5) { winCheckTimer = 0; checkEndCondition(); }
+    }
+
+    // ── SELECTION RING FOLLOW UNITS ──
+    // Air units: ring stays on ground below them (like a shadow indicator)
+    for (const u of fillUnitScratch(true)) {
+        if(u.selRing) {
+            // Aircraft ring shows on ground directly below
+            const gy = u.type==='wraith' ? 0.06 : 0.06;
+            u.selRing.position.set(u.group.position.x, gy, u.group.position.z);
+            u.selRing.material.opacity = 0.6 + Math.sin(now*0.006)*0.28;
+        }
+    }
+
+    // Build preview
+    if(buildPreview){ buildPreview.rotation.y+=dt*0.55; buildPreview.material.opacity=0.28+Math.sin(now*0.003)*0.1; }
+
+    // Beacon pulse + crystal glow (every 2nd frame — beacons are decorative)
+    if (frameCount%2===0) {
+    const t=now*0.002;
+    for(const b of playerBuildings) if(b.beacon) b.beacon.material.emissiveIntensity=1.6+Math.sin(t*4)*0.6;
+    for(const b of allyBuildings) if(b.beacon) b.beacon.material.emissiveIntensity=1.6+Math.sin(t*4)*0.6;
+    for(const b of enemyBuildings) if(b.beacon) b.beacon.material.emissiveIntensity=1.6+Math.sin(t*4)*0.6;
+    mineralDeposits.forEach((dep,i)=>{
+        const v=0.8+Math.sin(t*2+i)*0.5;
+        dep.crystals.forEach(c=>{ if(c.material.emissiveIntensity<1.5) c.material.emissiveIntensity=v; });
+    });
+    } // end frameCount%2 beacon block
+
+    // HUD
+    hudT+=dt;
+    if(hudT>0.2){ hudT=0; updateHUD(); updateUnitInfoPanel(); }
+
+    updateBuildingOverlays(); // internally throttled to every 3rd frame
+    if (frameCount%3===0) for(const w of workers) updateWorkerOverlay(w);
+
+    if (frameCount%4===0) drawMinimap(); // 15fps is plenty for minimap
+    updateAdaptiveRenderScale(elapsedMs);
+    renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>
