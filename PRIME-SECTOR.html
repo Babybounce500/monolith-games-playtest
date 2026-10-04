@@ -558,14 +558,14 @@ const MISSIONS = [
 
   { id:5, title:'Scarlet-Sturm', brief:
     'Die Dominion wirft jetzt ihre gesamte Garnison gegen uns — gepanzerte Kolonnen, Luftunterstützung. Das ist kein Scharmützel mehr, das ist ein Sturmangriff.\n\nHalte die Stellung.',
-    factions:{red:true,blue:false,black:false}, startMinerals:650, enemyMinerals:2200, jointWaves:true, jointWavesFaction:'red',
+    factions:{red:true,blue:false,black:false}, startMinerals:750, enemyMinerals:1500, jointWaves:true, jointWavesFaction:'red',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith'],
     objective:{type:'surviveTime', seconds:200}, objectiveLabel:'Überlebe <b>200 Sekunden</b> Dominion-Großangriff',
     unlockText:'Freigeschaltet: Jäger (Luftstreitkraft)' },
 
   { id:6, title:'Cobalt-Einbruch', brief:
     'Jetzt ist Blau an der Reihe. Die Cobalt Concord greift mit koordinierter Luft-Boden-Taktik an — anders als die Dominion, diszipliniert und methodisch.\n\nHalte die Stellung. Setz deine Jäger gegen ihre Luftstreitkräfte ein.',
-    factions:{red:false,blue:true,black:false}, startMinerals:650, enemyMinerals:2200, jointWaves:true, jointWavesFaction:'blue',
+    factions:{red:false,blue:true,black:false}, startMinerals:750, enemyMinerals:1500, jointWaves:true, jointWavesFaction:'blue',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith'],
     objective:{type:'surviveTime', seconds:200}, objectiveLabel:'Überlebe <b>200 Sekunden</b> Concord-Großangriff',
     unlockText:'Keine neuen Freischaltungen — Luftabwehr ist jetzt entscheidend.' },
@@ -1279,15 +1279,24 @@ function addMineralDeposit(mx,mz) {
 // ════════════════════════════════════════════════════════
 // PLAYER BASE
 // ════════════════════════════════════════════════════════
+// Pre-built structures only appear if the mission has actually unlocked
+// that building type - otherwise a mission's "Freigeschaltet: Kaserne,
+// Depot" briefing text would be a lie, standing right next to 3 turrets
+// the player can plainly see but can't yet queue a replacement for.
 function buildPlayerBase() {
+    const bl = currentMission.unlockedBuildings;
     buildBuilding(-20,-32,'command',false,'Command Center');
-    buildBuilding(-36,-20,'barracks',false,'Kaserne Alpha');
-    buildBuilding(-12,-20,'depot',false,'Depot 1');
-    buildBuilding( -5,-32,'depot',false,'Depot 2');
-    buildBuilding(-42,-38,'turret',false,'Turm A');
-    buildBuilding(-22,-48,'turret',false,'Turm B');
-    buildBuilding( -8,-48,'turret',false,'Turm C');
-    buildBuilding(-38,-48,'bunker',false,'Bunker A');
+    if (bl.includes('barracks')) buildBuilding(-36,-20,'barracks',false,'Kaserne Alpha');
+    if (bl.includes('depot')) {
+        buildBuilding(-12,-20,'depot',false,'Depot 1');
+        buildBuilding( -5,-32,'depot',false,'Depot 2');
+    }
+    if (bl.includes('turret')) {
+        buildBuilding(-42,-38,'turret',false,'Turm A');
+        buildBuilding(-22,-48,'turret',false,'Turm B');
+        buildBuilding( -8,-48,'turret',false,'Turm C');
+    }
+    if (bl.includes('bunker')) buildBuilding(-38,-48,'bunker',false,'Bunker A');
 }
 
 function buildEnemyBase() {
@@ -1596,7 +1605,12 @@ function buildBuilding(bx,bz,type,isEnemy,label, factionMain=null, factionSteel=
     hpEl.innerHTML = '<div class="hp-bar-fill"></div>';
     document.body.appendChild(hpEl);
 
-    const hpMax = type==='command'?1500:type==='turret'?350:type==='bunker'?600:500;
+    // Turret/bunker HP raised from the original skirmish's 350/600 -
+    // playtesting a sustained single-faction siege (Mission 6) showed
+    // these dying mid-fight crashes maxSupply at the same moment the
+    // player most needs to keep reinforcing, a death spiral rather than
+    // a fair difficulty curve.
+    const hpMax = type==='command'?1500:type==='turret'?450:type==='bunker'?750:500;
     const faction = factionId || (isAlly ? 'ally' : isEnemy ? 'red' : 'player');
     const bld = {group, type, isEnemy, tag, hpEl, hp:hpMax, maxHp:hpMax, label, cx:bx, cz:bz, def, attackTimer:0, beacon, faction};
 
