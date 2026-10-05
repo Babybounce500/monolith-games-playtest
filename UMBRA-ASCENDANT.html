@@ -2658,12 +2658,18 @@ function fireProjectile(fromPos,toPos,dmg,isEnemyShot) {
 // future race define a regenerating `shield`/`shieldMax` pool that
 // absorbs damage before HP, without every damage-dealing code path
 // needing to know about it individually.
-function applyDamage(target, dmg) {
+function applyDamage(target, dmg, pierce) {
     target.lastHitTime = aiGameTime;
     if (target.shield > 0) {
-        if (target.shield >= dmg) { target.shield -= dmg; return; }
-        dmg -= target.shield;
-        target.shield = 0;
+        if (pierce) {
+            // Shield-piercing: the shield absorbs at most half of this hit
+            const ab = Math.min(target.shield, dmg * 0.5);
+            target.shield -= ab; dmg -= ab;
+        } else {
+            if (target.shield >= dmg) { target.shield -= dmg; return; }
+            dmg -= target.shield;
+            target.shield = 0;
+        }
     }
     target.hp -= dmg;
 }
@@ -2676,7 +2682,8 @@ function projectileHitTargetIn(p, targets) {
         const targetPos=target.group.position;
         const dx=p.mesh.position.x-targetPos.x, dz=p.mesh.position.z-targetPos.z;
         if(dx*dx+dz*dz<radius*radius) {
-            applyDamage(target, p.dmg);
+            applyDamage(target, p.dmg, p.pierce);
+            if (p.acid && !target.def) { target.acidUntil = aiGameTime + 4; target.acidDps = 3; }
             const flash=new THREE.Mesh(projectileImpactGeometry,projectileImpactMaterial);
             flash.position.copy(p.mesh.position);
             scene.add(flash);
@@ -2691,7 +2698,8 @@ const RACE = 'umbra';
 const RACE_SPLASH_R = 3.2;
 // Race combat traits: Swarm marines gain damage from packed allies; Umbra
 // Wardens' shots splash nearby enemies. Terran has no traits (RACE='terran').
-function raceDmgMult(u) {
+function raceDmgMult(u, t) {
+    if (RACE !== 'terran' && u.type === 'wraith' && !u.isEnemy && t && t.type === 'tank') return 1.4;
     if (RACE === 'swarm' && u.type === 'marine' && !u.isEnemy) {
         const p = u.group.position;
         let n = 0;
@@ -2701,6 +2709,13 @@ function raceDmgMult(u) {
     return 1;
 }
 function raceSplash(u) { return RACE === 'umbra' && u.type === 'tank' && !u.isEnemy; }
+// Per-shot race traits: Umbra Sentinels pierce shields, Swarm Spiners apply acid
+function applyRaceFlags(u, p) {
+    if (!p) return;
+    if (raceSplash(u)) p.splash = true;
+    if (RACE === 'umbra' && u.type === 'marine' && !u.isEnemy) p.pierce = true;
+    if (RACE === 'swarm' && u.type === 'tank' && !u.isEnemy) p.acid = true;
+}
 function splashAt(p) {
     const c = p.mesh.position;
     [...enemyUnits, ...enemyBuildings].forEach(t => {
@@ -2799,6 +2814,7 @@ function updateRegenPools(dt) {
         if (u.shieldMax && u.shield < u.shieldMax && aiGameTime - (u.lastHitTime||0) >= SHIELD_REGEN_DELAY) {
             u.shield = Math.min(u.shieldMax, u.shield + u.shieldMax*SHIELD_REGEN_RATE*dt);
         }
+        if (u.acidUntil && aiGameTime < u.acidUntil) u.hp -= (u.acidDps || 0) * dt;
         if (u.hpRegenRate && u.hp < u.maxHp) {
             u.hp = Math.min(u.maxHp, u.hp + u.hpRegenRate*dt);
         }
@@ -2886,8 +2902,8 @@ function doFire(unit,target) {
         return;
     }
     sfxShoot();
-    fireProjectile(unit.group.position, target.group.position, unit.dmg*raceDmgMult(unit), unit.isEnemy);
-    if (raceSplash(unit)) projectiles[projectiles.length-1].splash = true;
+    fireProjectile(unit.group.position, target.group.position, unit.dmg*raceDmgMult(unit, target), unit.isEnemy);
+    applyRaceFlags(unit, projectiles[projectiles.length-1]);
     const dx=target.group.position.x-unit.group.position.x, dz=target.group.position.z-unit.group.position.z;
     const aimAngle = Math.atan2(dx,dz)+Math.PI;
     if (unit.type==='marine') {
