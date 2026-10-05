@@ -636,7 +636,7 @@
         return;
       }
       const start = musicAudio && musicAudio.src ? musicAudio.play() : playMusicTrack();
-      start.then(() => btn.classList.add('active-music')).catch(e => console.log('Audio play blocked', e));
+      start.then(() => btn.classList.add('active-music')).catch(e => { if (e.name !== 'AbortError') console.log('Audio play blocked', e); });
     }
 
     function loadStoredSettings() {
