@@ -336,6 +336,7 @@ body::after {
       <h3>⚙ FORSCHUNG — PERMANENTE UPGRADES</h3>
       <div id="research-list"></div>
     </div>
+    <div style="text-align:center;margin-top:18px"><button id="campaign-reset" style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:8px 18px;border-radius:8px;font-size:10px;letter-spacing:2px;cursor:pointer;">⟲ FORTSCHRITT ZURÜCKSETZEN</button></div>
   </div>
 </div>
 
@@ -3734,6 +3735,11 @@ function openBriefing(i) {
     document.getElementById('briefing-unlocks').innerHTML = `<b>Ziel:</b> ${m.objectiveLabel}<br>${m.unlockText}`;
     document.getElementById('briefing-modal').classList.add('show');
 }
+document.getElementById('campaign-reset').addEventListener('click', () => {
+    if (!confirm('Kampagnen-Fortschritt wirklich komplett löschen? Abgeschlossene Missionen und Forschung gehen verloren.')) return;
+    try { localStorage.removeItem(CAMPAIGN_KEY); } catch(e){}
+    location.href = location.pathname;
+});
 document.getElementById('briefing-cancel').addEventListener('click', () => {
     document.getElementById('briefing-modal').classList.remove('show');
 });
