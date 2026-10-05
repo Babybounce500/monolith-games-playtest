@@ -2666,7 +2666,7 @@ function applyDamage(target, dmg, pierce) {
 function projectileHitTargetIn(p, targets) {
     for (let i=0;i<targets.length;i++) {
         const target=targets[i];
-        if(target.hp<=0) continue;
+        if(target.hp<=0 || target.garrisoned) continue;
         const radius=target.type==='tank'?3.4:(target.def?Math.max(target.def.w,target.def.d)*0.5:2.0);
         const targetPos=target.group.position;
         const dx=p.mesh.position.x-targetPos.x, dz=p.mesh.position.z-targetPos.z;
@@ -2734,6 +2734,7 @@ function updateProjectiles(dt) {
 }
 
 function scanNearestTargets(origin, targets, result) {
+    targets = targets.filter(t => !t.garrisoned);
     for(let i=0;i<targets.length;i++) {
         const target=targets[i];
         if(target.hp<=0) continue;
@@ -2813,7 +2814,7 @@ function updateRegenPools(dt) {
 function updateUnits(dt) {
     const all=fillUnitScratch();
     for(const unit of all) {
-        if(unit.hp<=0||unit.type==='wraith') continue; // wraiths handled by updateAirUnits
+        if(unit.hp<=0||unit.type==='wraith'||unit.garrisoned) continue; // wraiths handled by updateAirUnits
         unit.attackTimer=Math.max(0,unit.attackTimer-dt);
         const pos=unit.group.position;
         if(unit.attackTarget&&unit.attackTarget.hp<=0){unit.attackTarget=null;unit.state='idle';}
@@ -2821,6 +2822,7 @@ function updateUnits(dt) {
 
         if(unit.state==='moving'&&unit.moveTarget) {
             const dx=unit.moveTarget.x-pos.x, dz=unit.moveTarget.z-pos.z, d=Math.sqrt(dx*dx+dz*dz);
+            if(unit.garrisonTarget && d<4.5) tryGarrison(unit);
             if(d<0.8){unit.state='idle';unit.moveTarget=null;}
             else{ const spd=unit.speed*dt*waterSlow(pos); pos.x+=(dx/d)*spd; pos.z+=(dz/d)*spd; clampOutOfBuildings(pos); unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*8; }
             if(autoT&&autoDist<unit.range&&unit.attackTimer<=0) doFire(unit,autoT);
@@ -2939,6 +2941,7 @@ function blast(pos,r) {
 // TURRETS
 // ════════════════════════════════════════════════════════
 function updateTurrets(dt) {
+    updateBunkers(dt);
     for(const bld of [...playerBuildings,...allyBuildings,...enemyBuildings]) {
         if(bld.type!=='turret'||bld.hp<=0) continue;
         bld.attackTimer=(bld.attackTimer||0)-dt;
@@ -3366,7 +3369,59 @@ function updateEnemyAI(dt) {
 // ════════════════════════════════════════════════════════
 // OVERLAYS
 // ════════════════════════════════════════════════════════
+// ════ BUNKER GARRISON ════
+// Right-click an own bunker with infantry to load up to 4 of them. Garrisoned
+// units are hidden and shielded from hits, and the bunker fires for each one.
+// U unloads, and the garrison pops out automatically when the bunker falls.
+const BUNKER_CAP = 4;
+function tryGarrison(u) {
+    const b = u.garrisonTarget;
+    u.garrisonTarget = null;
+    if (!b || b.hp <= 0) return;
+    b.garrison = b.garrison || [];
+    if (b.garrison.length >= BUNKER_CAP) { showToast('⚠️ Bunker voll (' + BUNKER_CAP + '/' + BUNKER_CAP + ')'); return; }
+    b.garrison.push(u);
+    u.garrisoned = b;
+    u.state = 'idle'; u.moveTarget = null; u.attackTarget = null;
+    u.group.visible = false;
+}
+function ungarrisonAll(b, around) {
+    const g = b.garrison || [];
+    g.forEach((u, i) => {
+        u.garrisoned = null;
+        u.group.visible = true;
+        u.group.position.set(b.cx + (i % 2) * 2 - 1, 0, b.cz + (i > 1 ? 2 : -2));
+        u.state = 'idle'; u.moveTarget = null;
+    });
+    b.garrison = [];
+    return g.length;
+}
+function updateBunkers(dt) {
+    for (const bld of [...playerBuildings, ...allyBuildings, ...enemyBuildings]) {
+        if (bld.type !== 'bunker') continue;
+        const g = bld.garrison || [];
+        if (bld.hp <= 0) { if (g.length) ungarrisonAll(bld); continue; }
+        if (bld.tagBase === undefined) bld.tagBase = bld.tag.innerText;
+        const want = bld.tagBase + (g.length ? ' [' + g.length + '/' + BUNKER_CAP + ']' : '');
+        if (bld.tag.innerText !== want) bld.tag.innerText = want;
+        if (!g.length) continue;
+        bld.attackTimer = (bld.attackTimer || 0) - dt;
+        if (bld.attackTimer > 0) continue;
+        const enemies = bld.isEnemy ? [...playerUnits, ...allyUnits] : [...enemyUnits];
+        let closest = null, cd = 18;
+        for (const e of enemies) {
+            if (e.hp <= 0 || e.garrisoned) continue;
+            const d = bld.group.position.distanceTo(e.group.position);
+            if (d < cd) { cd = d; closest = e; }
+        }
+        if (!closest) continue;
+        bld.attackTimer = 1.0;
+        fireProjectile(bld.group.position.clone().setY(3), closest.group.position, 6 * g.length, bld.isEnemy);
+    }
+}
+
 function updateUnitOverlay(unit) {
+    if (unit.garrisoned) { unit.hpEl.style.display='none'; unit.tag.style.display='none'; return; }
     if (frameCount%3!==0) return; // 20fps is enough for HP bar positioning
     syncUnitLod(unit);
     const hOff = unit.type==='sphere'?4.5:unit.type==='tank'?4.2:unit.type==='wraith'?1.2:2.8;
@@ -3573,6 +3628,19 @@ function handleRightClick(e) {
             const fighters=selectedUnits.filter(u=>u.type!=='worker');
             fighters.forEach(u=>{u.attackTarget=t;u.state='attacking';});
             if(fighters.length>0) showToast(`⚔️ ${fighters.length} Einheiten greifen an!`);
+            return;
+        }
+    }
+    // Bunker: load infantry with a right-click on an own bunker
+    const ownBunkers = [];
+    playerBuildings.forEach(b => { if (b.type==="bunker" && b.hp>0) b.group.traverse(c => { if (c.isMesh) { c.userData._ob = b; ownBunkers.push(c); } }); });
+    const bHits = raycaster.intersectObjects(ownBunkers, false);
+    if (bHits.length > 0) {
+        const bld = bHits[0].object.userData._ob;
+        const inf = selectedUnits.filter(u => (u.type==="marine" || u.type==="medic") && !u.garrisoned);
+        if (inf.length) {
+            inf.forEach(u => { u.garrisonTarget = bld; u.moveTarget = new THREE.Vector3(bld.cx, 0, bld.cz); u.state = "moving"; u.attackTarget = null; });
+            showToast("🛡 " + inf.length + " Einheiten steigen in den Bunker");
             return;
         }
     }
@@ -3847,6 +3915,9 @@ function onKey(e) {
         microTarget=selectedUnits[idx]; showToast(`🔍 Fokus: ${microTarget.tag.innerText.slice(3,20)}`);
     }
     if(e.code==='KeyQ'&&!gameEnded&&(gameMode==='command'||microMode)) useHeroAbility();
+    if(e.code==='KeyU' && selectedBuilding && selectedBuilding.type==='bunker' && selectedBuilding.garrison && selectedBuilding.garrison.length){
+        const n = ungarrisonAll(selectedBuilding); showToast('🔓 ' + n + ' Einheiten ausgestiegen');
+    }
     if(e.code==='F1'){e.preventDefault();switchMode('command');}
     if(e.code==='F2'){e.preventDefault();switchMode('build');}
     if(e.code==='F3'){e.preventDefault();switchMode('micro');}
