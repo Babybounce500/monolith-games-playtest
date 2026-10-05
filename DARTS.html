@@ -469,11 +469,6 @@
     </div>
   </header>
 
-  <!-- UNSICHTBARER AUDIO PLAYER FÜR PARTY LOOP TRACK -->
-  <audio id="party-audio" loop preload="auto">
-    <source src="https://audionautix.com/Music/FallingSky.mp3" type="audio/mpeg">
-  </audio>
-
   <div id="game-container">
     <div class="top-controls">
       <button class="mode-btn active" id="m-501" onclick="selectMode('501')">501</button>
@@ -596,18 +591,33 @@
       });
     }
 
-    function toggleKeynoteTrack() {
-      const audio = document.getElementById('party-audio');
-      const btn = document.getElementById('keynote-btn');
+    const MUSIC_ROOT = 'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/';
+    const MUSIC_TRACKS = ['Climbing Clear.mp3','Deep Sonar.mp3','Haupt-Exploration.mp3','Marimba Grid.mp3','Neon Velocity.mp3','Sandal Tide.mp3','Whiteout Discovery.mp3'];
+    let musicAudio = null;
+    let musicIdx = Math.floor(Math.random() * MUSIC_TRACKS.length);
 
-      if (audio.paused) {
-        audio.play().then(() => {
-          btn.classList.add('active-music');
-        }).catch(e => console.log("Audio play blocked", e));
-      } else {
-        audio.pause();
-        btn.classList.remove('active-music');
+    function playMusicTrack() {
+      if (!musicAudio) {
+        musicAudio = new Audio();
+        musicAudio.volume = 0.35;
+        musicAudio.addEventListener('ended', () => {
+          musicIdx = (musicIdx + 1) % MUSIC_TRACKS.length;
+          playMusicTrack().catch(() => {});
+        });
       }
+      musicAudio.src = MUSIC_ROOT + encodeURIComponent(MUSIC_TRACKS[musicIdx]);
+      return musicAudio.play();
+    }
+
+    function toggleKeynoteTrack() {
+      const btn = document.getElementById('keynote-btn');
+      if (musicAudio && !musicAudio.paused) {
+        musicAudio.pause();
+        btn.classList.remove('active-music');
+        return;
+      }
+      const start = musicAudio && musicAudio.src ? musicAudio.play() : playMusicTrack();
+      start.then(() => btn.classList.add('active-music')).catch(e => console.log('Audio play blocked', e));
     }
 
     function loadStoredSettings() {
