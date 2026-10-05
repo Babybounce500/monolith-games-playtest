@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>PRIME COMMAND — Hauptmenü</title>
+<link rel="icon" href="data:,">
+<style>
+:root { --bg:#0d0820; --panel:rgba(20,10,40,.92); --acc:#a78bfa; --acc2:#67e8f9; --text:#e2e8f0; --muted:#94a3b8; --border:#3b2a6b; }
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:'Courier New',monospace; overflow:hidden; }
+#menu { position:fixed; inset:0; overflow-y:auto; padding:28px 16px 40px; background:radial-gradient(ellipse at 50% -10%, #241248 0%, #0d0820 60%, #05020c 100%); }
+#menu.hidden { display:none; }
+h1 { text-align:center; font-size:28px; letter-spacing:6px; color:var(--acc); text-shadow:0 0 24px rgba(167,139,250,.5); margin:12px 0 4px; }
+.sub { text-align:center; font-size:11px; letter-spacing:3px; color:var(--acc2); margin-bottom:22px; }
+.col { max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+.card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; cursor:pointer; transition:.15s; }
+.card:hover, .card:active { border-color:var(--acc); box-shadow:0 0 18px rgba(167,139,250,.25); }
+.card b { display:block; font-size:15px; letter-spacing:2px; color:#eafff0; margin-bottom:4px; }
+.card span { font-size:11px; color:var(--muted); line-height:1.5; }
+.card .prog { color:var(--acc2); font-size:10px; margin-top:6px; display:block; }
+.back { display:inline-block; margin:0 0 14px; padding:8px 14px; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:11px; letter-spacing:2px; cursor:pointer; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+.lvl { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px; cursor:pointer; font-size:10px; }
+.lvl.locked { opacity:.35; cursor:not-allowed; }
+.lvl b { display:block; color:var(--acc2); font-size:9px; letter-spacing:1px; }
+.lvl span { color:var(--text); font-size:11px; }
+#game { position:fixed; inset:0; display:none; background:#000; }
+#game.show { display:block; }
+#game iframe { width:100%; height:100%; border:0; }
+#exit { position:fixed; top:4px; right:4px; z-index:99999; padding:6px 10px; font:700 10px 'Courier New',monospace; letter-spacing:1px; background:rgba(20,10,40,.9); color:var(--acc); border:1px solid var(--border); border-radius:8px; cursor:pointer; display:none; }
+#exit.show { display:block; }
+@media (max-width:600px) { h1 { font-size:22px; letter-spacing:4px; } }
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>PRIME COMMAND</h1>
+  <div class="sub">EIN SPIEL · DREI RASSEN · WELLEN</div>
+
+  <div id="home" class="col">
+    <div class="card" data-go="campaigns"><b>▶ KAMPAGNE</b><span>Drei Rassen, jeweils eigene Story und Tech-Tree. Fortschritt wird gespeichert.</span></div>
+    <div class="card" data-go="levels"><b>◆ EINZEL-LEVEL</b><span>Spiel einen freigeschalteten Einsatz aus einer beliebigen Kampagne direkt.</span></div>
+    <div class="card" id="waves"><b>⚔ WELLEN-SKIRMISH</b><span>Endlose KI-Angriffe, Mineralien sammeln und Armee aufbauen. Das ursprüngliche STAR PRIME.</span></div>
+  </div>
+
+  <div id="campaigns" class="col" style="display:none">
+    <div class="back" data-go="home">← ZURÜCK</div>
+    <div class="card" data-camp="PRIME-SECTOR.html" data-key="prime_sector_campaign_v1" data-total="20"><b>TERRAN · PRIME SECTOR</b><span>Marines, Tanks, Wraiths. Der Quanten-Kern erwacht, Dominion und Concord greifen an.</span><span class="prog"></span></div>
+    <div class="card" data-camp="UMBRA-ASCENDANT.html" data-key="umbra_ascendant_campaign_v1" data-total="10"><b>UMBRA · ASCENDANT</b><span>Sentinels mit Schilden, Warden, Starblades. Die Umbra erheben sich.</span><span class="prog"></span></div>
+    <div class="card" data-camp="SWARM-RISING.html" data-key="swarm_rising_campaign_v1" data-total="10"><b>SCHWARM · RISING</b><span>Billige Spawnlinge, Regeneration, Brutmassen. Die Brut wächst.</span><span class="prog"></span></div>
+  </div>
+
+  <div id="levels" class="col" style="display:none">
+    <div class="back" data-go="home">← ZURÜCK</div>
+    <div id="lvlRaces" class="col"></div>
+    <div id="lvlGrid" class="grid" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div id="game"><iframe id="gameFrame" allow="fullscreen; autoplay"></iframe></div>
+<button id="exit">☰ MENÜ</button>
+
+<script>
+const CAMPAIGNS = [
+  { file:'PRIME-SECTOR.html', key:'prime_sector_campaign_v1', total:20, name:'TERRAN' },
+  { file:'UMBRA-ASCENDANT.html', key:'umbra_ascendant_campaign_v1', total:10, name:'UMBRA' },
+  { file:'SWARM-RISING.html', key:'swarm_rising_campaign_v1', total:10, name:'SCHWARM' },
+];
+const WAVES_FILE = 'STAR-PRIME.html';
+const $ = id => document.getElementById(id);
+
+function progress(key) {
+  try { const s = JSON.parse(localStorage.getItem(key)); if (s && Array.isArray(s.completed)) return s; } catch (e) {}
+  return { completed:[], unlockedMission:0 };
+}
+function show(id) {
+  ['home','campaigns','levels'].forEach(x => $(x).style.display = x === id ? 'flex' : 'none');
+}
+function openGame(url) {
+  $('gameFrame').src = url;
+  $('game').classList.add('show');
+  $('menu').classList.add('hidden');
+  $('exit').classList.add('show');
+}
+function backToMenu() {
+  $('gameFrame').src = 'about:blank';
+  $('game').classList.remove('show');
+  $('menu').classList.remove('hidden');
+  $('exit').classList.remove('show');
+  renderCampaigns(); renderLevels();
+}
+
+function renderCampaigns() {
+  document.querySelectorAll('[data-camp]').forEach(card => {
+    const p = progress(card.dataset.key);
+    card.querySelector('.prog').textContent = p.completed.length + ' / ' + card.dataset.total + ' abgeschlossen';
+  });
+}
+
+// Mission titles come from each campaign file, so the menu never drifts from the game.
+const titleCache = {};
+async function titlesFor(file) {
+  if (titleCache[file]) return titleCache[file];
+  const html = await fetch(file, { cache:'no-cache' }).then(r => r.text());
+  const titles = [...html.matchAll(/\{ id:(\d+), title:'([^']+)'/g)].map(m => m[2]);
+  const objs = [...html.matchAll(/objectiveLabel:'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/<[^>]+>/g,''));
+  return (titleCache[file] = { titles, objs });
+}
+
+async function renderLevels() {
+  const races = $('lvlRaces');
+  races.innerHTML = '';
+  const grid = $('lvlGrid');
+  grid.innerHTML = '';
+  CAMPAIGNS.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<b>' + c.name + '</b><span>' + c.total + ' Einsätze</span>';
+    card.addEventListener('click', () => loadLevels(c));
+    races.appendChild(card);
+  });
+}
+
+async function loadLevels(c) {
+  const grid = $('lvlGrid');
+  grid.innerHTML = '<span style="color:#94a3b8;font-size:11px">lade ' + c.name + '…</span>';
+  const p = progress(c.key);
+  const { titles, objs } = await titlesFor(c.file);
+  grid.innerHTML = '';
+  titles.forEach((t, i) => {
+    const playable = i <= p.unlockedMission;
+    const el = document.createElement('div');
+    el.className = 'lvl' + (playable ? '' : ' locked');
+    el.innerHTML = '<b>' + c.name + ' · ' + (i+1) + '</b><span>' + (playable ? t : '🔒 ' + t) + '</span>';
+    if (playable) el.addEventListener('click', () => openGame(c.file + '?mission=' + i));
+    grid.appendChild(el);
+  });
+}
+
+document.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', () => {
+  const to = el.dataset.go;
+  show(to);
+  if (to === 'levels') renderLevels();
+  if (to === 'campaigns') renderCampaigns();
+}));
+document.querySelectorAll('[data-camp]').forEach(card => card.addEventListener('click', () => openGame(card.dataset.camp)));
+$('waves').addEventListener('click', () => openGame(WAVES_FILE));
+$('exit').addEventListener('click', backToMenu);
+
+renderCampaigns();
+show('home');
+</script>
+</body>
+</html>
