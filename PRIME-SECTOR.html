@@ -329,7 +329,7 @@ body::after {
 <div id="hub-screen">
   <div id="hub-inner">
     <div id="hub-title">PRIME SECTOR</div>
-    <div id="hub-subtitle">KAMPAGNE · 10 MISSIONEN</div>
+    <div id="hub-subtitle">KAMPAGNE · 20 MISSIONEN</div>
     <div id="hub-lore">Im Grenzsektor <b>Prime-7</b> wurde ein uralter <b>Quanten-Kern</b> entdeckt. Zwei Mächte wollen ihn zuerst: die militaristische <b>Scarlet Dominion</b> (Rot) und die technokratische <b>Cobalt Concord</b> (Blau). Du führst die kleine <b>Prime Expeditionary Force</b> — mitten zwischen die Fronten geraten, mit nur einem unsicheren Verbündeten: dem <b>Umbra-Rest</b> (Schwarz), Nachfahren jener, die den Kern einst bauten.</div>
     <div class="hub-grid" id="hub-grid"></div>
     <div id="hub-research">
@@ -399,6 +399,9 @@ body::after {
             <button onclick="spawnPlayerTank()">🚀 Tank<span class="cost-badge">150 💎</span></button>
             <button onclick="spawnPlayerWraith()" style="grid-column:1/-1;border-color:#4c1d95;color:#c4b5fd;">✈️ Jäger<span class="cost-badge">100 💎 · Lufteinheit</span></button>
             <button onclick="spawnPlayerSphere()" style="grid-column:1/-1;border-color:#22ff66;color:#22ff66;background:rgba(0,80,40,0.4);font-weight:700;letter-spacing:1px;">🌐 QUANTEN-SPHÄRE<span class="cost-badge" style="background:#22ff66;color:#000;font-weight:900;">2000 💎 · MEGA</span></button>
+            <button onclick="spawnPlayerMedic()" style="border-color:#34d399;color:#6ee7b7;">⛑ Medic<span class="cost-badge">75 💎 · heilt</span></button>
+            <button onclick="spawnPlayerVulture()" style="border-color:#f59e0b;color:#fcd34d;">🏍 Vulture<span class="cost-badge">90 💎 · schnell</span></button>
+            <button onclick="spawnPlayerSiege()" style="grid-column:1/-1;border-color:#ef4444;color:#fca5a5;">💣 Belagerer<span class="cost-badge">220 💎 · Langstrecke</span></button>
         </div>
     </div>
 </div>
@@ -509,9 +512,18 @@ const RESEARCH = [
     { id:'air_engines1',   name:'Fusionstriebwerke',    desc:'+20% Jäger-Tempo',        cost:2, reqMission:6, stat:'WRAITH_SPEED', mult:0.20 },
     { id:'air_armor1',     name:'Legierungsrumpf',      desc:'+15% Jäger-HP',           cost:2, reqMission:7, stat:'WRAITH_HP',    mult:0.15 },
     { id:'sphere_res1',    name:'Resonanz-Verstärker',  desc:'+10% Sphären-Dmg/HP',     cost:3, reqMission:9, stat:'SPHERE_BOTH',  mult:0.10 },
+    { id:'medic_heal1',   name:'Heilwellen I',          desc:'+50% Medic-Heilung',               cost:2, reqMission:10, stat:'MEDIC_HEAL',   mult:0.50 },
+    { id:'adv_armor2',     name:'Verstärkte Legierung II', desc:'+20% Marine-HP',                 cost:3, reqMission:11, stat:'MARINE_HP',    mult:0.20, req:'infantry_hp1' },
+    { id:'vulture_speed1', name:'Schubdüsen',            desc:'+20% Vulture-Tempo',               cost:2, reqMission:12, stat:'VULTURE_SPEED',mult:0.20 },
+    { id:'hero_hp1',       name:'Heldenpanzer',          desc:'+25% Helden-HP',                   cost:3, reqMission:12, stat:'HERO_HP',      mult:0.25 },
+    { id:'adv_dmg2',       name:'Hochdruck-Munition',    desc:'+20% Tank-Schaden',                cost:3, reqMission:13, stat:'TANK_DMG',     mult:0.20, req:'vehicle_dmg1' },
+    { id:'siege_range1',   name:'Langstrecken-Optik',    desc:'+25% Belagerer-Reichweite',        cost:2, reqMission:14, stat:'SIEGE_RANGE',  mult:0.25 },
+    { id:'hero_cd1',       name:'Kommando-Netz',         desc:'-20% Helden-Abklingzeit',          cost:3, reqMission:15, stat:'HERO_CD',      mult:0.20 },
+    { id:'siege_dmg1',     name:'Belagerungsgranate',    desc:'+25% Belagerer-Schaden',           cost:4, reqMission:16, stat:'SIEGE_DMG',    mult:0.25, req:'siege_range1' },
+    { id:'sphere_res2',    name:'Kern-Resonanz II',      desc:'+15% Sphären-Dmg/HP',              cost:4, reqMission:18, stat:'SPHERE_BOTH',  mult:0.15, req:'sphere_res1' },
 ];
 function researchOwned(id)     { return !!campaign.research[id]; }
-function researchUnlocked(r)   { return campaign.unlockedMission >= r.reqMission; }
+function researchUnlocked(r)   { return campaign.unlockedMission >= r.reqMission && (!r.req || researchOwned(r.req)); }
 function researchMult(stat) {
     let m = 1;
     RESEARCH.forEach(r => { if (r.stat===stat && researchOwned(r.id)) m += r.mult; });
@@ -525,6 +537,11 @@ function researchMult(stat) {
 // code — same data-driven approach as the maze levels elsewhere in
 // this project, applied to an RTS instead of an FPS.
 // ════════════════════════════════════════════════════════
+const ADV_B = ['barracks','depot','turret','bunker','refinery','factory'];
+const U_BASE = ['marine','tank','wraith','sphere'];
+const U_MED = [...U_BASE,'medic'];
+const U_VUL = [...U_MED,'vulture'];
+const U_SIEGE = [...U_VUL,'siege'];
 const MISSIONS = [
   { id:0, title:'Planetfall', brief:
     'Die PEF-Vorhut setzt im Sektor Prime-7 auf. Noch ist der Quanten-Kern nur ein Gerücht — aber die Scanner melden bereits fremde Signaturen.\n\nErrichte deine Basis und sichere eine stabile Mineralienversorgung, bevor hier irgendwer anderes ankommt.',
@@ -594,7 +611,67 @@ const MISSIONS = [
     factions:{red:true,blue:true,black:true}, startMinerals:900, enemyMinerals:3600, jointWaves:true, jointWavesFaction:'both',
     unlockedBuildings:['barracks','depot','turret','bunker','refinery','factory'], unlockedUnits:['marine','tank','wraith','sphere'],
     objective:{type:'destroyHQs'}, objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere',
-    unlockText:'Finale.' },
+    unlockText:'Erste Kampagne abgeschlossen. Advanced-Einsätze freigeschaltet.' },
+
+  { id:10, title:'Ausgebrannter Grat', brief:
+    'Die Grenze zwischen Dominion und Concord ist verbrannt. Hier verläuft die einzige Passage zum Kern, und beide Mächte haben ihre schwersten Einheiten an die Engstelle geschickt.\n\nHalte die Passage oder brich durch.',
+    factions:{red:true,blue:true,black:false}, startMinerals:900, enemyMinerals:2400, jointWaves:false, map:'chokepoint',
+    unlockedBuildings:ADV_B, unlockedUnits:U_MED, objective:{type:'wipeEnemies'},
+    objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>- und <span style="color:#93c5fd">Blau</span>-Kräfte', unlockText:'Freigeschaltet: Medic (heilt Einheiten in der Nähe)' },
+
+  { id:11, title:'Eiswall', brief:
+    'Ein Sturm aus Kristallstaub legt sich über die Seen. Dominion und Concord greifen in koordinierten Wellen an, und jede Welle drückt tiefer in deine Linien.\n\nHalte 300 Sekunden durch.',
+    factions:{red:true,blue:true,black:false}, startMinerals:900, enemyMinerals:2600, jointWaves:true, jointWavesFaction:'both', map:'lakes',
+    unlockedBuildings:ADV_B, unlockedUnits:U_MED, objective:{type:'surviveTime', seconds:300},
+    objectiveLabel:'Überlebe <b>300 Sekunden</b> koordinierter Wellen', unlockText:'Keine neuen Freischaltungen. Halte die Linie.' },
+
+  { id:12, title:'Der Gesandte', brief:
+    'Ein Gesandter der Schatten-Zelle muss den Treffpunkt im Zentrum erreichen, mit einer Nachricht, die den Krieg beenden könnte. Die Passage ist voller Patrouillen.\n\nBegleite ihn. Er kann nicht kämpfen.',
+    factions:{red:true,blue:false,black:true}, startMinerals:1000, enemyMinerals:2200, jointWaves:false, map:'chokepoint',
+    unlockedBuildings:ADV_B, unlockedUnits:U_VUL, objective:{type:'escort'},
+    objectiveLabel:'Eskortiere den <b>Gesandten</b> zum Treffpunkt im Zentrum', unlockText:'Freigeschaltet: Vulture (schneller Raider)' },
+
+  { id:13, title:'Kern-Halt', brief:
+    'Der Kern-Punkt im Zentrum wird zum Schlachtfeld aller drei Fraktionen. Wer ihn hält, bestimmt den Ausgang. Der See im Süden bremst jeden, der hindurch muss.\n\nHalte den Punkt 30 Sekunden ohne Gegner im Kreis.',
+    factions:{red:true,blue:true,black:true}, startMinerals:1000, enemyMinerals:2800, jointWaves:true, jointWavesFaction:'both', map:'lakes',
+    unlockedBuildings:ADV_B, unlockedUnits:U_VUL, objective:{type:'capture'},
+    objectiveLabel:'Halte den <b>Kern-Punkt</b> im Zentrum, ohne Gegner im Kreis', unlockText:'Keine neuen Freischaltungen. Halte den Punkt.' },
+
+  { id:14, title:'Stahlschmiede', brief:
+    'Der Kern braucht Stahl, und Stahl braucht Fabriken. Errichte vier Fabriken in 300 Sekunden, während Rot und Blau alles angreifen, was nach Industrie aussieht.\n\nBaue schnell. Verteidige schneller.',
+    factions:{red:true,blue:true,black:false}, startMinerals:1100, enemyMinerals:3000, jointWaves:false,
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'timedBuild', building:'factory', count:4, seconds:300},
+    objectiveLabel:'Errichte <b>4 Fabriken</b> in <b>300 Sekunden</b>', unlockText:'Freigeschaltet: Belagerer (Langstrecke, Flächenschaden)' },
+
+  { id:15, title:'Verlorene Brücke', brief:
+    'Eine alte Brücke über den Kern-Graben ist das letzte Stück Boden, um das Dominion und Concord noch streiten. Sie kämpfen, bis einer am Boden liegt. Dann ist der Gewinner an der Reihe.\n\nLass sie sich schwächen, dann schlag zu.',
+    factions:{red:true,blue:true,black:true}, startMinerals:1100, enemyMinerals:3000, jointWaves:false, rivalClash:true, map:'chokepoint',
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
+    objectiveLabel:'Vernichte, was von <span style="color:#fca5a5">Rot</span> und <span style="color:#93c5fd">Blau</span> übrig bleibt', unlockText:'Keine neuen Freischaltungen. Nutze das Chaos.' },
+
+  { id:16, title:'Zangenangriff', brief:
+    'Dominion und Concord greifen von zwei Seiten zugleich an. Ihre Hauptquartiere sind das Einzige, was zählt. Jede andere Einheit ist Ablenkung.\n\nZerstöre beide Hauptquartiere.',
+    factions:{red:true,blue:true,black:false}, startMinerals:1100, enemyMinerals:3200, jointWaves:false, map:'lakes',
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'destroyHQs'},
+    objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere', unlockText:'Keine neuen Freischaltungen. Schlag den Kopf ab.' },
+
+  { id:17, title:'Hungerkrieg', brief:
+    'Die Kern-Energie verschlingt Ressourcen schneller, als die Zelle sie fördern kann. Sammle 1500 Mineralien, während Angriffe aus zwei Richtungen die Förderung stören.\n\nFördere mehr, als sie zerstören können.',
+    factions:{red:true,blue:true,black:false}, startMinerals:300, enemyMinerals:2600, jointWaves:true, jointWavesFaction:'red', map:'lakes',
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'deliverMinerals', quota:1500},
+    objectiveLabel:'Liefere <b>1500💎</b> Mineralien ab', unlockText:'Keine neuen Freischaltungen. Fördern unter Feuer.' },
+
+  { id:18, title:'Letztes Bollwerk', brief:
+    'Alle drei Fraktionen sind zurück. Das Bollwerk im Zentrum muss 420 Sekunden lang halten, bis der Kern vollständig erwacht ist.\n\nKein Angriff endet ohne den nächsten.',
+    factions:{red:true,blue:true,black:true}, startMinerals:1200, enemyMinerals:4000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'surviveTime', seconds:420},
+    objectiveLabel:'Überlebe <b>420 Sekunden</b> im Bollwerk', unlockText:'Keine neuen Freischaltungen. Halte das Bollwerk.' },
+
+  { id:19, title:'Das Herz des Kerns', brief:
+    'Letzte Schlacht der Advanced-Kampagne. Alle Fraktionen, alle Einheiten, alles, was der Kern hergibt. Der Kern selbst ist die Belohnung für denjenigen, der übrig bleibt.\n\nVernichte alles, was sich gegen dich stellt.',
+    factions:{red:true,blue:true,black:true}, startMinerals:1500, enemyMinerals:5000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
+    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
+    objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>- und <span style="color:#93c5fd">Blau</span>-Kräfte', unlockText:'Finale der Advanced-Kampagne.' },
 ];
 // ════════════════════════════════════════════════════════
 // PHASE 2 — objective types (capture / escort / timedBuild), hero ability,
@@ -691,7 +768,7 @@ function setupPhase2() {
     if (m.hero) {
         const h = spawnUnit('tank', false);
         h.hero = true;
-        h.maxHp = Math.round(h.maxHp*1.7); h.hp = h.maxHp;
+        h.maxHp = Math.round(h.maxHp*1.7*researchMult('HERO_HP')); h.hp = h.maxHp;
         h.abilityCD = 0;
         h.tag.innerText = '★ ' + HERO_NAME;
     }
@@ -703,7 +780,7 @@ function useHeroAbility() {
     const h = heroUnit();
     if (!h) return;
     if ((h.abilityCD||0) > 0) { showToast(`⏳ ${HERO_ABILITY_NAME} lädt: ${Math.ceil(h.abilityCD)}s`); return; }
-    h.abilityCD = HERO_COOLDOWN;
+    h.abilityCD = HERO_COOLDOWN / researchMult('HERO_CD');
     const p = h.group.position, R = 15;
     const near = u => u.hp > 0 && Math.hypot(u.group.position.x-p.x, u.group.position.z-p.z) <= R;
     if (HERO_KIND === 'stim') {
@@ -879,7 +956,6 @@ function initAudio() {
     bgmGain = audioCtx.createGain();
     bgmGain.gain.value = 0.14;
     bgmGain.connect(masterGain);
-    scheduleBGM();
 }
 
 function toggleSound() {
@@ -1081,7 +1157,7 @@ function triggerMissionEnd(victory) {
     const firstClear = victory && !campaign.completed.includes(m.id);
     if (firstClear) {
         campaign.completed.push(m.id);
-        campaign.researchPoints = (campaign.researchPoints||0) + 1;
+        campaign.researchPoints = (campaign.researchPoints||0) + (m.id >= 10 ? 2 : 1);
         campaign.unlockedMission = Math.max(campaign.unlockedMission, m.id+1);
         saveCampaign();
     }
@@ -1098,7 +1174,7 @@ function triggerMissionEnd(victory) {
         (firstClear ? `<br><span style="color:#fbbf24">+1 Forschungspunkt verdient</span>` : '');
     document.getElementById('end-hs').innerHTML = victory && m.id < MISSIONS.length-1
         ? `<div class="hs-head">NÄCHSTE MISSION</div><span>${MISSIONS[m.id+1].title}</span>`
-        : (victory ? `<div class="hs-head">KAMPAGNE ABGESCHLOSSEN</div><span>Alle 10 Missionen gemeistert.</span>` : '');
+        : (victory ? `<div class="hs-head">KAMPAGNE ABGESCHLOSSEN</div><span>Alle Missionen gemeistert.</span>` : '');
 
     const nextBtn = document.getElementById('end-next');
     nextBtn.style.display = (victory && m.id < MISSIONS.length-1) ? 'inline-block' : 'none';
@@ -1337,7 +1413,7 @@ function init() {
     setupPhase2();
     document.getElementById('sound-btn').style.display = 'flex';
     document.getElementById('objective-strip').style.display = 'block';
-    document.getElementById('hud-mission-label').textContent = `MISSION ${currentMissionIndex+1}/10: ${currentMission.title}`;
+    document.getElementById('hud-mission-label').textContent = `MISSION ${currentMissionIndex+1}/${MISSIONS.length}: ${currentMission.title}`;
     refreshUnlockUI();
     updateObjectiveStrip();
     updateHUD();
@@ -1364,6 +1440,9 @@ function refreshUnlockUI() {
         if (fn.includes('spawnPlayerTank'))   unitKey='tank';
         else if (fn.includes('spawnPlayerWraith')) unitKey='wraith';
         else if (fn.includes('spawnPlayerSphere')) unitKey='sphere';
+        else if (fn.includes('spawnPlayerMedic')) unitKey='medic';
+        else if (fn.includes('spawnPlayerVulture')) unitKey='vulture';
+        else if (fn.includes('spawnPlayerSiege')) unitKey='siege';
         if (unitKey) btn.classList.toggle('locked-btn', !ul.includes(unitKey));
     });
 }
@@ -2591,6 +2670,7 @@ function raceSplash(u) { return RACE === 'umbra' && u.type === 'tank' && !u.isEn
 function applyRaceFlags(u, p) {
     if (!p) return;
     if (raceSplash(u)) p.splash = true;
+    if (u.type === 'siege' && !u.isEnemy) p.splash = true;
     if (RACE === 'umbra' && u.type === 'marine' && !u.isEnemy) p.pierce = true;
     if (RACE === 'swarm' && u.type === 'tank' && !u.isEnemy) p.acid = true;
 }
@@ -2686,6 +2766,7 @@ const SHIELD_REGEN_RATE  = 0.12; // fraction of shieldMax per second once rechar
 // continuous HP regen). Plain Terran units have neither field, so this
 // is a no-op for Campaign 1 and only matters for races that opt in.
 function updateRegenPools(dt) {
+    medicHeal(dt);
     const all = fillUnitScratch(true);
     for (const u of all) {
         if (u.hp<=0) continue;
@@ -3908,7 +3989,7 @@ function renderHub() {
         if (m.factions.blue)  flags.push('<span class="flag-pill blue">BLAU</span>');
         if (m.factions.black) flags.push('<span class="flag-pill black">UMBRA</span>');
         const plainObjective = m.objectiveLabel.replace(/<[^>]+>/g,'');
-        card.innerHTML = `<div class="mission-num">MISSION ${i+1}/10</div>
+        card.innerHTML = `<div class="mission-num">MISSION ${i+1}/${MISSIONS.length}</div>
             <div class="mission-title">${unlocked ? m.title : '🔒 ???'}</div>
             <div class="mission-desc">${unlocked ? plainObjective : 'Schließe die vorherige Mission ab, um diese freizuschalten.'}</div>
             <div class="mission-flags">${unlocked ? flags.join('') : ''}</div>`;
@@ -3920,7 +4001,7 @@ function renderHub() {
 
 function renderResearchList() {
     const list = document.getElementById('research-list');
-    list.innerHTML = `<div style="font-size:11px;color:#fbbf24;margin-bottom:10px;">Forschungspunkte: <b>${campaign.researchPoints||0}</b> &nbsp;<span style="color:#5a7a5a;font-size:9px;">(+1 pro erstmals abgeschlossener Mission)</span></div>`;
+    list.innerHTML = `<div style="font-size:11px;color:#fbbf24;margin-bottom:10px;">Forschungspunkte: <b>${campaign.researchPoints||0}</b> &nbsp;<span style="color:#5a7a5a;font-size:9px;">(+1 pro Mission, Advanced +2)</span></div>`;
     RESEARCH.forEach(r => {
         const owned = researchOwned(r.id);
         const unlocked = researchUnlocked(r);
@@ -3951,7 +4032,7 @@ let pendingMissionIndex = null;
 function openBriefing(i) {
     pendingMissionIndex = i;
     const m = MISSIONS[i];
-    document.getElementById('briefing-num').textContent = `MISSION ${i+1}/10`;
+    document.getElementById('briefing-num').textContent = `MISSION ${i+1}/${MISSIONS.length}`;
     document.getElementById('briefing-title').textContent = m.title.toUpperCase();
     document.getElementById('briefing-text').textContent = m.brief;
     document.getElementById('briefing-unlocks').innerHTML = `<b>Ziel:</b> ${m.objectiveLabel}<br>${m.unlockText}`;
@@ -3976,6 +4057,78 @@ function startGameForMission(i) {
     document.getElementById('hub-screen').classList.add('hidden');
     init();
 }
+
+// ════ ADVANCED UNITS ════
+// Medic, Vulture and Siege reuse existing models and the shared combat
+// pipeline; their role gets set here after spawn so no unit-type branches
+// elsewhere need to change.
+function applyRole(u, role) {
+    u.role = role; u.type = role;
+    if (role === 'medic') {
+        u.maxHp = u.hp = Math.round(70*researchMult('MARINE_HP'));
+        u.dmg = 4; u.range = 9; u.speed = 5.2; u.fireRate = 0.9;
+        u.tag.innerText = '⛑ Medic';
+    } else if (role === 'vulture') {
+        u.maxHp = u.hp = Math.round(60*researchMult('MARINE_HP'));
+        u.dmg = 15; u.range = 12; u.speed = 9*researchMult('VULTURE_SPEED'); u.fireRate = 0.9;
+        u.group.scale.setScalar(0.85);
+        u.tag.innerText = '🏍 Vulture';
+    } else if (role === 'siege') {
+        u.maxHp = u.hp = Math.round(260*researchMult('TANK_HP'));
+        u.dmg = Math.round(55*researchMult('SIEGE_DMG')); u.range = Math.round(40*researchMult('SIEGE_RANGE'));
+        u.speed = 1.6; u.fireRate = 3.5;
+        u.group.scale.setScalar(1.2);
+        u.tag.innerText = '💣 Belagerer';
+    }
+}
+function buyRole(role, cost) {
+    if (!currentMission.unlockedUnits.includes(role)) { showToast('🔒 Noch nicht freigeschaltet!'); return; }
+    if (res.minerals < cost) { showToast('⚠️ Zu wenig Mineralien!'); return; }
+    if (res.supply >= res.maxSupply) { showToast('⚠️ Supply voll! Depot bauen!'); return; }
+    res.minerals -= cost;
+    const u = spawnUnit(role === 'siege' ? 'tank' : 'marine', false);
+    applyRole(u, role);
+    updateHUD();
+    showToast(role === 'medic' ? '⛑ Medic einsatzbereit' : role === 'vulture' ? '🏍 Vulture gestartet' : '💣 Belagerer aufgestellt');
+}
+window.spawnPlayerMedic = () => buyRole('medic', 75);
+window.spawnPlayerVulture = () => buyRole('vulture', 90);
+window.spawnPlayerSiege = () => buyRole('siege', 220);
+
+function medicHeal(dt) {
+    const meds = playerUnits.filter(u => u.role === 'medic' && u.hp > 0);
+    if (!meds.length) return;
+    const k = researchMult('MEDIC_HEAL');
+    meds.forEach(m => {
+        const p = m.group.position;
+        playerUnits.forEach(u => {
+            if (u !== m && u.hp > 0 && u.hp < u.maxHp && Math.hypot(u.group.position.x-p.x, u.group.position.z-p.z) < 10) {
+                u.hp = Math.min(u.maxHp, u.hp + 8*k*dt);
+            }
+        });
+    });
+}
+
+// ════ SOUNDTRACK (MUKKE playlist, same tracks as the other PRIME games) ════
+(function soundtrack() {
+    const root = 'https://gaming-ai.replit.app/0-MUKKE-GAMELPLAY/';
+    const names = ['Climbing Clear.mp3','Deep Sonar.mp3','Haupt-Exploration.mp3','Marimba Grid.mp3','Neon Velocity.mp3','Sandal Tide.mp3','Whiteout Discovery.mp3'];
+    const audio = new Audio();
+    audio.volume = 0.35; audio.preload = 'auto';
+    let idx = Math.floor(Math.random()*names.length), on = true, started = false;
+    const url = n => root + encodeURIComponent(n);
+    audio.addEventListener('ended', () => { idx = (idx+1) % names.length; audio.src = url(names[idx]); audio.play().catch(()=>{}); });
+    function play() { if (!on) return; if (!audio.src) audio.src = url(names[idx]); audio.play().catch(()=>{}); }
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.id = 'soundtrack-toggle';
+    btn.style.cssText = 'position:fixed;top:10px;right:62px;z-index:201;height:36px;padding:0 12px;border-radius:8px;border:1px solid #4a3a6a;background:rgba(20,10,40,.85);color:#c4b5fd;font:700 10px "Courier New",monospace;letter-spacing:1px;cursor:pointer;';
+    const label = () => { btn.textContent = on ? '♫ MUSIK AN' : '♫ MUSIK AUS'; };
+    btn.addEventListener('click', e => { e.stopPropagation(); on = !on; if (on) play(); else audio.pause(); label(); });
+    label();
+    document.body.appendChild(btn);
+    const kick = () => { if (started) return; started = true; play(); };
+    ['pointerdown','keydown','touchstart'].forEach(t => window.addEventListener(t, kick, {once:true, passive:true}));
+})();
 
 (function routeOnLoad() {
     const params = new URLSearchParams(location.search);
