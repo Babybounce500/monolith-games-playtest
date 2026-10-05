@@ -316,6 +316,31 @@ body::after {
         #end-restart.secondary2 { background:#0d1a20; border-color:#38bdf8; color:#38bdf8; margin-left:10px; }
         #end-restart.secondary2:hover { background:#38bdf8; color:#000; }
     </style>
+<style>
+/* ══ MOBILE LAYOUT ══ (last stylesheet on purpose: media rules must come after base rules) */
+#mobile-actions { display:none; }
+@media (max-width: 900px), (pointer: coarse) {
+  #hint-box, #status-bar { display:none !important; }
+  #mode-switcher { top:102px !important; right:6px !important; gap:4px !important; }
+  #mode-switcher .mode-btn { padding:7px 9px !important; font-size:9px !important; min-height:34px; }
+  #prod-panel, #build-ui { top:142px !important; left:6px !important; width:150px !important; max-height:50vh; overflow-y:auto; gap:4px !important; }
+  #prod-panel .panel, #build-ui .panel { padding:7px !important; }
+  .plabel { font-size:7px !important; margin-bottom:5px !important; }
+  #prod-panel button, #build-ui button, .panel button { font-size:9px !important; padding:9px 4px !important; min-height:40px; }
+  .cost-badge { font-size:7px !important; }
+  #objective-strip { top:54px !important; font-size:9px !important; padding:5px 10px !important; max-width:94vw !important; }
+  #toast { top:auto !important; bottom:118px !important; white-space:normal !important; max-width:84vw !important; font-size:10px !important; }
+  #minimap { left:6px !important; right:auto !important; bottom:6px !important; width:104px !important; height:104px !important; }
+  #unit-info { min-width:0 !important; width:94vw !important; bottom:122px !important; padding:8px 10px !important; }
+  #sound-btn { position:fixed !important; top:auto !important; bottom:126px !important; right:6px !important; width:40px !important; height:40px !important; z-index:300 !important; }
+  #soundtrack-toggle { position:fixed !important; top:auto !important; right:6px !important; bottom:172px !important; height:34px !important; padding:0 8px !important; font-size:9px !important; z-index:300 !important; }
+  #mobile-actions { display:flex !important; position:fixed; right:6px; bottom:10px; z-index:300; gap:6px; flex-wrap:wrap; justify-content:flex-end; width:150px; }
+  #mobile-actions button { width:48px; height:48px; border-radius:10px; border:1px solid #6d28d9; background:rgba(20,10,40,.9); color:#c4b5fd; font:700 10px 'Courier New',monospace; padding:0; }
+  #mobile-actions button:active { background:#4c1d95; }
+  #msg-box { top:50px !important; font-size:12px !important; }
+  #interact-prompt { bottom:200px !important; font-size:10px !important; }
+}
+</style>
 </head>
 <body>
 
@@ -449,6 +474,7 @@ body::after {
 <div id="select-box"></div>
 
 <!-- MINIMAP -->
+<div id="mobile-actions"><button data-k="KeyQ">★Q</button><button data-k="KeyU">🔓U</button><button data-k="KeyS">⏹S</button><button data-k="KeyA">✚A</button></div>
 <div id="minimap"><canvas id="minimap-canvas" width="168" height="168"></canvas></div>
 
 <!-- STATUS -->
@@ -632,7 +658,7 @@ const MISSIONS = [
     objectiveLabel:'Eskortiere den <b>Gesandten</b> zum Treffpunkt im Zentrum', unlockText:'Freigeschaltet: Vulture (schneller Raider)' },
 
   { id:13, title:'Kern-Halt', brief:
-    'Der Kern-Punkt im Zentrum wird zum Schlachtfeld aller drei Fraktionen. Wer ihn hält, bestimmt den Ausgang. Der See im Süden bremst jeden, der hindurch muss.\n\nHalte den Punkt 30 Sekunden ohne Gegner im Kreis.',
+    'Der Kern-Punkt im Zentrum wird zum Schlachtfeld aller drei Fraktionen. Wer ihn hält, bestimmt den Ausgang. Die Seen im Gelände bremsen jeden, der hindurch muss.\n\nHalte den Punkt 30 Sekunden ohne Gegner im Kreis.',
     factions:{red:true,blue:true,black:true}, startMinerals:1000, enemyMinerals:2800, jointWaves:true, jointWavesFaction:'both', map:'lakes',
     unlockedBuildings:ADV_B, unlockedUnits:U_VUL, objective:{type:'capture'},
     objectiveLabel:'Halte den <b>Kern-Punkt</b> im Zentrum, ohne Gegner im Kreis', unlockText:'Keine neuen Freischaltungen. Halte den Punkt.' },
@@ -4200,6 +4226,11 @@ function medicHeal(dt) {
     const kick = () => { if (started) return; started = true; play(); };
     ['pointerdown','keydown','touchstart'].forEach(t => window.addEventListener(t, kick, {once:true, passive:true}));
 })();
+
+// MOBILE LAYOUT: touch buttons replay the matching key events
+document.querySelectorAll('#mobile-actions button').forEach(b => b.addEventListener('click', () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: b.dataset.k }));
+}));
 
 (function routeOnLoad() {
     const params = new URLSearchParams(location.search);
