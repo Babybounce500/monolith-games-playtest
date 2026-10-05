@@ -1026,13 +1026,12 @@ let winCheckTimer = 0;
 let objStripTimer = 0;
 
 function hostileFactionsWiped() {
+    // Victory once every hostile building is gone. Hostile AI keeps spawning
+    // workers/units from its old HQ spot, so unit and worker counts never
+    // reach zero on their own - buildings are the mission-defining target.
     const m = currentMission;
-    const unitsAlive = enemyUnits.filter(u=>u.hp>0).length;
-    const bldsAlive   = enemyBuildings.filter(b=>b.hp>0).length;
-    const workersAlive=
-        (m.factions.red  ? redWorkers.filter(w=>w.hp>0).length  : 0) +
-        (m.factions.blue ? blueWorkers.filter(w=>w.hp>0).length : 0);
-    return unitsAlive===0 && bldsAlive===0 && workersAlive===0;
+    if (!m.factions.red && !m.factions.blue) return false;
+    return enemyBuildings.every(b => b.hp <= 0);
 }
 
 function checkMissionObjective() {
@@ -2688,6 +2687,29 @@ function projectileHitTargetIn(p, targets) {
     return false;
 }
 
+const RACE = 'umbra';
+const RACE_SPLASH_R = 3.2;
+// Race combat traits: Swarm marines gain damage from packed allies; Umbra
+// Wardens' shots splash nearby enemies. Terran has no traits (RACE='terran').
+function raceDmgMult(u) {
+    if (RACE === 'swarm' && u.type === 'marine' && !u.isEnemy) {
+        const p = u.group.position;
+        let n = 0;
+        playerUnits.forEach(o => { if (o!==u && o.type==='marine' && o.hp>0 && Math.hypot(o.group.position.x-p.x, o.group.position.z-p.z)<8) n++; });
+        return 1 + Math.min(0.6, 0.08*n);
+    }
+    return 1;
+}
+function raceSplash(u) { return RACE === 'umbra' && u.type === 'tank' && !u.isEnemy; }
+function splashAt(p) {
+    const c = p.mesh.position;
+    [...enemyUnits, ...enemyBuildings].forEach(t => {
+        if (t.hp<=0) return;
+        const q = t.group.position;
+        if (Math.hypot(q.x-c.x, q.z-c.z) <= RACE_SPLASH_R) applyDamage(t, p.dmg*0.5);
+    });
+}
+
 function updateProjectiles(dt) {
     for (let i=projectiles.length-1;i>=0;i--) {
         const p=projectiles[i];
@@ -2702,6 +2724,7 @@ function updateProjectiles(dt) {
             hit=projectileHitTargetIn(p,enemyUnits)
                 ||projectileHitTargetIn(p,enemyBuildings);
         }
+        if (hit && p.splash) splashAt(p);
         if(p.life<=0||hit){ scene.remove(p.mesh); projectiles.splice(i,1); }
     }
 }
@@ -2863,7 +2886,8 @@ function doFire(unit,target) {
         return;
     }
     sfxShoot();
-    fireProjectile(unit.group.position, target.group.position, unit.dmg, unit.isEnemy);
+    fireProjectile(unit.group.position, target.group.position, unit.dmg*raceDmgMult(unit), unit.isEnemy);
+    if (raceSplash(unit)) projectiles[projectiles.length-1].splash = true;
     const dx=target.group.position.x-unit.group.position.x, dz=target.group.position.z-unit.group.position.z;
     const aimAngle = Math.atan2(dx,dz)+Math.PI;
     if (unit.type==='marine') {
