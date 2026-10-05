@@ -672,66 +672,6 @@ const MISSIONS = [
     factions:{red:true,blue:true,black:true}, startMinerals:1500, enemyMinerals:5000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
     unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
     objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>- und <span style="color:#93c5fd">Blau</span>-Kräfte', unlockText:'Finale der Advanced-Kampagne.' },
-
-  { id:20, title:'Die Große Ebene', bigMap:true, aiSpeed:2, maxEnemy:70, waveMult:1.5, brief:
-    'Der Kern-Ring ist größer, als Kartographen gedacht haben. Dominion und Concord schicken ihre Kolonnen über die weite Ebene, und die Schatten-Zelle hält nur noch den Rand.\n\nVernichte alles, was zwischen dir und dem Kern steht.',
-    factions:{red:true,blue:true,black:false}, startMinerals:1200, enemyMinerals:4000, jointWaves:false,
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
-    objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>- und <span style="color:#93c5fd">Blau</span>-Kräfte', unlockText:'Großkarte: mehr Ressourcen am Rand, mehr Gegner.' },
-
-  { id:21, title:'Doppelte Zange', bigMap:true, aiSpeed:2, maxEnemy:80, waveMult:1.5, brief:
-    'Beide Mächte haben ihre Hauptquartiere neu befestigt. Zwei Zangen sind unterwegs, und nur die Zerstörung der Hauptquartiere beendet den Angriff.\n\nSchneide den Kopf ab. Der Rest folgt.',
-    factions:{red:true,blue:true,black:true}, startMinerals:1300, enemyMinerals:5000, jointWaves:true, jointWavesFaction:'both',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'destroyHQs'},
-    objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere', unlockText:'Großkarte mit drei Fraktionen.' },
-
-  { id:22, title:'Sternmarsch', bigMap:true, aiSpeed:2, maxEnemy:90, waveMult:2, brief:
-    'Vier Stunden Angriff ohne Pause. Der Kern pulsiert im Zentrum der Karte, und jede Minute schickt eine neue Welle über den Ring.\n\nHalte 480 Sekunden durch.',
-    factions:{red:true,blue:true,black:true}, startMinerals:1400, enemyMinerals:5500, jointWaves:true, jointWavesFaction:'both', map:'lakes',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'surviveTime', seconds:480},
-    objectiveLabel:'Überlebe <b>480 Sekunden</b> auf der Großkarte', unlockText:'Doppelte Wellenstärke.' },
-
-  { id:23, title:'Schattenschlacht', bigMap:true, aiSpeed:2, maxEnemy:90, waveMult:1.5, brief:
-    'Rot und Blau haben die Großkarte geteilt, und jede Seite glaubt, der andere sei schwächer. Lass sie sich zerreiben, bevor du zuschlägst.\n\nVernichte, was übrig bleibt.',
-    factions:{red:true,blue:true,black:true}, startMinerals:1400, enemyMinerals:6000, jointWaves:false, rivalClash:true, map:'chokepoint',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
-    objectiveLabel:'Vernichte, was von <span style="color:#fca5a5">Rot</span> und <span style="color:#93c5fd">Blau</span> übrig bleibt', unlockText:'Rivalenkampf auf der Großkarte.' },
-
-  { id:24, title:'Ressourcenkrieg', bigMap:true, aiSpeed:2, maxEnemy:80, waveMult:1.5, brief:
-    'Der Ring ist voller Kristall, und Dominion und Concord bauen ihre Förderung dort aus, wo du sie nicht vermutest. Fördere 3000 Mineralien, bevor sie dir alles abnehmen.\n\nSchneller, weiter, härter.',
-    factions:{red:true,blue:true,black:false}, startMinerals:400, enemyMinerals:5000, jointWaves:true, jointWavesFaction:'red', map:'lakes',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'deliverMinerals', quota:3000},
-    objectiveLabel:'Liefere <b>3000💎</b> Mineralien ab', unlockText:'Großkarte: Ressourcenfelder am Rand.' },
-
-  { id:25, title:'Der Eskortweg', bigMap:true, aiSpeed:2, maxEnemy:80, waveMult:2, brief:
-    'Der Gesandte muss die Großkarte durchqueren, bis in den Schatten des Kerns. Jede Patrouille weiß, wo er ist.\n\nBegleite ihn. Stirbt er, ist alles verloren.',
-    factions:{red:true,blue:true,black:true}, startMinerals:1500, enemyMinerals:5000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'escort'},
-    objectiveLabel:'Eskortiere den <b>Gesandten</b> zum Treffpunkt im Zentrum', unlockText:'Eskorte unter Dauerbeschuss.' },
-
-  { id:26, title:'Kern-Ring', bigMap:true, aiSpeed:2, maxEnemy:90, waveMult:2, brief:
-    'Der Kern-Punkt im Zentrum ist das Ziel aller drei Fraktionen. Wer ihn 30 Sekunden hält, bestimmt den Ausgang. Der Rest der Karte ist Feuerzone.\n\nHalte den Punkt.',
-    factions:{red:true,blue:true,black:true}, startMinerals:1500, enemyMinerals:6000, jointWaves:true, jointWavesFaction:'both', map:'lakes',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'capture'},
-    objectiveLabel:'Halte den <b>Kern-Punkt</b> im Zentrum, ohne Gegner im Kreis', unlockText:'Kontrollpunkt unter Dauerfeuer.' },
-
-  { id:27, title:'Stahlsturm', bigMap:true, aiSpeed:2, maxEnemy:90, waveMult:2, brief:
-    'Die Kern-Energie zwingt zur totalen Industrialisierung. Sechs Fabriken müssen in 360 Sekunden stehen, während jede Fabrik sofort Ziel eines Angriffs wird.\n\nBaue schnell. Verteidige noch schneller.',
-    factions:{red:true,blue:true,black:false}, startMinerals:1600, enemyMinerals:6000, jointWaves:true, jointWavesFaction:'both',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'timedBuild', building:'factory', count:6, seconds:360},
-    objectiveLabel:'Errichte <b>6 Fabriken</b> in <b>360 Sekunden</b>', unlockText:'Industriekrieg auf der Großkarte.' },
-
-  { id:28, title:'Totale Mobilmachung', bigMap:true, aiSpeed:2, maxEnemy:100, waveMult:2.5, brief:
-    'Dominion und Concord haben alles aufgeboten. Jede Einheit, die sie noch haben, steht auf dieser Karte. Es gibt keine Reserve und keine zweite Chance.\n\nVernichte alles.',
-    factions:{red:true,blue:true,black:true}, startMinerals:2000, enemyMinerals:7000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'wipeEnemies'},
-    objectiveLabel:'Vernichte alle <span style="color:#fca5a5">Rot</span>-, <span style="color:#93c5fd">Blau</span>- und Schatten-Kräfte', unlockText:'Totale Mobilmachung.' },
-
-  { id:29, title:'Der Thron', bigMap:true, aiSpeed:2, maxEnemy:100, waveMult:3, brief:
-    'Hinter dem Kern liegt der Thron, der Ort, an dem alles begann. Dominion und Concord verteidigen ihre Hauptquartiere mit allem, was sie haben. Das ist das Ende.\n\nZerstöre beide Hauptquartiere. Dann ist der Kern dein.',
-    factions:{red:true,blue:true,black:true}, startMinerals:2500, enemyMinerals:8000, jointWaves:true, jointWavesFaction:'both', map:'chokepoint',
-    unlockedBuildings:ADV_B, unlockedUnits:U_SIEGE, objective:{type:'destroyHQs'},
-    objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere', unlockText:'Finale der Mega-Kampagne.' },
 ];
 // ════════════════════════════════════════════════════════
 // PHASE 2 — objective types (capture / escort / timedBuild), hero ability,
@@ -793,7 +733,7 @@ function setupPhase2() {
     const m = currentMission;
     if (m.map === 'chokepoint') {
         const wallMat = new THREE.MeshStandardMaterial({color:0x5a5f6a, roughness:0.8, metalness:0.2});
-        const edges = [-(WORLD_E-2), ...WALL_GAPS.flatMap(g => [g-5, g+5]), WORLD_E-2];
+        const edges = [-130, ...WALL_GAPS.flatMap(g => [g-5, g+5]), 130];
         for (let i=0;i<edges.length;i+=2) {
             const a=edges[i], b=edges[i+1];
             if (b-a<=0) continue;
@@ -990,8 +930,7 @@ const blueAI = {
 let allyReinforceTimer = 45;
 // Perf counters
 let frameCount = 0;
-let MAX_ENEMY_UNITS = 44;
-let WORLD_E = 132;
+const MAX_ENEMY_UNITS = 44;
 const MAX_RENDER_SCALE = Math.min(window.devicePixelRatio || 1, 1);
 const MIN_RENDER_SCALE = Math.min(MAX_RENDER_SCALE, 0.6);
 let renderScale = MAX_RENDER_SCALE;
@@ -1293,8 +1232,6 @@ const BLDG = {
 // INIT
 // ════════════════════════════════════════════════════════
 function init() {
-    WORLD_E = currentMission.bigMap ? 200 : 132;
-    MAX_ENEMY_UNITS = currentMission.maxEnemy || 44;
     scene = new THREE.Scene();
     // Dramatic night-battle sky — very dark blue-green
     scene.background = new THREE.Color(0x050e08);
@@ -1474,7 +1411,6 @@ function init() {
 
     document.getElementById('loader').style.display = 'none';
     setupPhase2();
-    if (currentMission.bigMap) addBigMapExtras();
     document.getElementById('sound-btn').style.display = 'flex';
     document.getElementById('objective-strip').style.display = 'block';
     document.getElementById('hud-mission-label').textContent = `MISSION ${currentMissionIndex+1}/${MISSIONS.length}: ${currentMission.title}`;
@@ -1516,13 +1452,13 @@ function refreshUnlockUI() {
 // ════════════════════════════════════════════════════════
 function buildWorld() {
     // Ground — bright olive green
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_E*2+36,WORLD_E*2+36),
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300),
         new THREE.MeshStandardMaterial({color:0x4a6a30, roughness:0.95}));
     ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; ground.name='ground';
     scene.add(ground);
 
     // Sand paths
-    [[WORLD_E*2,8,0],[8,WORLD_E*2,0]].forEach(([pw,pd])=>{
+    [[300,8,0],[8,300,0]].forEach(([pw,pd])=>{
         const path = new THREE.Mesh(new THREE.BoxGeometry(pw,0.1,pd),
             new THREE.MeshStandardMaterial({color:0x7a6a40, roughness:0.9}));
         path.position.y=0.05; path.receiveShadow=true; scene.add(path);
@@ -1545,7 +1481,7 @@ function buildWorld() {
 
     // Perimeter
     const wallMat = new THREE.MeshStandardMaterial({color:0x3a3028, roughness:1.0});
-    const E=WORLD_E, H=6, T=4;
+    const E=132, H=6, T=4;
     [[0,E,268,T],[0,-E,268,T],[E,0,T,268],[-E,0,T,268]].forEach(([px,pz,pw,pd])=>{
         const w = new THREE.Mesh(new THREE.BoxGeometry(pw,H,pd), wallMat);
         w.position.set(px,H/2,pz); w.castShadow=true; w.receiveShadow=true; scene.add(w);
@@ -3170,7 +3106,7 @@ function updateAIFaction(dt, ai, fRes, fWorkers) {
     // ── PRODUCTION (aggressive — ramps to 1.5s per unit) ──
     if (ai.buildTimer<=0 && ai.state!=='retreat') {
         tryBuildUnit(ai, fRes);
-        ai.buildTimer = Math.max(1.5, 4-aiGameTime/40) / (currentMission.aiSpeed||1);
+        ai.buildTimer = Math.max(1.5, 4-aiGameTime/40);
     }
 
     // ── STATE MACHINE ──
@@ -3329,12 +3265,12 @@ function updateJointWaves(dt) {
     const sideCount = sides.length;
 
     // Escalating composition — NO lone marines, only heavy units
-    const tanks   = Math.round(Math.min(2 + Math.floor(waveCount * 0.6), 6) * (m.waveMult || 1));   // 2→2→3→3→4→5→6
-    const wraiths = Math.round(Math.min(Math.floor(waveCount * 0.7), 4) * (m.waveMult || 1));        // 0→0→1→2→2→3→4
+    const tanks   = Math.min(2 + Math.floor(waveCount * 0.6), 6);   // 2→2→3→3→4→5→6
+    const wraiths = Math.min(Math.floor(waveCount * 0.7), 4);        // 0→0→1→2→2→3→4
     // Spheres only enter the field once the player has access to the Quantum
     // Sphere tech too — fielding an 800HP boss-tier unit against a roster
     // that's still Marine/Tank/Wraith-only would just be an unfair wall.
-    const spheres = m.unlockedUnits.includes('sphere') ? Math.round(Math.min(waveCount, 4) * (m.waveMult || 1)) : 0;
+    const spheres = m.unlockedUnits.includes('sphere') ? Math.min(waveCount, 4) : 0;
 
     // Find player command center — wave units rush GREEN
     const pCmd = playerBuildings.find(b=>b.type==='command'&&b.hp>0);
@@ -3775,7 +3711,7 @@ function updateHUD() {
 function drawMinimap() {
     const canvas=document.getElementById('minimap-canvas');
     const ctx=canvas.getContext('2d');
-    const W=canvas.width,H=canvas.height,SC=W/(WORLD_E*2+40),cx=W/2,cy=H/2;
+    const W=canvas.width,H=canvas.height,SC=W/280,cx=W/2,cy=H/2;
     ctx.fillStyle='#1a2a10'; ctx.fillRect(0,0,W,H);
     // Paths
     ctx.fillStyle='#2a3a18'; ctx.fillRect(cx-5*SC,0,10*SC,H); ctx.fillRect(0,cy-5*SC,W,10*SC);
@@ -4265,14 +4201,6 @@ function medicHeal(dt) {
     ['pointerdown','keydown','touchstart'].forEach(t => window.addEventListener(t, kick, {once:true, passive:true}));
 })();
 
-function addBigMapExtras() {
-    for (let k=0; k<14; k++) {
-        const a = Math.random()*Math.PI*2, r = 95 + Math.random()*(WORLD_E-110);
-        const x = Math.cos(a)*r, z = Math.sin(a)*r;
-        addMineralDeposit(x, z);
-        if (k % 3 === 0) addRockCluster(x, z);
-    }
-}
 (function routeOnLoad() {
     const params = new URLSearchParams(location.search);
     const mParam = params.get('mission');
