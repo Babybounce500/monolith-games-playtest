@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>NEURAL DARTS // PRO EDITION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #060911;
+      --panel: #0d1322;
+      --accent: #00f3ff;
+      --accent-glow: rgba(0, 243, 255, 0.4);
+      --red-peg: #ff0055;
+      --text: #ffffff;
+      --subtext: #94a3b8;
+      --success: #39ff14;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --btn-bg: #1e293b;
+      --border-color: #334155;
+      
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+
+    :root.light-mode {
+      --bg: #e2e8f0;
+      --panel: #ffffff;
+      --accent: #0077cc;
+      --accent-glow: rgba(0, 119, 204, 0.25);
+      --red-peg: #d90429;
+      --text: #0f172a;
+      --subtext: #475569;
+      --success: #16a34a;
+      --card-bg: #f1f5f9;
+      --btn-bg: #cbd5e1;
+      --border-color: #94a3b8;
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      user-select: none; 
+      -webkit-tap-highlight-color: transparent; 
+      touch-action: manipulation;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 10px;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    header {
+      width: 100%;
+      max-width: 450px;
+      margin-bottom: 8px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      background: var(--panel);
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 900;
+      color: var(--accent);
+      text-shadow: 0 0 8px var(--accent-glow);
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 4px;
+    }
+
+    #game-container {
+      background: var(--panel);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 14px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .top-controls {
+      display: flex;
+      gap: 4px;
+      justify-content: space-between;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px 2px;
+      background: var(--btn-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 800;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      background: var(--card-bg);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      max-height: 170px;
+      overflow-y: auto;
+    }
+
+    .player-card {
+      background: var(--card-bg);
+      border: 1px solid transparent;
+      padding: 8px;
+      border-radius: 6px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .player-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .player-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text);
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player-score {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--text);
+    }
+
+    .player-sets-legs {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      color: var(--accent);
+      margin: 2px 0;
+      font-weight: bold;
+    }
+
+    .player-stats {
+      font-size: 0.65rem;
+      color: var(--subtext);
+      display: flex;
+      justify-content: space-around;
+      margin-top: 2px;
+      font-weight: bold;
+    }
+
+    .checkout-guide {
+      background: rgba(57, 255, 20, 0.12);
+      border: 1px solid var(--success);
+      color: var(--success);
+      font-family: 'Orbitron', sans-serif;
+      padding: 6px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 900;
+      min-height: 28px;
+    }
+
+    .pro-input-container {
+      display: flex;
+      gap: 6px;
+      background: var(--card-bg);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      width: 100%;
+    }
+
+    .pro-input {
+      flex: 1;
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-color);
+      color: var(--text);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 6px;
+      border-radius: 6px;
+      text-align: center;
+      outline: none;
+    }
+
+    .pro-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      padding: 0 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .turn-history {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: var(--text);
+      font-weight: bold;
+      border: 1px solid var(--border-color);
+    }
+
+    .dart-list { display: flex; gap: 6px; }
+
+    .dart-badge {
+      background: var(--btn-bg);
+      color: var(--text);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .keypad-modifiers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .mod-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text);
+      font-family: 'Orbitron', sans-serif;
+      padding: 8px 0;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .mod-btn.selected {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .num-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text);
+      font-family: 'Orbitron', sans-serif;
+      padding: 10px 0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .action-btn {
+      background: linear-gradient(135deg, var(--accent), #0066ff);
+      color: #000;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 0.85rem;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .icon-btn {
+      padding: 4px 8px;
+      background: var(--btn-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .icon-btn.active-music {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 10px;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-card {
+      background: var(--panel);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 16px;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--accent);
+      font-size: 1.1rem;
+      text-align: center;
+    }
+
+    .modal-body {
+      font-size: 0.85rem;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .setting-group {
+      background: var(--card-bg);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .setting-select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border-color);
+      padding: 8px;
+      border-radius: 6px;
+      font-family: 'Share Tech Mono', monospace;
+      outline: none;
+    }
+
+    .player-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .remove-p-btn {
+      background: var(--red-peg);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      html, body { overscroll-behavior: none; }
+      body {
+        min-height: 100dvh;
+        padding: calc(6px + var(--sat)) calc(6px + var(--sar)) calc(6px + var(--sab)) calc(6px + var(--sal));
+      }
+      .mode-btn, .mod-btn { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+      .num-btn { min-height: 46px; display: flex; align-items: center; justify-content: center; }
+      .action-btn { min-height: 48px; display: flex; align-items: center; justify-content: center; }
+      .pro-input { font-size: 16px; }
+      .modal-card { max-height: 85dvh; }
+    }
+
+    @supports (-webkit-touch-callout: none) {
+      .scoreboard, .modal-card { -webkit-overflow-scrolling: touch; }
+    }
+    /* SCAN-AI */
+    .camera-btn { background: var(--btn-bg); border: 1px solid var(--accent); color: var(--accent); padding: 0 12px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+    .scan-status { font-size: 0.7rem; color: var(--subtext); min-height: 1.1em; text-align: center; margin: 2px 0 4px; font-family: 'Share Tech Mono', monospace; }
+    .scan-status.warn { color: #f59e0b; }
+    .scan-status.bad { color: var(--red-peg); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <h1>NEURAL DARTS</h1>
+      <div class="header-controls">
+        <button class="icon-btn" onclick="openStatsModal()">📊 STATS</button>
+        <button class="icon-btn" onclick="openPlayerModal()">⚙️ MATCH</button>
+        <button class="icon-btn" id="sound-btn" onclick="toggleSound()">🔊</button>
+        <button class="icon-btn" id="keynote-btn" onclick="toggleKeynoteTrack()">🎵</button>
+        <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- UNSICHTBARER AUDIO PLAYER FÜR PARTY LOOP TRACK -->
+  <audio id="party-audio" loop preload="auto">
+    <source src="https://audionautix.com/Music/FallingSky.mp3" type="audio/mpeg">
+  </audio>
+
+  <div id="game-container">
+    <div class="top-controls">
+      <button class="mode-btn active" id="m-501" onclick="selectMode('501')">501</button>
+      <button class="mode-btn" id="m-301" onclick="selectMode('301')">301</button>
+      <button class="mode-btn" id="m-cricket" onclick="selectMode('cricket')">CRICKET</button>
+      <button class="mode-btn" id="m-atc" onclick="selectMode('atc')">ATC</button>
+    </div>
+
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <div class="checkout-guide" id="checkout-guide">CHECKOUT: ---</div>
+
+    <div class="pro-input-container">
+      <input type="number" pattern="[0-9]*" inputmode="numeric" id="pro-score-input" class="pro-input" placeholder="PRO: SUMME (0-180)" min="0" max="180">
+      <button class="pro-btn" onclick="submitProScore()">ENTER</button>
+      <button class="camera-btn" onclick="document.getElementById('scan-file').click()" title="Foto der Scheibe">📷</button>
+      <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="scanDartsPhoto(this)">
+    </div>
+
+    <div class="scan-status" id="scan-status"></div>
+    <div class="turn-history">
+      <span>TURN: <strong id="turn-score" style="color:var(--accent);">0</strong></span>
+      <div class="dart-list" id="dart-list">
+        <span class="dart-badge">-</span>
+        <span class="dart-badge">-</span>
+        <span class="dart-badge">-</span>
+      </div>
+      <button class="icon-btn" style="color:var(--red-peg);" onclick="smartUndo()">↩ UNDO</button>
+    </div>
+
+    <div class="keypad-modifiers">
+      <button class="mod-btn selected" id="mod-S" onclick="setMultiplier('S')">SINGLE</button>
+      <button class="mod-btn" id="mod-D" onclick="setMultiplier('D')">DOUBLE</button>
+      <button class="mod-btn" id="mod-T" onclick="setMultiplier('T')">TRIPLE</button>
+    </div>
+
+    <div class="keypad-grid" id="keypad"></div>
+
+    <button class="action-btn" id="submit-turn-btn" onclick="confirmTurn()">NEXT PLAYER</button>
+  </div>
+
+  <!-- STATS MODAL -->
+  <div class="modal-overlay" id="stats-modal">
+    <div class="modal-card">
+      <div class="modal-title">DEEP MATCH STATS</div>
+      <div class="modal-body" id="stats-content"></div>
+      <button class="action-btn" onclick="closeModals()">SCHLIESSEN</button>
+    </div>
+  </div>
+
+  <!-- MATCH & PLAYER SETTINGS MODAL -->
+  <div class="modal-overlay" id="player-modal">
+    <div class="modal-card">
+      <div class="modal-title">MATCH SETUP</div>
+      <div class="modal-body">
+        
+        <div class="setting-group">
+          <div class="setting-label">MATCH FORMAT</div>
+          <div style="display:flex; gap:8px;">
+            <div style="flex:1;">
+              <label style="font-size:0.65rem; color:var(--subtext);">FIRST TO LEGS:</label>
+              <select id="target-legs" class="setting-select" style="width:100%;">
+                <option value="1">1 Leg</option>
+                <option value="2">2 Legs</option>
+                <option value="3" selected>3 Legs</option>
+                <option value="5">5 Legs</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.65rem; color:var(--subtext);">FIRST TO SETS:</label>
+              <select id="target-sets" class="setting-select" style="width:100%;">
+                <option value="1" selected>1 Set</option>
+                <option value="2">2 Sets</option>
+                <option value="3">3 Sets</option>
+                <option value="5">5 Sets</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-label">SPIELER VERWALTUNG</div>
+        <div id="player-inputs-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+
+        <button class="action-btn" style="background:var(--btn-bg); border:1px solid var(--accent); color:var(--accent);" onclick="addPlayerField()">+ SPIELER HINZUFÜGEN</button>
+        <button class="action-btn" onclick="saveMatchSettings()">MATCH STARTEN / SPEICHERN</button>
+        <button class="action-btn" style="background:#475569;" onclick="resetToGuests()">RESET ALL</button>
+        <button class="action-btn" style="background:transparent; border:1px solid var(--border-color); color:var(--text);" onclick="closeModals()">ABBRECHEN</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CHECKOUTS = {
+      170: "T20 T20 BULL", 167: "T20 T19 BULL", 164: "T20 T18 BULL", 161: "T20 T17 BULL",
+      160: "T20 T20 D20", 120: "T20 20 D20", 100: "T20 D20", 80: "T20 D10", 60: "20 D20",
+      40: "D20", 32: "D16", 16: "D8", 8: "D4", 4: "D2", 2: "D1"
+    };
+
+    let gameMode = '501';
+    let soundEnabled = true;
+    let activePlayer = 0;
+    let startingPlayerOfLeg = 0;
+    let multiplier = 'S';
+    let turnDarts = [];
+    let turnHistory = [];
+
+    let targetLegs = 3;
+    let targetSets = 1;
+
+    let players = [];
+    let tempPlayerNames = [];
+
+    function init() {
+      loadStoredSettings();
+      renderKeypad();
+      resetMatch();
+
+      document.getElementById('pro-score-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') submitProScore();
+      });
+    }
+
+    function toggleKeynoteTrack() {
+      const audio = document.getElementById('party-audio');
+      const btn = document.getElementById('keynote-btn');
+
+      if (audio.paused) {
+        audio.play().then(() => {
+          btn.classList.add('active-music');
+        }).catch(e => console.log("Audio play blocked", e));
+      } else {
+        audio.pause();
+        btn.classList.remove('active-music');
+      }
+    }
+
+    function loadStoredSettings() {
+      const savedPlayers = localStorage.getItem('neural_players_list');
+      tempPlayerNames = savedPlayers ? JSON.parse(savedPlayers) : ["GUEST 1", "GUEST 2"];
+      
+      const savedLegs = localStorage.getItem('neural_target_legs');
+      if (savedLegs) targetLegs = parseInt(savedLegs);
+      
+      const savedSets = localStorage.getItem('neural_target_sets');
+      if (savedSets) targetSets = parseInt(savedSets);
+
+      document.getElementById('target-legs').value = targetLegs;
+      document.getElementById('target-sets').value = targetSets;
+
+      buildPlayersArray();
+    }
+
+    function buildPlayersArray() {
+      const startScore = gameMode === '301' ? 301 : 501;
+      players = tempPlayerNames.map(name => ({
+        name: name,
+        score: startScore,
+        legs: 0,
+        sets: 0,
+        dartsThrown: 0,
+        totalScored: 0,
+        highestTurn: 0
+      }));
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('light-mode');
+      const isLight = document.documentElement.classList.contains('light-mode');
+      document.getElementById('theme-btn').innerText = isLight ? '☀️' : '🌙';
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('sound-btn').innerText = soundEnabled ? '🔊' : '🔇';
+    }
+
+    function playAudioAnnounce(text, type = 'score') {
+      if (!soundEnabled) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === '180') {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+        } else if (type === 'bust') {
+          osc.frequency.setValueAtTime(150, ctx.currentTime);
+        } else {
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      } catch (e) {}
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'en-US';
+        msg.pitch = 0.9;
+        msg.rate = 1.0;
+        window.speechSynthesis.speak(msg);
+      }
+    }
+
+    function selectMode(mode) {
+      gameMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`m-${mode}`).classList.add('active');
+      resetMatch();
+    }
+
+    function resetLegScores() {
+      const startScore = gameMode === '301' ? 301 : 501;
+      players.forEach(p => p.score = startScore);
+    }
+
+    function resetMatch() {
+      activePlayer = 0;
+      startingPlayerOfLeg = 0;
+      turnDarts = [];
+      turnHistory = [];
+      multiplier = 'S';
+      buildPlayersArray();
+      renderScoreboard();
+      updateTurnUI();
+    }
+
+    function setMultiplier(m) {
+      multiplier = m;
+      document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById(`mod-${m}`).classList.add('selected');
+    }
+
+    function renderKeypad() {
+      const grid = document.getElementById('keypad');
+      grid.innerHTML = '';
+      for (let i = 1; i <= 20; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'num-btn';
+        btn.innerText = i;
+        btn.onclick = () => throwDart(i);
+        grid.appendChild(btn);
+      }
+      const bull = document.createElement('button');
+      bull.className = 'num-btn';
+      bull.style.color = 'var(--red-peg)';
+      bull.innerText = 'BULL';
+      bull.onclick = () => throwDart(25);
+      grid.appendChild(bull);
+
+      const miss = document.createElement('button');
+      miss.className = 'num-btn';
+      miss.innerText = 'MISS';
+      miss.onclick = () => throwDart(0);
+      grid.appendChild(miss);
+    }
+
+    function throwDart(val) {
+      if (turnDarts.length >= 3) return;
+      let score = val;
+      let label = val.toString();
+
+      if (val === 25) {
+        if (multiplier === 'T') return;
+        score = multiplier === 'D' ? 50 : 25;
+        label = multiplier === 'D' ? 'D-BULL' : 'BULL';
+      } else if (val > 0) {
+        const multVal = multiplier === 'D' ? 2 : (multiplier === 'T' ? 3 : 1);
+        score = val * multVal;
+        label = (multiplier !== 'S' ? multiplier : '') + val;
+      } else {
+        label = 'MISS';
+        score = 0;
+      }
+
+      turnDarts.push({ score, label });
+      setMultiplier('S');
+      updateTurnUI();
+    }
+
+    // SCAN-AI: photo of the board -> Gemini Flash-Lite via the proxy -> darts of this turn.
+    // The model only finds positions (bull centre, the outer edge of segment 20 and
+    // each dart tip). The app computes sector and ring itself, because the model is
+    // unreliable at reading rings and sectors but accurate at finding points.
+    // Clear reads are committed at once (UNDO reverts). Reads too close to a ring or
+    // sector line stay pending in the input until NEXT PLAYER is pressed.
+    const SCAN_PROXY = 'https://glow-up-gemini.replit.app';
+    const SCAN_MODEL = 'gemini-3.5-flash-lite';
+    const SCAN_ORDER = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+    const SCAN_PROMPT = 'This photo shows a dartboard with darts stuck in it. Give positions normalized to 0-1000 ' +
+      '(0,0 = top-left corner, 1000,1000 = bottom-right corner of the photo). ' +
+      '"bull": the exact centre of the board (the bullseye). ' +
+      '"twenty_outer": a point on the outer edge of the board, at the middle of the segment labelled 20 (the segment at the top when the board is upright). ' +
+      '"darts": for every dart stuck in the board, the point where the dart enters the board. ' +
+      'Answer ONLY with JSON: {"bull":{"x":0,"y":0},"twenty_outer":{"x":0,"y":0},"darts":[{"x":0,"y":0}]}';
+
+    function setScanStatus(text, cls) {
+      const el = document.getElementById('scan-status');
+      el.textContent = text;
+      el.className = 'scan-status' + (cls ? ' ' + cls : '');
+    }
+
+    function fileToResizedBase64(file, maxSide = 768) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.5).split(',')[1]);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // Returns { darts:[{score,label}], safe:boolean } or null when the geometry is not usable.
+    function scoreFromPoints(bull, outer20, darts) {
+      if (!bull || !outer20 || !Array.isArray(darts)) return null;
+      const R = Math.hypot(outer20.x - bull.x, outer20.y - bull.y);
+      if (!(R >= 200)) return null; // board must fill at least a fifth of the photo
+      const a20 = Math.atan2(outer20.y - bull.y, outer20.x - bull.x);
+      const out = [];
+      let safe = true;
+      const margin = 0.03; // model positions are about 1-2% off, so anything near a ring line needs a confirm tap
+      for (const d of darts.slice(0, 3)) {
+        const dx = d.x - bull.x, dy = d.y - bull.y;
+        const dist = Math.hypot(dx, dy) / R;
+        let ang = Math.atan2(dy, dx) - a20;
+        while (ang < -Math.PI) ang += 2 * Math.PI;
+        while (ang >= Math.PI) ang -= 2 * Math.PI;
+        const step = Math.PI / 10; // 18 degrees per segment
+        let idx = Math.round(ang / step);
+        const offset = Math.abs(ang - idx * step);
+        idx = ((idx % 20) + 20) % 20;
+        const sector = SCAN_ORDER[idx];
+        // Distance to the nearest ring line and segment line
+        const rings = [0.0373, 0.0935, 0.582, 0.629, 0.953, 1.0];
+        if (rings.some(r => Math.abs(dist - r) < margin)) safe = false;
+        if (step / 2 - offset < 0.035) safe = false; // within ~2 degrees of a segment line
+        let score, label;
+        if (dist > 1.0) { score = 0; label = 'MISS'; safe = false; }
+        else if (dist <= 0.0373) { score = 50; label = 'D-BULL'; }
+        else if (dist <= 0.0935) { score = 25; label = 'BULL'; }
+        else if (dist >= 0.582 && dist <= 0.629) { score = sector * 3; label = 'T' + sector; }
+        else if (dist >= 0.953) { score = sector * 2; label = 'D' + sector; }
+        else { score = sector; label = String(sector); }
+        out.push({ score, label });
+      }
+      return { darts: out, safe };
+    }
+
+    async function scanDartsPhoto(input) {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      setScanStatus('📷 Foto wird analysiert …');
+      try {
+        const b64 = await fileToResizedBase64(file);
+        const res = await fetch(SCAN_PROXY + '/gemini/models/' + SCAN_MODEL + '/generateContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [ { text: SCAN_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: b64 } } ] }],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0 }
+          })
+        });
+        if (!res.ok) throw new Error('Proxy HTTP ' + res.status);
+        const data = await res.json();
+        const text = data.candidates[0].content.parts.map(p => p.text || '').join('');
+        const parsed = JSON.parse(text);
+        if (!parsed.darts || parsed.darts.length === 0) { setScanStatus('Keine Pfeile erkannt. Foto näher ranhalten.', 'warn'); return; }
+        const r = scoreFromPoints(parsed.bull, parsed.twenty_outer, parsed.darts);
+        if (!r) { setScanStatus('⚠️ Scheibe nicht sicher erkannt, bitte manuell eingeben.', 'bad'); return; }
+        turnDarts = r.darts.map(d => ({ score: d.score, label: d.label }));
+        updateTurnUI();
+        const total = turnDarts.reduce((a, b) => a + b.score, 0);
+        const names = turnDarts.map(d => d.label).join(' · ');
+        if (r.safe) {
+          setScanStatus('✅ ' + names + ' = ' + total + ' eingetragen (UNDO zum Zurücknehmen)');
+          confirmTurn();
+        } else {
+          setScanStatus('🤔 Knapp am Rand: ' + names + ' = ' + total + '. Prüfen und NEXT PLAYER drücken.', 'warn');
+        }
+      } catch (e) {
+        console.log('scan failed', e);
+        setScanStatus('❌ Scan fehlgeschlagen. Bitte manuell eingeben.', 'bad');
+      }
+    }
+
+    document.getElementById('scan-status').addEventListener('click', () => { const el = document.getElementById('scan-status'); if (el.classList.contains('warn') && turnDarts.length) { turnDarts = []; updateTurnUI(); setScanStatus('Verworfen. Manuell eingeben.'); } });
+    function submitProScore() {
+      const input = document.getElementById('pro-score-input');
+      const val = parseInt(input.value);
+      if (isNaN(val) || val < 0 || val > 180) return;
+      turnDarts = [{ score: val, label: `PRO:${val}` }];
+      input.value = '';
+      input.blur();
+      confirmTurn();
+    }
+
+    function smartUndo() {
+      if (turnDarts.length > 0) {
+        turnDarts.pop();
+        updateTurnUI();
+      } else if (turnHistory.length > 0) {
+        const lastTurn = turnHistory.pop();
+        activePlayer = lastTurn.playerIdx;
+        const p = players[activePlayer];
+        p.score = lastTurn.previousScore;
+        p.legs = lastTurn.previousLegs;
+        p.sets = lastTurn.previousSets;
+        p.dartsThrown = lastTurn.previousDarts;
+        p.totalScored = lastTurn.previousTotal;
+        turnDarts = [...lastTurn.darts];
+        renderScoreboard();
+        updateTurnUI();
+      }
+    }
+
+    function updateTurnUI() {
+      const list = document.getElementById('dart-list');
+      list.innerHTML = '';
+      let turnTotal = 0;
+      for (let i = 0; i < 3; i++) {
+        const badge = document.createElement('span');
+        badge.className = 'dart-badge';
+        if (turnDarts[i]) {
+          badge.innerText = turnDarts[i].label;
+          turnTotal += turnDarts[i].score;
+        } else {
+          badge.innerText = '-';
+        }
+        list.appendChild(badge);
+      }
+
+      document.getElementById('turn-score').innerText = turnTotal;
+      if (players.length === 0) return;
+      const p = players[activePlayer];
+      const guide = document.getElementById('checkout-guide');
+      if (gameMode === '501' || gameMode === '301') {
+        const rem = p.score - turnTotal;
+        guide.innerText = CHECKOUTS[rem] ? `CHECKOUT: ${CHECKOUTS[rem]}` : (rem <= 1 ? "⚠️ BUST GEFAHR!" : "CHECKOUT: ---");
+      }
+    }
+
+    function confirmTurn() {
+      if (players.length === 0) return;
+      const p = players[activePlayer];
+      let turnTotal = turnDarts.reduce((a, b) => a + b.score, 0);
+
+      turnHistory.push({
+        playerIdx: activePlayer,
+        previousScore: p.score,
+        previousLegs: p.legs,
+        previousSets: p.sets,
+        previousDarts: p.dartsThrown,
+        previousTotal: p.totalScored,
+        darts: [...turnDarts]
+      });
+
+      if (gameMode === '501' || gameMode === '301') {
+        if (p.score - turnTotal === 0) {
+          p.score = 0;
+          handleLegWin(p);
+          return;
+        } else if (p.score - turnTotal < 2) {
+          playAudioAnnounce("Bust!", 'bust');
+        } else {
+          p.score -= turnTotal;
+          const count = turnDarts.length === 1 && turnDarts[0].label.startsWith('PRO:') ? 3 : turnDarts.length;
+          p.dartsThrown += count;
+          p.totalScored += turnTotal;
+          if (turnTotal > p.highestTurn) p.highestTurn = turnTotal;
+
+          if (turnTotal === 180) playAudioAnnounce("ONE HUNDRED AND EIGHTY!", '180');
+          else if (turnTotal >= 100) playAudioAnnounce(`${turnTotal} points!`, 'score');
+          else playAudioAnnounce(`${turnTotal}`, 'score');
+        }
+      }
+
+      turnDarts = [];
+      activePlayer = (activePlayer + 1) % players.length;
+      renderScoreboard();
+      updateTurnUI();
+    }
+
+    function handleLegWin(winner) {
+      winner.legs++;
+      playAudioAnnounce("Game and Leg!");
+
+      if (winner.legs >= targetLegs) {
+        winner.sets++;
+        playAudioAnnounce("Game and Set!");
+        
+        if (winner.sets >= targetSets) {
+          playAudioAnnounce("Game, Shot, and Match!");
+          alert(`🏆 ${winner.name} GEWINNT DAS MATCH! (${winner.sets} Sets / ${winner.legs} Legs)`);
+          resetMatch();
+          return;
+        } else {
+          alert(`🎉 ${winner.name} gewinnt den Satz!`);
+          players.forEach(p => p.legs = 0);
+        }
+      } else {
+        alert(`🎯 ${winner.name} holt sich das Leg!`);
+      }
+
+      resetLegScores();
+      startingPlayerOfLeg = (startingPlayerOfLeg + 1) % players.length;
+      activePlayer = startingPlayerOfLeg;
+      turnDarts = [];
+      renderScoreboard();
+      updateTurnUI();
+    }
+
+    function renderScoreboard() {
+      const board = document.getElementById('scoreboard');
+      board.innerHTML = '';
+      players.forEach((p, idx) => {
+        const card = document.createElement('div');
+        card.className = `player-card ${idx === activePlayer ? 'active' : ''}`;
+        const avg = p.dartsThrown > 0 ? ((p.totalScored / p.dartsThrown) * 3).toFixed(1) : "0.0";
+        card.innerHTML = `
+          <div class="player-name">${p.name} ${idx === startingPlayerOfLeg ? '🔴' : ''}</div>
+          <div class="player-score">${p.score}</div>
+          <div class="player-sets-legs">SETS: ${p.sets} | LEGS: ${p.legs}</div>
+          <div class="player-stats">
+            <span>Avg: <strong>${avg}</strong></span>
+            <span>Darts: <strong>${p.dartsThrown}</strong></span>
+          </div>
+        `;
+        board.appendChild(card);
+      });
+    }
+
+    function openPlayerModal() {
+      renderPlayerInputs();
+      document.getElementById('player-modal').classList.add('active');
+    }
+
+    function renderPlayerInputs() {
+      const container = document.getElementById('player-inputs-container');
+      container.innerHTML = '';
+      tempPlayerNames.forEach((name, idx) => {
+        const row = document.createElement('div');
+        row.className = 'player-input-row';
+        row.innerHTML = `
+          <input type="text" class="pro-input" value="${name}" onchange="updateTempName(${idx}, this.value)" placeholder="Spieler ${idx + 1}">
+          ${tempPlayerNames.length > 1 ? `<button class="remove-p-btn" onclick="removePlayerField(${idx})">✕</button>` : ''}
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function updateTempName(idx, val) {
+      tempPlayerNames[idx] = val.trim() || `PLAYER ${idx + 1}`;
+    }
+
+    function addPlayerField() {
+      tempPlayerNames.push(`PLAYER ${tempPlayerNames.length + 1}`);
+      renderPlayerInputs();
+    }
+
+    function removePlayerField(idx) {
+      if (tempPlayerNames.length <= 1) return;
+      tempPlayerNames.splice(idx, 1);
+      renderPlayerInputs();
+    }
+
+    function saveMatchSettings() {
+      targetLegs = parseInt(document.getElementById('target-legs').value);
+      targetSets = parseInt(document.getElementById('target-sets').value);
+
+      localStorage.setItem('neural_players_list', JSON.stringify(tempPlayerNames));
+      localStorage.setItem('neural_target_legs', targetLegs);
+      localStorage.setItem('neural_target_sets', targetSets);
+
+      resetMatch();
+      closeModals();
+    }
+
+    function resetToGuests() {
+      tempPlayerNames = ["GUEST 1", "GUEST 2"];
+      targetLegs = 3;
+      targetSets = 1;
+      localStorage.removeItem('neural_players_list');
+      localStorage.removeItem('neural_target_legs');
+      localStorage.removeItem('neural_target_sets');
+      document.getElementById('target-legs').value = 3;
+      document.getElementById('target-sets').value = 1;
+      resetMatch();
+      closeModals();
+    }
+
+    function openStatsModal() {
+      const content = document.getElementById('stats-content');
+      content.innerHTML = players.map(p => {
+        const avg = p.dartsThrown > 0 ? ((p.totalScored / p.dartsThrown) * 3).toFixed(1) : "0.0";
+        return `
+          <div style="background:var(--card-bg); padding:8px; border-radius:6px; border:1px solid var(--border-color);">
+            <strong style="color:var(--accent);">${p.name}</strong><br>
+            • Sets: <strong>${p.sets}</strong> | Legs: <strong>${p.legs}</strong><br>
+            • 3-Dart Average: <strong>${avg}</strong><br>
+            • Geworfene Darts: <strong>${p.dartsThrown}</strong><br>
+            • Höchster Turn: <strong>${p.highestTurn} Pts</strong>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('stats-modal').classList.add('active');
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    }
+
+    init();
+  </script>
+</body>
+</html>
