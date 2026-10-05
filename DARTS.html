@@ -549,6 +549,21 @@
           </div>
         </div>
 
+        <div class="setting-group">
+          <div class="setting-label">ANSAGE</div>
+          <div style="display:flex; gap:8px;">
+            <div style="flex:1;">
+              <label style="font-size:0.65rem; color:var(--subtext);">SPRACHE:</label>
+              <select id="voice-lang" class="setting-select" style="width:100%;" onchange="populateVoiceSelect(this.value)"></select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.65rem; color:var(--subtext);">STIMME:</label>
+              <select id="voice-name" class="setting-select" style="width:100%;" onchange="setVoiceName(this.value)"></select>
+            </div>
+          </div>
+          <button class="icon-btn" style="margin-top:8px;" onclick="previewVoice()">▶ TEST</button>
+        </div>
+
         <div class="setting-label">SPIELER VERWALTUNG</div>
         <div id="player-inputs-container" style="display:flex; flex-direction:column; gap:6px;"></div>
 
@@ -569,6 +584,8 @@
 
     let gameMode = '501';
     let soundEnabled = true;
+    let voiceLang = localStorage.getItem('neural_voice_lang') || '';
+    let voiceURI = localStorage.getItem('neural_voice_uri') || '';
     let activePlayer = 0;
     let startingPlayerOfLeg = 0;
     let multiplier = 'S';
@@ -585,6 +602,8 @@
       loadStoredSettings();
       renderKeypad();
       resetMatch();
+      if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = loadVoiceLanguages;
+      loadVoiceLanguages();
 
       document.getElementById('pro-score-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') submitProScore();
@@ -682,14 +701,79 @@
         osc.stop(ctx.currentTime + 0.25);
       } catch (e) {}
 
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'en-US';
-        msg.pitch = 0.9;
-        msg.rate = 1.0;
-        window.speechSynthesis.speak(msg);
+      speakText(text);
+    }
+
+    const SPEECH_DE = {
+      'Bust!': 'Überworfen!',
+      'ONE HUNDRED AND EIGHTY!': 'Einhundertachtzig!',
+      'Game and Leg!': 'Leg gewonnen!',
+      'Game and Set!': 'Satz gewonnen!',
+      'Game, Shot, and Match!': 'Spiel, Satz und Sieg!'
+    };
+
+    function translateAnnouncement(text, lang) {
+      if (!lang.startsWith('de')) return text;
+      const points = text.match(/^(\d+) points!$/);
+      if (points) return points[1] + ' Punkte!';
+      return SPEECH_DE[text] || text;
+    }
+
+    function speakText(text, sampleOverride) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const voice = speechSynthesis.getVoices().find(v => v.voiceURI === voiceURI) || null;
+      const lang = voice ? voice.lang : (voiceLang || 'en-US');
+      const msg = new SpeechSynthesisUtterance(sampleOverride || translateAnnouncement(text, lang));
+      msg.lang = lang;
+      if (voice) msg.voice = voice;
+      msg.pitch = 0.9;
+      msg.rate = 1.0;
+      window.speechSynthesis.speak(msg);
+    }
+
+    function previewVoice() {
+      const sample = voiceLang.startsWith('de') ? 'Hallo, so klingt die Ansage.' : 'Hello, this is how the announcer sounds.';
+      speakText(sample, sample);
+    }
+
+    function loadVoiceLanguages() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = speechSynthesis.getVoices();
+      if (!voices.length) return;
+      const langs = [...new Set(voices.map(v => v.lang))].sort();
+      const names = new Intl.DisplayNames([navigator.language], { type: 'language' });
+      const sel = document.getElementById('voice-lang');
+      sel.replaceChildren(...langs.map(l => {
+        let label = l;
+        try { label = names.of(l) + ' (' + l + ')'; } catch (e) {}
+        return new Option(label, l);
+      }));
+      if (!langs.includes(voiceLang)) {
+        voiceLang = langs.find(l => l.startsWith(navigator.language.slice(0, 2))) || langs[0];
       }
+      sel.value = voiceLang;
+      populateVoiceSelect(voiceLang);
+    }
+
+    function populateVoiceSelect(lang) {
+      voiceLang = lang;
+      localStorage.setItem('neural_voice_lang', lang);
+      const list = speechSynthesis.getVoices().filter(v => v.lang === lang);
+      if (!list.some(v => v.voiceURI === voiceURI)) {
+        voiceURI = list.length ? list[0].voiceURI : '';
+        localStorage.setItem('neural_voice_uri', voiceURI);
+      }
+      const sel = document.getElementById('voice-name');
+      sel.replaceChildren(...(list.length
+        ? list.map(v => new Option(v.name, v.voiceURI))
+        : [new Option('Standard', '')]));
+      sel.value = voiceURI;
+    }
+
+    function setVoiceName(uri) {
+      voiceURI = uri;
+      localStorage.setItem('neural_voice_uri', uri);
     }
 
     function selectMode(mode) {
