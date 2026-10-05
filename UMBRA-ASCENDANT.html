@@ -303,7 +303,7 @@ body::after {
 
         /* ── Mission objective strip (in-game) ── */
         #objective-strip {
-            position:absolute; top:58px; left:50%; transform:translateX(-50%); z-index:90;
+            position:absolute; top:104px; left:50%; transform:translateX(-50%); z-index:90;
             background:rgba(4,10,4,.88); border:1px solid #3b2a6b; border-radius:9px; padding:7px 18px;
             font-size:10.5px; letter-spacing:1px; color:#c4b5fd; text-align:center; pointer-events:none; max-width:70vw;
         }
@@ -596,6 +596,183 @@ const MISSIONS = [
     objective:{type:'destroyHQs'}, objectiveLabel:'Zerstöre <b>beide</b> feindliche Hauptquartiere',
     unlockText:'Finale.' },
 ];
+// ════════════════════════════════════════════════════════
+// PHASE 2 — objective types (capture / escort / timedBuild), hero ability,
+// map layouts (chokepoint walls, lake slow-zones). Mission variants are
+// applied as an overlay so the base MISSIONS table stays readable.
+// ════════════════════════════════════════════════════════
+const HERO_KIND = 'psi';
+const HERO_NAME = 'Primus';
+const HERO_ABILITY_NAME = 'Psi-Puls';
+const HERO_COOLDOWN = 28;
+const CAPTURE_NEEDED = 30;
+const CAPTURE_POINT = {x:0, z:0, r:10};
+const ESCORT_DEST = {x:6, z:14};
+const WATER_ZONES = [{x:-38,z:-8,r:9},{x:36,z:-6,r:8},{x:-4,z:42,r:9}];
+const WALL_GAPS = [-34, 0, 32];
+const MAP_OBSTACLES = [];
+let captureProgress = 0;
+let escortSpawned = false;
+let waterActive = false;
+
+const MISSION_VARIANTS = {
+  0: { objective:{type:'timedBuild', building:'depot', count:2, seconds:180},
+       objectiveLabel:'Errichte <b>2 Depots</b> in <b>180 Sekunden</b>',
+       note:'Einsatzhinweis: Die Zelle muss Kapazität aufbauen, bevor die Zeit abläuft.' },
+  2: { map:'chokepoint', note:'Einsatzhinweis: Engstelle im Zentrum. Die Pässe sind die einzigen Wege zwischen den Fronten.' },
+  3: { map:'lakes', note:'Einsatzhinweis: Seen verlangsamen Bodentruppen spürbar. Plane deine Wege.' },
+  4: { objective:{type:'escort'}, objectiveLabel:'Eskortiere den <b>Gesandten</b> zum Treffpunkt im Zentrum',
+       map:'chokepoint', note:'Einsatzhinweis: Der Gesandte kann nicht kämpfen. Stirbt er, ist die Mission verloren.' },
+  7: { objective:{type:'capture'}, objectiveLabel:'Halte den <b>Kern-Punkt</b> im Zentrum, ohne Gegner im Kreis',
+       map:'lakes', note:'Einsatzhinweis: Solange ein Gegner im Kreis steht, lädt sich der Kern-Punkt nicht auf.' },
+};
+Object.entries(MISSION_VARIANTS).forEach(([i, v]) => {
+  const { note, ...rest } = v;
+  Object.assign(MISSIONS[i], rest);
+  if (note) MISSIONS[i].brief += '\n\n' + note;
+});
+MISSIONS.forEach((m, i) => { if (m.hero === undefined) m.hero = i >= 3; });
+
+function clampOutOfMapObstacles(pos) {
+    for (let i=0;i<MAP_OBSTACLES.length;i++) {
+        const o=MAP_OBSTACLES[i];
+        const dx=pos.x-o.cx, dz=pos.z-o.cz;
+        if (Math.abs(dx)>o.hw || Math.abs(dz)>o.hd) continue;
+        const ox=o.hw-Math.abs(dx), oz=o.hd-Math.abs(dz);
+        if (ox<oz) pos.x = o.cx + Math.sign(dx||1)*o.hw;
+        else       pos.z = o.cz + Math.sign(dz||1)*o.hd;
+    }
+}
+
+function waterSlow(pos) {
+    if (!waterActive) return 1;
+    for (const w of WATER_ZONES) {
+        if (Math.hypot(pos.x-w.x, pos.z-w.z) < w.r) return 0.5;
+    }
+    return 1;
+}
+
+function setupPhase2() {
+    const m = currentMission;
+    if (m.map === 'chokepoint') {
+        const wallMat = new THREE.MeshStandardMaterial({color:0x5a5f6a, roughness:0.8, metalness:0.2});
+        const edges = [-130, ...WALL_GAPS.flatMap(g => [g-5, g+5]), 130];
+        for (let i=0;i<edges.length;i+=2) {
+            const a=edges[i], b=edges[i+1];
+            if (b-a<=0) continue;
+            const cx=(a+b)/2, hw=(b-a)/2;
+            const wall=new THREE.Mesh(new THREE.BoxGeometry(hw*2, 4, 3), wallMat);
+            wall.position.set(cx, 2, 0); wall.castShadow=true; wall.receiveShadow=true; scene.add(wall);
+            MAP_OBSTACLES.push({cx, cz:0, hw, hd:1.5});
+        }
+    }
+    if (m.map === 'lakes') {
+        waterActive = true;
+        const waterMat = new THREE.MeshStandardMaterial({color:0x2a6fb0, transparent:true, opacity:0.6, roughness:0.2, metalness:0.1});
+        WATER_ZONES.forEach(w => {
+            const pool=new THREE.Mesh(new THREE.CylinderGeometry(w.r,w.r,0.12,28), waterMat);
+            pool.position.set(w.x, 0.07, w.z); scene.add(pool);
+        });
+    }
+    if (m.objective.type === 'capture') {
+        const ring=new THREE.Mesh(new THREE.RingGeometry(CAPTURE_POINT.r-0.6, CAPTURE_POINT.r, 48),
+            new THREE.MeshBasicMaterial({color:0xfde68a, transparent:true, opacity:0.8, side:THREE.DoubleSide}));
+        ring.rotation.x=-Math.PI/2; ring.position.set(CAPTURE_POINT.x, 0.15, CAPTURE_POINT.z); scene.add(ring);
+    }
+    if (m.objective.type === 'escort') {
+        const esc = spawnUnit('marine', false);
+        esc.escort = true;
+        esc.maxHp = Math.round(esc.maxHp*2.5); esc.hp = esc.maxHp;
+        esc.tag.innerText = '🛡 Gesandter';
+        esc.state = 'moving';
+        esc.moveTarget = new THREE.Vector3(ESCORT_DEST.x, 0, ESCORT_DEST.z);
+        escortSpawned = true;
+    }
+    if (m.hero) {
+        const h = spawnUnit('tank', false);
+        h.hero = true;
+        h.maxHp = Math.round(h.maxHp*1.7); h.hp = h.maxHp;
+        h.abilityCD = 0;
+        h.tag.innerText = '★ ' + HERO_NAME;
+    }
+}
+
+function heroUnit() { return playerUnits.find(u => u.hero && u.hp > 0); }
+
+function useHeroAbility() {
+    const h = heroUnit();
+    if (!h) return;
+    if ((h.abilityCD||0) > 0) { showToast(`⏳ ${HERO_ABILITY_NAME} lädt: ${Math.ceil(h.abilityCD)}s`); return; }
+    h.abilityCD = HERO_COOLDOWN;
+    const p = h.group.position, R = 15;
+    const near = u => u.hp > 0 && Math.hypot(u.group.position.x-p.x, u.group.position.z-p.z) <= R;
+    if (HERO_KIND === 'stim') {
+        playerUnits.forEach(u => {
+            if (u.hp<=0 || u._stim) return;
+            u._stim = true; u.speed *= 1.5; u.fireRate *= 0.6;
+            setTimeout(() => { u._stim=false; u.speed/=1.5; u.fireRate/=0.6; }, 6000);
+        });
+        showToast(`⚡ ${HERO_ABILITY_NAME}: alle Einheiten +50% Tempo & Feuerrate (6s)`);
+    } else if (HERO_KIND === 'psi') {
+        let hits = 0;
+        enemyUnits.forEach(e => { if (near(e)) { applyDamage(e, 70); hits++; } });
+        playerUnits.forEach(u => { if (near(u) && u.shieldMax) u.shield = u.shieldMax; });
+        showToast(`🔮 ${HERO_ABILITY_NAME}: ${hits} Feinde getroffen, Schilde aufgeladen`);
+    } else if (HERO_KIND === 'brood') {
+        let healed = 0;
+        playerUnits.forEach(u => { if (near(u)) { u.hp = Math.min(u.maxHp, u.hp + u.maxHp*0.35); healed++; } });
+        showToast(`🧬 ${HERO_ABILITY_NAME}: ${healed} Einheiten geheilt`);
+    }
+    updateHUD();
+}
+
+function phase2StripExtra() {
+    const m = currentMission, o = m.objective;
+    const h = heroUnit();
+    let s = '';
+    if (h) {
+        if ((h.abilityCD||0) > 0) h.abilityCD = Math.max(0, h.abilityCD - 0.5);
+        s += ` · <span style="color:#fde68a">[Q] ${HERO_ABILITY_NAME}: ${h.abilityCD>0 ? Math.ceil(h.abilityCD)+'s' : 'bereit'}</span>`;
+    }
+    if (o.type === 'capture') s += ` · Kontrolle <b>${Math.round(captureProgress/CAPTURE_NEEDED*100)}%</b>`;
+    if (o.type === 'escort') {
+        const e = playerUnits.find(u => u.escort);
+        if (e) s += ` · Gesandter <b>${Math.max(0,Math.round(e.hp/e.maxHp*100))}%</b>`;
+    }
+    if (o.type === 'timedBuild') {
+        const n = playerBuildings.filter(b => b.playerBuilt && b.type===o.building && b.hp>0).length;
+        s += ` · <b>${Math.min(n,o.count)}/${o.count}</b> · ${Math.max(0,Math.ceil(o.seconds-aiGameTime))}s`;
+    }
+    return s;
+}
+
+function checkPhase2Objective() {
+    const o = currentMission.objective;
+    if (o.type === 'capture') {
+        const P = CAPTURE_POINT;
+        const inP = u => u.hp > 0 && Math.hypot(u.group.position.x-P.x, u.group.position.z-P.z) <= P.r;
+        const friends = playerUnits.filter(u => !u.escort && inP(u)).length;
+        const foes = enemyUnits.filter(inP).length;
+        if (friends > 0 && foes === 0) captureProgress = Math.min(CAPTURE_NEEDED, captureProgress + 1.5);
+        else if (foes > 0) captureProgress = Math.max(0, captureProgress - 0.5);
+        if (captureProgress >= CAPTURE_NEEDED) { triggerMissionEnd(true); return true; }
+        return false;
+    }
+    if (o.type === 'escort') {
+        const e = playerUnits.find(u => u.escort);
+        if (escortSpawned && !e) { triggerMissionEnd(false); return true; }
+        if (e && Math.hypot(e.group.position.x-ESCORT_DEST.x, e.group.position.z-ESCORT_DEST.z) < 6) { triggerMissionEnd(true); return true; }
+        return false;
+    }
+    if (o.type === 'timedBuild') {
+        const n = playerBuildings.filter(b => b.playerBuilt && b.type===o.building && b.hp>0).length;
+        if (n >= o.count) { triggerMissionEnd(true); return true; }
+        if (aiGameTime >= o.seconds) { triggerMissionEnd(false); return true; }
+        return false;
+    }
+    return false;
+}
+
 let currentMissionIndex = 0;
 let currentMission = MISSIONS[0];
 let missionEnded = false;
@@ -867,6 +1044,7 @@ function checkMissionObjective() {
     const greenBldsAlive  = playerBuildings.filter(b=>b.hp>0).length;
     if (greenUnitsAlive === 0 && greenBldsAlive === 0) { triggerMissionEnd(false); return; }
 
+    if (checkPhase2Objective()) return;
     // ── VICTORY, by objective type ──
     if (m.objective.type === 'wipeEnemies') {
         if (hostileFactionsWiped()) { triggerMissionEnd(true); return; }
@@ -893,7 +1071,7 @@ function updateObjectiveStrip() {
     } else if (m.objective.type === 'deliverMinerals') {
         extra = ` — <b>${Math.min(res.totalMined,m.objective.quota)}/${m.objective.quota}💎</b>`;
     }
-    strip.innerHTML = m.objectiveLabel + extra;
+    strip.innerHTML = m.objectiveLabel + extra + phase2StripExtra();
 }
 
 function triggerMissionEnd(victory) {
@@ -1165,6 +1343,7 @@ function init() {
     }
 
     document.getElementById('loader').style.display = 'none';
+    setupPhase2();
     document.getElementById('sound-btn').style.display = 'flex';
     document.getElementById('objective-strip').style.display = 'block';
     document.getElementById('hud-mission-label').textContent = `MISSION ${currentMissionIndex+1}/10: ${currentMission.title}`;
@@ -2567,6 +2746,7 @@ function getClosestEnemy(unit) {
 // Not perfect around concave corners, but stops the common "stuck inside
 // a wall" case cheaply for every ground unit every frame.
 function clampOutOfBuildings(pos) {
+    clampOutOfMapObstacles(pos);
     for (let i=0;i<playerBuildings.length;i++) pushOutOfOne(pos, playerBuildings[i]);
     for (let i=0;i<enemyBuildings.length;i++)  pushOutOfOne(pos, enemyBuildings[i]);
     for (let i=0;i<allyBuildings.length;i++)   pushOutOfOne(pos, allyBuildings[i]);
@@ -2614,14 +2794,14 @@ function updateUnits(dt) {
         if(unit.state==='moving'&&unit.moveTarget) {
             const dx=unit.moveTarget.x-pos.x, dz=unit.moveTarget.z-pos.z, d=Math.sqrt(dx*dx+dz*dz);
             if(d<0.8){unit.state='idle';unit.moveTarget=null;}
-            else{ const spd=unit.speed*dt; pos.x+=(dx/d)*spd; pos.z+=(dz/d)*spd; clampOutOfBuildings(pos); unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*8; }
+            else{ const spd=unit.speed*dt*waterSlow(pos); pos.x+=(dx/d)*spd; pos.z+=(dz/d)*spd; clampOutOfBuildings(pos); unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*8; }
             if(autoT&&autoDist<unit.range&&unit.attackTimer<=0) doFire(unit,autoT);
 
         } else if(unit.state==='attacking'&&unit.attackTarget&&unit.attackTarget.hp>0) {
             const tPos=unit.attackTarget.group.position, d=pos.distanceTo(tPos);
             if(d>unit.range*1.15){
                 const dx=tPos.x-pos.x,dz=tPos.z-pos.z,dd=Math.sqrt(dx*dx+dz*dz);
-                pos.x+=(dx/dd)*unit.speed*dt; pos.z+=(dz/dd)*unit.speed*dt;
+                const sp2=unit.speed*dt*waterSlow(pos); pos.x+=(dx/dd)*sp2; pos.z+=(dz/dd)*sp2;
                 clampOutOfBuildings(pos);
                 unit.group.rotation.y=Math.atan2(dx,dz)+Math.PI; unit.walkCycle+=dt*7;
             } else if(unit.attackTimer<=0) doFire(unit,unit.attackTarget);
@@ -3430,7 +3610,8 @@ function handleBuildClick(e) {
     updateMouse(e); raycaster.setFromCamera(mouse,camera);
     const pt=new THREE.Vector3(); raycaster.ray.intersectPlane(groundPlane,pt);
     res.minerals-=def.cost;
-    buildBuilding(Math.round(pt.x/2)*2, Math.round(pt.z/2)*2, buildType, false, def.label+' '+(playerBuildings.length+1));
+    const _nb=buildBuilding(Math.round(pt.x/2)*2, Math.round(pt.z/2)*2, buildType, false, def.label+' '+(playerBuildings.length+1));
+    _nb.playerBuilt=true;
     updateHUD(); showToast(`✅ ${def.label} gebaut! -${def.cost}💎`);
 }
 function deleteSelectedBuilding() {
@@ -3636,6 +3817,7 @@ function onKey(e) {
         const idx=(selectedUnits.indexOf(microTarget)+1)%selectedUnits.length;
         microTarget=selectedUnits[idx]; showToast(`🔍 Fokus: ${microTarget.tag.innerText.slice(3,20)}`);
     }
+    if(e.code==='KeyQ'&&!gameEnded&&(gameMode==='command'||microMode)) useHeroAbility();
     if(e.code==='F1'){e.preventDefault();switchMode('command');}
     if(e.code==='F2'){e.preventDefault();switchMode('build');}
     if(e.code==='F3'){e.preventDefault();switchMode('micro');}
