@@ -71,9 +71,9 @@
 
     .header-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 4px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
       background: var(--panel);
       padding: 6px 10px;
       border-radius: 10px;
@@ -88,11 +88,20 @@
       text-shadow: 0 0 8px var(--accent-glow);
       letter-spacing: 1px;
       white-space: nowrap;
+      text-align: center;
     }
 
     .header-controls {
       display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 4px;
+    }
+
+    .header-controls .icon-btn {
+      flex: 1 1 auto;
+      min-width: 40px;
+      white-space: nowrap;
     }
 
     #game-container {
@@ -453,10 +462,6 @@
     .scan-status { font-size: 0.7rem; color: var(--subtext); min-height: 1.1em; text-align: center; margin: 2px 0 4px; font-family: 'Share Tech Mono', monospace; }
     .scan-status.warn { color: #f59e0b; }
     .scan-status.bad { color: var(--red-peg); }
-    @media (max-width: 480px) {
-      .header-controls { gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
-      .header-controls .icon-btn { padding: 6px 7px; font-size: 0.65rem; }
-    }
   </style>
 </head>
 <body>
