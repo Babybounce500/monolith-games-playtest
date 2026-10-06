@@ -462,6 +462,48 @@
     .scan-status { font-size: 0.7rem; color: var(--subtext); min-height: 1.1em; text-align: center; margin: 2px 0 4px; font-family: 'Share Tech Mono', monospace; }
     .scan-status.warn { color: #f59e0b; }
     .scan-status.bad { color: var(--red-peg); }
+    .dock { display: none; }
+    body.two-hand .dock {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      width: min(450px, 100%);
+      box-sizing: border-box;
+      padding: 8px calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal));
+      background: var(--panel);
+      border-top: 1px solid var(--border-color);
+      z-index: 40;
+    }
+    body.two-hand #game-container { padding-bottom: 150px; }
+    .dock-left, .dock-right { display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; }
+    body.two-hand .keypad-modifiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    body.two-hand #submit-turn-btn { flex: 1; min-height: 64px; font-size: 1.05rem; }
+    #dock-turn { font-size: 0.75rem; text-align: center; color: var(--subtext); }
+
+    @media (max-width: 600px) {
+      .icon-btn { min-height: 40px; padding: 6px 10px; }
+      .modal-overlay { padding: 8px; }
+      .modal-card { width: 100%; max-width: none; max-height: 88dvh; overflow-y: auto; padding-bottom: calc(14px + var(--sab)); }
+      .modal-card > button:first-child { width: 40px; height: 40px; top: 4px !important; right: 4px !important; font-size: 1.3rem !important; }
+      .modal-title { font-size: 1rem; padding-right: 40px; }
+      .modal-card .icon-btn, .modal-card .action-btn { min-height: 44px; }
+      .setting-select, .modal-card input, .modal-card textarea, .modal-card select { font-size: 16px; min-height: 40px; }
+      .modal-card input[type="color"] { min-height: 36px; }
+      .player-card { padding: 8px; }
+      .player-score { font-size: 2rem; }
+      .keypad-grid { gap: 6px; }
+      .dart-badge { min-width: 44px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+      .header-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+      .header-controls .icon-btn { min-width: 0; }
+      .lbl-long { display: none; }
+      .setting-group label { display: flex !important; align-items: center; gap: 8px; min-height: 32px; }
+      .setting-group input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+      .turn-history { white-space: nowrap; }
+    }
   </style>
 </head>
 <body>
@@ -508,7 +550,7 @@
         <span class="dart-badge">-</span>
         <span class="dart-badge">-</span>
       </div>
-      <button class="icon-btn" onclick="repeatLastRound()" title="Wie letzte Runde (R)">↻ WIE LETZTE</button>
+      <button class="icon-btn" onclick="repeatLastRound()" title="Wie letzte Runde (R)">↻<span class="lbl-long"> WIE LETZTE</span></button>
       <button class="icon-btn" style="color:var(--red-peg);" onclick="smartUndo()">↩ UNDO</button>
     </div>
 
@@ -521,6 +563,11 @@
     <div class="keypad-grid" id="keypad"></div>
 
     <button class="action-btn" id="submit-turn-btn" onclick="confirmTurn()">NEXT PLAYER</button>
+  </div>
+
+  <div class="dock" id="dock">
+    <div class="dock-left"></div>
+    <div class="dock-right"><div id="dock-turn"></div></div>
   </div>
 
   <!-- STATS MODAL -->
@@ -640,6 +687,7 @@
         <div class="setting-group">
           <div class="setting-label">SCHNELL-EINGABE</div>
           <label style="font-size:0.75rem; display:block; margin-bottom:6px;"><input type="checkbox" id="autonext-on" onchange="setAutoNext(this.checked)"> Nach 3 Pfeilen automatisch weiter</label>
+          <label style="font-size:0.75rem; display:block; margin-bottom:6px;"><input type="checkbox" id="twohand-on" onchange="setTwoHand(this.checked)"> Zwei-Hand-Modus (Multiplikator links, NEXT PLAYER rechts unten)</label>
           <div style="font-size:0.65rem; color:var(--subtext); line-height:1.6;">
             Tasten: <strong>1–20</strong> Feld · <strong>B</strong> Bull · <strong>M</strong> Miss · <strong>S/D/T</strong> Single/Double/Triple<br>
             <strong>Enter</strong> Nächster Spieler · <strong>Rücktaste</strong> Pfeil zurück · <strong>R</strong> wie letzte Runde · <strong>Strg+Z</strong> Undo
@@ -701,6 +749,7 @@
       document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeModals(); }));
       document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModals(); });
       document.addEventListener('keydown', handleSpeedKeys);
+      applyTwoHand(twoHandOn);
 
       document.getElementById('pro-score-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') submitProScore();
@@ -1383,6 +1432,30 @@
     let autoNext = localStorage.getItem('neural_autonext') === '1';
     let digitBuf = '', digitTimer = null;
 
+    let twoHandOn = localStorage.getItem('neural_twohand') === '1';
+
+    function applyTwoHand(on) {
+      const mods = document.querySelector('.keypad-modifiers');
+      const keypad = document.getElementById('keypad');
+      const submit = document.getElementById('submit-turn-btn');
+      const game = document.getElementById('game-container');
+      document.body.classList.toggle('two-hand', on);
+      if (on) {
+        document.querySelector('#dock .dock-left').appendChild(mods);
+        const right = document.querySelector('#dock .dock-right');
+        right.appendChild(submit);
+      } else {
+        game.insertBefore(mods, keypad);
+        game.appendChild(submit);
+      }
+    }
+
+    function setTwoHand(v) {
+      twoHandOn = v;
+      localStorage.setItem('neural_twohand', v ? '1' : '0');
+      applyTwoHand(v);
+    }
+
     function setAutoNext(v) {
       autoNext = v;
       localStorage.setItem('neural_autonext', v ? '1' : '0');
@@ -1758,6 +1831,7 @@
       }
 
       document.getElementById('turn-score').innerText = turnTotal;
+      document.getElementById('dock-turn').textContent = 'TURN ' + turnTotal + ' · ' + turnDarts.length + '/3';
       if (players.length === 0) return;
       const p = players[activePlayer];
       const guide = document.getElementById('checkout-guide');
@@ -1895,6 +1969,7 @@
       document.getElementById('bot-on').checked = botOn;
       document.getElementById('bot-skill').value = botSkill;
       document.getElementById('autonext-on').checked = autoNext;
+      document.getElementById('twohand-on').checked = twoHandOn;
       document.getElementById('player-modal').classList.add('active');
     }
 
