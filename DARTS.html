@@ -462,6 +462,7 @@
       <div class="header-controls">
         <button class="icon-btn" onclick="openStatsModal()">📊 STATS</button>
         <button class="icon-btn" onclick="openPlayerModal()">⚙️ MATCH</button>
+        <button class="icon-btn" onclick="openTrainer()" title="Checkout-Trainer">🎯</button>
         <button class="icon-btn" onclick="openVoiceSettings()" title="Sprache und Stimme">🗣</button>
         <button class="icon-btn" id="sound-btn" onclick="toggleSound()">🔊</button>
         <button class="icon-btn" id="keynote-btn" onclick="toggleKeynoteTrack()">🎵</button>
@@ -521,6 +522,13 @@
   </div>
 
   <!-- MATCH & PLAYER SETTINGS MODAL -->
+  <div class="modal-overlay" id="trainer-modal">
+    <div class="modal-card">
+      <div class="modal-title">CHECKOUT-TRAINER</div>
+      <div class="modal-body" id="trainer-body"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="player-modal">
     <div class="modal-card">
       <div class="modal-title">MATCH SETUP</div>
@@ -563,6 +571,19 @@
             </div>
           </div>
           <button class="icon-btn" style="margin-top:8px;" onclick="previewVoice()">▶ TEST</button>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">BOT-GEGNER</div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:0.75rem;"><input type="checkbox" id="bot-on" onchange="setBotOn(this.checked)"> Bot mitspielen</label>
+            <select id="bot-skill" class="setting-select" onchange="setBotSkill(this.value)">
+              <option value="leicht">Leicht</option>
+              <option value="mittel">Mittel</option>
+              <option value="schwer">Schwer</option>
+            </select>
+          </div>
+          <div style="font-size:0.6rem; color:var(--subtext); margin-top:4px;">Gilt ab dem nächsten Match (MATCH STARTEN)</div>
         </div>
 
         <div class="setting-label">SPIELER VERWALTUNG</div>
@@ -658,17 +679,293 @@
       buildPlayersArray();
     }
 
+    let botOn = localStorage.getItem('neural_bot') === '1';
+    let botSkill = localStorage.getItem('neural_bot_skill') || 'mittel';
+    let botBusy = false;
+    let matchStartTs = null;
+    let trainerTarget = 0, trainerOk = 0, trainerTries = 0;
+    const BOT_SKILL = {
+      leicht: { hit: 0.45, treble: 0.1, aimAny: true },
+      mittel: { hit: 0.65, treble: 0.4, aimAny: false },
+      schwer: { hit: 0.85, treble: 0.6, aimAny: false }
+    };
+    const CRICKET_NUMS = [20, 19, 18, 17, 16, 15, 25];
+    const ATC_ORDER = [...Array.from({ length: 20 }, (_, i) => i + 1), 25];
+    const PALETTE = ['#a78bfa', '#34d399', '#f59e0b', '#f472b6', '#60a5fa', '#f87171'];
+
+    function crickBlank() {
+      return Object.fromEntries(CRICKET_NUMS.map(n => [n, 0]));
+    }
+
     function buildPlayersArray() {
       const startScore = gameMode === '301' ? 301 : 501;
-      players = tempPlayerNames.map(name => ({
-        name: name,
+      const list = tempPlayerNames.map(name => ({ name, bot: false }));
+      if (botOn) list.push({ name: 'BOT', bot: true });
+      players = list.map(({ name, bot }) => ({
+        name,
+        bot,
         score: startScore,
         legs: 0,
         sets: 0,
         dartsThrown: 0,
         totalScored: 0,
-        highestTurn: 0
+        highestTurn: 0,
+        points: 0,
+        cricket: crickBlank(),
+        atcTarget: 1,
+        atcDone: false
       }));
+    }
+
+    function crickNum(label) {
+      if (label === 'BULL' || label === 'D-BULL') return 25;
+      const m = label.match(/^[TD]?(\d+)$/);
+      return m ? Number(m[1]) : 0;
+    }
+
+    function crickMarks(label) {
+      if (label === 'D-BULL') return 2;
+      if (label.startsWith('T')) return 3;
+      if (label.startsWith('D')) return 2;
+      return 1;
+    }
+
+    function applyCricket(p, labels) {
+      for (const l of labels) {
+        if (l.startsWith('PRO:') || l === 'MISS') continue;
+        const n = crickNum(l);
+        if (!CRICKET_NUMS.includes(n)) continue;
+        for (let m = crickMarks(l); m > 0; m--) {
+          if (p.cricket[n] < 3) p.cricket[n]++;
+          else if (players.some(o => o !== p && o.cricket[n] < 3)) p.points += n;
+        }
+      }
+    }
+
+    function crickWon(p) {
+      return CRICKET_NUMS.every(n => p.cricket[n] >= 3) && players.every(o => o === p || p.points >= o.points);
+    }
+
+    function crickLine(p) {
+      const sym = v => v >= 3 ? '✔' : v === 2 ? 'XX' : v === 1 ? 'X' : '·';
+      return CRICKET_NUMS.map(n => `<span>${n === 25 ? 'B' : n}:${sym(p.cricket[n])}</span>`).join(' ');
+    }
+
+    function applyAtc(p, labels) {
+      for (const l of labels) {
+        if (p.atcDone) break;
+        if (l.startsWith('PRO:') || l === 'MISS') continue;
+        if (crickNum(l) === ATC_ORDER[p.atcTarget - 1]) p.atcTarget++;
+        if (p.atcTarget > ATC_ORDER.length) p.atcDone = true;
+      }
+    }
+
+    function atcLabel(p) {
+      if (p.atcDone) return '✔';
+      const n = ATC_ORDER[p.atcTarget - 1];
+      return n === 25 ? 'BULL' : String(n);
+    }
+
+    function scheduleBot() {
+      const p = players[activePlayer];
+      if (!p || !p.bot || botBusy) return;
+      botBusy = true;
+      setTimeout(() => {
+        botBusy = false;
+        if (players[activePlayer] && players[activePlayer].bot) botThrow();
+      }, 900);
+    }
+
+    function botThrow() {
+      const cfg = BOT_SKILL[botSkill] || BOT_SKILL.mittel;
+      turnDarts = [];
+      for (let i = 0; i < 3; i++) {
+        if (Math.random() > cfg.hit) { turnDarts.push({ score: 0, label: 'MISS' }); continue; }
+        const n = cfg.aimAny ? 1 + Math.floor(Math.random() * 20) : (Math.random() < 0.75 ? 20 : 19);
+        const r = Math.random();
+        const mult = r < cfg.treble ? 3 : (r < cfg.treble + 0.15 ? 2 : 1);
+        turnDarts.push({ score: n * mult, label: (mult === 3 ? 'T' : mult === 2 ? 'D' : '') + n });
+      }
+      updateTurnUI();
+      confirmTurn();
+    }
+
+    function setBotOn(v) {
+      botOn = v;
+      localStorage.setItem('neural_bot', v ? '1' : '0');
+    }
+
+    function setBotSkill(v) {
+      botSkill = v;
+      localStorage.setItem('neural_bot_skill', v);
+    }
+
+    function loadProfiles() {
+      try { return JSON.parse(localStorage.getItem('neural_profiles')) || {}; } catch (e) { return {}; }
+    }
+
+    function saveProfile(name, patch) {
+      const pr = loadProfiles();
+      pr[name] = { ...(pr[name] || {}), ...patch };
+      try { localStorage.setItem('neural_profiles', JSON.stringify(pr)); } catch (e) {}
+    }
+
+    function playerColor(idx) {
+      const p = players[idx];
+      const pr = p ? loadProfiles()[p.name] || {} : {};
+      return pr.color || PALETTE[idx % PALETTE.length];
+    }
+
+    function loadElo() {
+      try { return JSON.parse(localStorage.getItem('neural_elo')) || {}; } catch (e) { return {}; }
+    }
+
+    function updateElo(winnerName, loserNames) {
+      const elo = loadElo();
+      const R = n => elo[n] ?? 1000;
+      const rw = R(winnerName);
+      const deltas = {};
+      loserNames.forEach(l => {
+        const e = 1 / (1 + Math.pow(10, (R(l) - rw) / 400));
+        const d = 32 * (1 - e);
+        deltas[winnerName] = (deltas[winnerName] || 0) + d;
+        deltas[l] = (deltas[l] || 0) - d;
+      });
+      for (const [n, d] of Object.entries(deltas)) elo[n] = Math.round(R(n) + d);
+      try { localStorage.setItem('neural_elo', JSON.stringify(elo)); } catch (e) {}
+    }
+
+    function h2h(a, b) {
+      let wa = 0, wb = 0;
+      for (const h of loadMatchHistory()) {
+        const names = h.players.map(p => p.name);
+        if (!names.includes(a) || !names.includes(b)) continue;
+        if (h.winner === a) wa++;
+        else if (h.winner === b) wb++;
+      }
+      return { wa, wb };
+    }
+
+    function profileStats(name) {
+      let matches = 0, wins = 0, avgSum = 0, t180 = 0, t100 = 0;
+      const nums = {};
+      for (const h of loadMatchHistory()) {
+        for (const p of h.players) {
+          if (p.name !== name) continue;
+          matches++;
+          if (h.winner === name) wins++;
+          avgSum += Number(p.avg) || 0;
+          t180 += p.t180 || 0;
+          t100 += p.t100 || 0;
+          for (const [k, c] of Object.entries(p.nums || {})) nums[k] = (nums[k] || 0) + c;
+        }
+      }
+      return { matches, wins, avg: matches ? (avgSum / matches).toFixed(1) : '–', t180, t100, top: topNumbers(nums) };
+    }
+
+    function topNumbers(nums) {
+      return Object.entries(nums).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([k, c]) => `${k == 25 ? 'Bull' : k}×${c}`).join(', ') || '–';
+    }
+
+    function downloadBlob(name, blob) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function exportCsv() {
+      const rows = [['turn', 'leg', 'player', 'start', 'points', 'darts', 'bust', 'won']];
+      matchLog.forEach((e, i) => rows.push([i + 1, e.leg, players[e.p]?.name ?? e.p, e.start, e.pts, e.labels.join(' '), e.bust, e.won]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      downloadBlob('darts-match.csv', new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    }
+
+    function matchSummaryText() {
+      const lines = ['NEURAL DARTS · ' + gameMode.toUpperCase() + ' · ' + new Date().toLocaleDateString('de-DE')];
+      players.forEach((p, idx) => {
+        const s = playerStats(idx);
+        lines.push(`${p.name}: Sets ${p.sets} · Legs ${p.legs} · Avg ${avgOf(p)} · First-9 ${s.first9} · 180er ${s.t180} · Top ${topNumbers(s.nums)}`);
+      });
+      return lines.join('\n');
+    }
+
+    async function copySummary() {
+      const t = matchSummaryText();
+      try {
+        await navigator.clipboard.writeText(t);
+        alert('In die Zwischenablage kopiert.');
+      } catch (e) {
+        prompt('Zum Kopieren markieren:', t);
+      }
+    }
+
+    function saveSummaryImage() {
+      const lines = matchSummaryText().split('\n');
+      const c = document.createElement('canvas');
+      c.width = 1000;
+      c.height = 120 + lines.length * 50;
+      const g = c.getContext('2d');
+      g.fillStyle = '#0d0b1a';
+      g.fillRect(0, 0, c.width, c.height);
+      g.fillStyle = '#67e8f9';
+      g.font = 'bold 30px monospace';
+      g.fillText(lines[0], 30, 56);
+      g.font = '22px monospace';
+      lines.slice(1).forEach((l, i) => {
+        g.fillStyle = i % 2 ? '#94a3b8' : '#e2e8f0';
+        g.fillText(l, 30, 120 + i * 50);
+      });
+      c.toBlob(b => downloadBlob('darts-match.png', b));
+    }
+
+    function heatmapSvg() {
+      const dots = [];
+      matchLog.forEach(e => (e.pos || []).forEach(q => { if (q) dots.push({ x: q.x, y: q.y, c: playerColor(e.p) }); }));
+      if (!dots.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Foto-Scans in diesem Match</div>';
+      return `<svg viewBox="-110 -110 220 220" width="220" height="220" style="display:block;margin:0 auto;">
+        <circle r="100" fill="#1a1a2e" stroke="#555"/>
+        <circle r="95.3" fill="none" stroke="#555"/><circle r="58.2" fill="none" stroke="#555"/>
+        <circle r="62.9" fill="none" stroke="#555"/><circle r="9.35" fill="none" stroke="#555"/>
+        ${dots.map(d => `<circle cx="${(d.x * 100).toFixed(1)}" cy="${(d.y * 100).toFixed(1)}" r="3" fill="${d.c}" opacity="0.85"/>`).join('')}
+      </svg>`;
+    }
+
+    function openTrainer() {
+      nextTrainer();
+      document.getElementById('trainer-modal').classList.add('active');
+    }
+
+    function nextTrainer() {
+      trainerTarget = 2 + Math.floor(Math.random() * 169);
+      renderTrainer();
+      const spoken = voiceLang.startsWith('de') ? `Restpunkte ${trainerTarget}` : `${trainerTarget} remaining`;
+      speakText(spoken, spoken);
+    }
+
+    function renderTrainer() {
+      const route = CHECKOUTS[trainerTarget] || 'kein Standard-Checkout, Doppel treffen';
+      document.getElementById('trainer-body').innerHTML = `
+        <div style="text-align:center;">
+          <div style="font-size:0.7rem;color:var(--subtext);">RESTPUNKTE</div>
+          <div style="font-size:3rem;font-weight:800;color:var(--accent);">${trainerTarget}</div>
+          <div style="font-size:0.9rem;margin:6px 0;">${route}</div>
+          <div style="font-size:0.75rem;color:var(--subtext);margin-bottom:12px;">Treffer: ${trainerOk} / ${trainerTries}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button class="icon-btn" onclick="trainerResult(true)">✔ Getroffen</button>
+            <button class="icon-btn" onclick="trainerResult(false)">✖ Verfehlt</button>
+            <button class="icon-btn" onclick="nextTrainer()">Nächster</button>
+          </div>
+        </div>`;
+    }
+
+    function trainerResult(ok) {
+      trainerTries++;
+      if (ok) trainerOk++;
+      nextTrainer();
     }
 
     function toggleTheme() {
@@ -792,7 +1089,13 @@
 
     function resetLegScores() {
       const startScore = gameMode === '301' ? 301 : 501;
-      players.forEach(p => p.score = startScore);
+      players.forEach(p => {
+        p.score = startScore;
+        p.points = 0;
+        p.cricket = crickBlank();
+        p.atcTarget = 1;
+        p.atcDone = false;
+      });
     }
 
     function resetMatch() {
@@ -802,10 +1105,12 @@
       turnHistory = [];
       matchLog = [];
       legNo = 1;
+      matchStartTs = null;
       multiplier = 'S';
       buildPlayersArray();
       renderScoreboard();
       updateTurnUI();
+      scheduleBot();
     }
 
     function setMultiplier(m) {
@@ -839,7 +1144,7 @@
     }
 
     function throwDart(val) {
-      if (turnDarts.length >= 3) return;
+      if (turnDarts.length >= 3 || players[activePlayer]?.bot) return;
       let score = val;
       let label = val.toString();
 
@@ -929,7 +1234,7 @@
         else if (dist >= 0.582 && dist <= 0.629) { score = sector * 3; label = 'T' + sector; }
         else if (dist >= 0.953) { score = sector * 2; label = 'D' + sector; }
         else { score = sector; label = String(sector); }
-        out.push({ score, label });
+        out.push({ score, label, pos: { x: dist * Math.cos(ang - Math.PI / 2), y: dist * Math.sin(ang - Math.PI / 2) } });
       }
       return { darts: out, safe };
     }
@@ -956,7 +1261,7 @@
         if (!parsed.darts || parsed.darts.length === 0) { setScanStatus('Keine Pfeile erkannt. Foto näher ranhalten.', 'warn'); return; }
         const r = scoreFromPoints(parsed.bull, parsed.twenty_outer, parsed.darts);
         if (!r) { setScanStatus('⚠️ Scheibe nicht sicher erkannt, bitte manuell eingeben.', 'bad'); return; }
-        turnDarts = r.darts.map(d => ({ score: d.score, label: d.label }));
+        turnDarts = r.darts.map(d => ({ score: d.score, label: d.label, pos: d.pos }));
         updateTurnUI();
         const total = turnDarts.reduce((a, b) => a + b.score, 0);
         const names = turnDarts.map(d => d.label).join(' · ');
@@ -976,7 +1281,7 @@
     function submitProScore() {
       const input = document.getElementById('pro-score-input');
       const val = parseInt(input.value);
-      if (isNaN(val) || val < 0 || val > 180) return;
+      if (isNaN(val) || val < 0 || val > 180 || players[activePlayer]?.bot) return;
       turnDarts = [{ score: val, label: `PRO:${val}` }];
       input.value = '';
       input.blur();
@@ -989,18 +1294,15 @@
         updateTurnUI();
       } else if (turnHistory.length > 0) {
         const lastTurn = turnHistory.pop();
+        players = lastTurn.prevPlayers;
         activePlayer = lastTurn.playerIdx;
-        const p = players[activePlayer];
-        p.score = lastTurn.previousScore;
-        p.legs = lastTurn.previousLegs;
-        p.sets = lastTurn.previousSets;
-        p.dartsThrown = lastTurn.previousDarts;
-        p.totalScored = lastTurn.previousTotal;
+        startingPlayerOfLeg = lastTurn.startingPlayerOfLeg;
         matchLog.length = lastTurn.logLen;
         legNo = lastTurn.legNo;
-        turnDarts = [...lastTurn.darts];
+        turnDarts = players[activePlayer].bot ? [] : [...lastTurn.darts];
         renderScoreboard();
         updateTurnUI();
+        scheduleBot();
       }
     }
 
@@ -1027,6 +1329,10 @@
       if (gameMode === '501' || gameMode === '301') {
         const rem = p.score - turnTotal;
         guide.innerText = CHECKOUTS[rem] ? `CHECKOUT: ${CHECKOUTS[rem]}` : (rem <= 1 ? "⚠️ BUST GEFAHR!" : "CHECKOUT: ---");
+      } else if (gameMode === 'cricket') {
+        guide.innerText = 'CRICKET: Ziele 15–20 und Bull schließen';
+      } else if (gameMode === 'atc') {
+        guide.innerText = `ATC: Ziel ${atcLabel(p)}`;
       }
     }
 
@@ -1039,29 +1345,41 @@
       const count = isPro ? 3 : turnDarts.length;
       const labels = turnDarts.map(d => d.label);
 
+      if (!matchStartTs) matchStartTs = Date.now();
+      const pos = turnDarts.map(d => d.pos || null);
       turnHistory.push({
         playerIdx: activePlayer,
-        previousScore: p.score,
-        previousLegs: p.legs,
-        previousSets: p.sets,
-        previousDarts: p.dartsThrown,
-        previousTotal: p.totalScored,
         darts: [...turnDarts],
         logLen: matchLog.length,
-        legNo: legNo
+        legNo: legNo,
+        startingPlayerOfLeg: startingPlayerOfLeg,
+        prevPlayers: JSON.parse(JSON.stringify(players))
       });
 
-      if (gameMode === '501' || gameMode === '301') {
+      if (gameMode === 'cricket') {
+        applyCricket(p, labels);
+        const won = crickWon(p);
+        matchLog.push({ p: activePlayer, leg: legNo, start: 999, pts: 0, count, labels, pos, won, bust: false });
+        if (won) { handleLegWin(p); return; }
+      } else if (gameMode === 'atc') {
+        applyAtc(p, labels);
+        matchLog.push({ p: activePlayer, leg: legNo, start: 999, pts: 0, count, labels, pos, won: p.atcDone, bust: false });
+        if (p.atcDone) {
+          alert(`🎯 ${p.name} in ${((Date.now() - matchStartTs) / 1000).toFixed(1)} s durch!`);
+          handleLegWin(p);
+          return;
+        }
+      } else if (gameMode === '501' || gameMode === '301') {
         if (startScore - turnTotal === 0) {
-          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, won: true, bust: false });
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, pos, won: true, bust: false });
           p.score = 0;
           handleLegWin(p);
           return;
         } else if (startScore - turnTotal < 2) {
-          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: 0, count, labels, won: false, bust: true });
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: 0, count, labels, pos, won: false, bust: true });
           playAudioAnnounce("Bust!", 'bust');
         } else {
-          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, won: false, bust: false });
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, pos, won: false, bust: false });
           p.score -= turnTotal;
           p.dartsThrown += count;
           p.totalScored += turnTotal;
@@ -1077,6 +1395,7 @@
       activePlayer = (activePlayer + 1) % players.length;
       renderScoreboard();
       updateTurnUI();
+      scheduleBot();
     }
 
     function handleLegWin(winner) {
@@ -1108,6 +1427,7 @@
       turnDarts = [];
       renderScoreboard();
       updateTurnUI();
+      scheduleBot();
     }
 
     function renderScoreboard() {
@@ -1116,16 +1436,19 @@
       players.forEach((p, idx) => {
         const card = document.createElement('div');
         card.className = `player-card ${idx === activePlayer ? 'active' : ''}`;
-        const avg = p.dartsThrown > 0 ? ((p.totalScored / p.dartsThrown) * 3).toFixed(1) : "0.0";
+        const profile = loadProfiles()[p.name] || {};
+        const prefix = profile.emoji || (p.bot ? '🤖' : '');
+        let big = p.score;
+        let extra = `<span>Avg: <strong>${avgOf(p)}</strong></span><span>Darts: <strong>${p.dartsThrown}</strong></span>`;
+        if (gameMode === 'cricket') { big = p.points; extra = crickLine(p); }
+        if (gameMode === 'atc') big = p.atcDone ? '✔' : 'ZIEL ' + atcLabel(p);
         card.innerHTML = `
-          <div class="player-name">${p.name} ${idx === startingPlayerOfLeg ? '🔴' : ''}</div>
-          <div class="player-score">${p.score}</div>
+          <div class="player-name">${prefix} ${esc(p.name)} ${idx === startingPlayerOfLeg ? '🔴' : ''}</div>
+          <div class="player-score">${big}</div>
           <div class="player-sets-legs">SETS: ${p.sets} | LEGS: ${p.legs}</div>
-          <div class="player-stats">
-            <span>Avg: <strong>${avg}</strong></span>
-            <span>Darts: <strong>${p.dartsThrown}</strong></span>
-          </div>
+          <div class="player-stats">${extra}</div>
         `;
+        if (profile.color) card.style.borderColor = profile.color;
         board.appendChild(card);
       });
     }
@@ -1133,6 +1456,8 @@
     function openPlayerModal() {
       renderPlayerInputs();
       loadVoiceLanguages();
+      document.getElementById('bot-on').checked = botOn;
+      document.getElementById('bot-skill').value = botSkill;
       document.getElementById('player-modal').classList.add('active');
     }
 
@@ -1272,9 +1597,14 @@
         date: new Date().toLocaleDateString('de-DE'),
         mode: gameMode,
         winner: winner.name,
-        players: players.map(p => ({ name: p.name, sets: p.sets, legs: p.legs, avg: avgOf(p) }))
+        players: players.map((p, idx) => {
+          const s = playerStats(idx);
+          return { name: p.name, bot: !!p.bot, sets: p.sets, legs: p.legs, avg: avgOf(p), t180: s.t180, t140: s.t140, t100: s.t100, busts: s.busts, nums: s.nums };
+        })
       });
       try { localStorage.setItem('neural_match_history', JSON.stringify(hist.slice(0, 30))); } catch (e) {}
+      const humans = players.filter(p => !p.bot).map(p => p.name);
+      if (!winner.bot && humans.length >= 2) updateElo(winner.name, humans.filter(n => n !== winner.name));
     }
 
     function openStatsModal() {
@@ -1310,9 +1640,60 @@
             ${h.date} · ${esc(h.mode)} · <strong>${esc(h.winner)}</strong> · ${h.players.map(p => `${esc(p.name)} ${p.sets}:${p.legs} (${p.avg})`).join(' · ')}
           </div>`).join('') || '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine abgeschlossenen Matches</div>';
 
-      content.innerHTML = cards + `
-          <div style="font-size:0.8rem;margin:6px 0;"><strong style="color:var(--accent);">Gespeicherte Siege:</strong> ${winLine}</div>
-          ${rows}`;
+      const section = (title, body) => `
+          <div style="margin:12px 0 6px;font-size:0.75rem;color:var(--accent);font-weight:700;">${title}</div>${body}`;
+      const profileRows = players.map((p, idx) => {
+        const pr = loadProfiles()[p.name] || {};
+        return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:0.8rem;">
+            <span style="flex:1;">${esc(p.name)}</span>
+            <input data-prof="${esc(p.name)}" data-field="emoji" maxlength="2" value="${esc(pr.emoji || '')}" placeholder="Emoji" style="width:52px;">
+            <input data-prof="${esc(p.name)}" data-field="color" type="color" value="${pr.color || PALETTE[idx % PALETTE.length]}">
+          </div>`;
+      }).join('');
+      const elo = loadElo();
+      const eloRows = Object.entries(elo).sort((a, b) => b[1] - a[1])
+        .map(([n, r], i) => `<div style="font-size:0.8rem;">${i + 1}. ${esc(n)} — <strong>${r}</strong></div>`).join('')
+        || '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Matches</div>';
+      const names = [...new Set(hist.flatMap(h => h.players.map(p => p.name)))];
+      const h2hBlock = names.length < 2 ? '<div style="font-size:0.75rem;color:var(--subtext);">Mindestens zwei Spieler nötig</div>' : `
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="h2h-a" class="setting-select" style="flex:1;">${names.map(n => `<option>${esc(n)}</option>`).join('')}</select>
+            <span>vs</span>
+            <select id="h2h-b" class="setting-select" style="flex:1;">${names.map((n, i) => `<option${i === 1 ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>
+          </div>
+          <div id="h2h-out" style="font-size:0.85rem;margin-top:6px;"></div>`;
+      const profileAll = names.map(n => {
+        const s = profileStats(n);
+        return `<div style="font-size:0.75rem;padding:4px 0;border-bottom:1px solid var(--border-color);"><strong>${esc(n)}</strong>: ${s.matches} Matches · ${s.wins} Siege · Ø ${s.avg} · 180er ${s.t180} · 100+ ${s.t100} · Top ${s.top}</div>`;
+      }).join('') || '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Daten</div>';
+
+      content.innerHTML = `
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="icon-btn" onclick="copySummary()">📋 Text</button>
+            <button class="icon-btn" onclick="saveSummaryImage()">🖼 Bild</button>
+            <button class="icon-btn" onclick="exportCsv()">⬇ CSV</button>
+          </div>
+          ${cards}
+          ${section('HEATMAP (FOTO-SCANS)', heatmapSvg())}
+          ${section('PROFILE BEARBEITEN', profileRows)}
+          ${section('ELO-RANGLISTE', eloRows)}
+          ${section('HEAD-TO-HEAD', h2hBlock)}
+          ${section('GESAMT-PROFILE', profileAll)}
+          ${section('GESPEICHERTE SIEGE', `<div style="font-size:0.8rem;">${winLine}</div>`)}
+          ${section('HISTORIE', rows)}`;
+
+      content.querySelectorAll('[data-prof]').forEach(el =>
+        el.addEventListener('change', () => saveProfile(el.dataset.prof, { [el.dataset.field]: el.value })));
+      const a = content.querySelector('#h2h-a'), b = content.querySelector('#h2h-b');
+      if (a && b) {
+        const update = () => {
+          const r = h2h(a.value, b.value);
+          content.querySelector('#h2h-out').textContent = `${a.value} ${r.wa} : ${r.wb} ${b.value}`;
+        };
+        a.addEventListener('change', update);
+        b.addEventListener('change', update);
+        update();
+      }
       document.getElementById('stats-modal').classList.add('active');
     }
 
