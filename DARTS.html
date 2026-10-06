@@ -466,6 +466,7 @@
       <div class="header-controls">
         <button class="icon-btn" onclick="openStatsModal()">📊 STATS</button>
         <button class="icon-btn" onclick="openPlayerModal()">⚙️ MATCH</button>
+        <button class="icon-btn" onclick="openTournament()" title="Turnier">🏆</button>
         <button class="icon-btn" onclick="openTrainer()" title="Checkout-Trainer">🎯</button>
         <button class="icon-btn" onclick="openVoiceSettings()" title="Sprache und Stimme">🗣</button>
         <button class="icon-btn" id="sound-btn" onclick="toggleSound()">🔊</button>
@@ -530,6 +531,46 @@
     <div class="modal-card">
       <div class="modal-title">CHECKOUT-TRAINER</div>
       <div class="modal-body" id="trainer-body"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tournament-modal">
+    <div class="modal-card">
+      <div class="modal-title">TURNIER</div>
+      <div class="modal-body" id="tournament-body"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="calib-modal">
+    <div class="modal-card">
+      <div class="modal-title">SCHEIBE KALIBRIEREN</div>
+      <div class="modal-body">
+        <div id="calib-hint" style="font-size:0.8rem;margin-bottom:6px;"></div>
+        <canvas id="calib-canvas" onclick="calibTap(event)" style="width:100%;height:auto;border-radius:6px;touch-action:manipulation;"></canvas>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          <button class="icon-btn" id="calib-go" onclick="runScan(true)" disabled>Mit Kalibrierung scannen</button>
+          <button class="icon-btn" onclick="runScan(false)">Automatisch (KI)</button>
+          <button class="icon-btn" onclick="closeModals()">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="preview-modal">
+    <div class="modal-card">
+      <div class="modal-title">ERKANNTE PFEILE</div>
+      <div class="modal-body">
+        <canvas id="preview-canvas" style="width:100%;height:auto;border-radius:6px;"></canvas>
+        <div id="preview-status" style="font-size:0.8rem;margin:8px 0;"></div>
+        <div id="preview-list"></div>
+        <div id="preview-total" style="font-size:0.9rem;margin:6px 0;"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="icon-btn" id="preview-apply" onclick="applyPreview(false)">Übernehmen</button>
+          <button class="icon-btn" id="preview-commit" onclick="applyPreview(true)">Übernehmen &amp; eintragen</button>
+          <button class="icon-btn" onclick="rescanFromPreview()">Neu scannen</button>
+          <button class="icon-btn" onclick="closeModals()">Verwerfen</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -708,7 +749,7 @@
       players = list.map(({ name, bot }) => ({
         name,
         bot,
-        score: startScore,
+        score: startScoreFor(name),
         legs: 0,
         sets: 0,
         dartsThrown: 0,
@@ -953,13 +994,8 @@
       return { x: r * Math.cos(phi), y: r * Math.sin(phi) };
     }
 
-    function heatmapSvg() {
-      const dots = [];
-      matchLog.forEach(e => e.labels.forEach((l, i) => {
-        const q = (e.pos && e.pos[i]) || labelPos(l);
-        if (q) dots.push({ x: q.x, y: q.y, c: playerColor(e.p) });
-      }));
-      if (!dots.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Würfe in diesem Match</div>';
+    function heatmapSvg(dots) {
+      if (!dots.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Würfe</div>';
       return `<svg viewBox="-110 -110 220 220" width="220" height="220" style="display:block;margin:0 auto;">
         <circle r="100" fill="#1a1a2e" stroke="#555"/>
         <circle r="95.3" fill="none" stroke="#555"/><circle r="58.2" fill="none" stroke="#555"/>
@@ -968,27 +1004,155 @@
       </svg>`;
     }
 
-    function openTrainer() {
+    function currentMatchDots() {
+      const dots = [];
+      matchLog.forEach(e => e.labels.forEach((l, i) => {
+        const q = (e.pos && e.pos[i]) || labelPos(l);
+        if (q) dots.push({ x: q.x, y: q.y, c: playerColor(e.p) });
+      }));
+      return dots;
+    }
+
+    function playerDots(name) {
+      const dots = [];
+      const color = (loadProfiles()[name] || {}).color || PALETTE[0];
+      for (const h of loadMatchHistory()) {
+        for (const p of h.players) {
+          if (p.name !== name) continue;
+          for (const [l, x, y] of p.throws || []) {
+            const q = x != null ? { x, y } : labelPos(l);
+            if (q) dots.push({ x: q.x, y: q.y, c: color });
+          }
+        }
+      }
+      players.forEach((pl, idx) => {
+        if (pl.name !== name) return;
+        matchLog.filter(e => e.p === idx).forEach(e => e.labels.forEach((l, i) => {
+          const q = (e.pos && e.pos[i]) || labelPos(l);
+          if (q) dots.push({ x: q.x, y: q.y, c: color });
+        }));
+      });
+      return dots;
+    }
+
+    function playerWeakness(name) {
+      const counts = { total: 0, miss: 0, d: 0, t: 0 };
+      for (const h of loadMatchHistory()) {
+        for (const p of h.players) {
+          if (p.name !== name) continue;
+          for (const [l] of p.throws || []) {
+            if (l.startsWith('PRO:')) continue;
+            counts.total++;
+            if (l === 'MISS') counts.miss++;
+            else if (l.startsWith('T')) counts.t++;
+            else if (l.startsWith('D')) counts.d++;
+          }
+        }
+      }
+      if (!counts.total) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Daten</div>';
+      const pc = x => Math.round(x / counts.total * 100) + ' %';
+      return `<div style="font-size:0.8rem;">Fehlwürfe ${pc(counts.miss)} · Doppel ${pc(counts.d)} · Triple ${pc(counts.t)} <span style="color:var(--subtext);">(${counts.total} Würfe)</span></div>`;
+    }
+
+    function formSvg() {
+      const hist = loadMatchHistory().slice().reverse();
+      const names = [...new Set(hist.flatMap(h => h.players.map(p => p.name)))];
+      const series = names.map(n => {
+        const avgs = [];
+        for (const h of hist) { const pl = h.players.find(p => p.name === n); if (pl) avgs.push(Number(pl.avg) || 0); }
+        return { n, vals: avgs.map((_, i) => { const w = avgs.slice(Math.max(0, i - 4), i + 1); return w.reduce((a, b) => a + b, 0) / w.length; }) };
+      }).filter(s => s.vals.length >= 2);
+      if (!series.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Mindestens zwei Matches pro Spieler nötig</div>';
+      const w = 300, h = 120, max = Math.max(60, ...series.flatMap(s => s.vals));
+      const lines = series.map((s, si) => {
+        const color = (loadProfiles()[s.n] || {}).color || PALETTE[si % PALETTE.length];
+        const pts = s.vals.map((v, i) => `${(i / (s.vals.length - 1)) * w},${h - (v / max) * (h - 8) - 4}`).join(' ');
+        return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>`;
+      }).join('');
+      const legend = series.map((s, si) => {
+        const color = (loadProfiles()[s.n] || {}).color || PALETTE[si % PALETTE.length];
+        return `<span style="color:${color};margin-right:8px;">■ ${esc(s.n)} (${s.vals[s.vals.length - 1].toFixed(1)})</span>`;
+      }).join('');
+      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="120" preserveAspectRatio="none" style="background:#0f0c1f;border-radius:6px;">${lines}</svg>
+        <div style="font-size:0.7rem;margin-top:4px;">${legend}</div>
+        <div style="font-size:0.6rem;color:var(--subtext);">Gleitender Durchschnitt über die letzten 5 Matches</div>`;
+    }
+
+    const FIELD_TARGETS = [];
+    for (let n = 1; n <= 20; n++) FIELD_TARGETS.push('T' + n, 'D' + n, String(n));
+    FIELD_TARGETS.push('D-BULL');
+    let trainerMode = 'checkout';
+
+    function loadFieldTraining() {
+      try { return JSON.parse(localStorage.getItem('neural_field_training')) || {}; } catch (e) { return {}; }
+    }
+
+    function fieldSpoken(label) {
+      const de = voiceLang.startsWith('de');
+      if (label === 'D-BULL') return de ? 'Doppel Bull' : 'Double bull';
+      const m = label.match(/^([TD]?)(\d+)$/);
+      const word = m[1] === 'T' ? 'Triple' : m[1] === 'D' ? (de ? 'Doppel' : 'Double') : '';
+      return (word ? word + ' ' : '') + m[2];
+    }
+
+    function openTrainer(mode = trainerMode) {
+      trainerMode = mode;
       nextTrainer();
       document.getElementById('trainer-modal').classList.add('active');
     }
 
+    function setTrainerMode(m) {
+      trainerMode = m;
+      nextTrainer();
+    }
+
     function nextTrainer() {
-      trainerTarget = 2 + Math.floor(Math.random() * 169);
+      if (trainerMode === 'field') {
+        trainerTarget = FIELD_TARGETS[Math.floor(Math.random() * FIELD_TARGETS.length)];
+        const spoken = fieldSpoken(trainerTarget);
+        speakText(spoken, spoken);
+      } else {
+        trainerTarget = 2 + Math.floor(Math.random() * 169);
+        const spoken = voiceLang.startsWith('de') ? `Restpunkte ${trainerTarget}` : `${trainerTarget} remaining`;
+        speakText(spoken, spoken);
+      }
       renderTrainer();
-      const spoken = voiceLang.startsWith('de') ? `Restpunkte ${trainerTarget}` : `${trainerTarget} remaining`;
-      speakText(spoken, spoken);
+    }
+
+    function weaknessLines() {
+      const ft = loadFieldTraining();
+      const rated = Object.entries(ft).filter(([, v]) => v[1] >= 5)
+        .map(([k, [h, t]]) => ({ k, rate: h / t, h, t }))
+        .sort((a, b) => a.rate - b.rate).slice(0, 5);
+      if (!rated.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Mindestens 5 Versuche pro Feld nötig</div>';
+      return rated.map(r => `<div style="font-size:0.8rem;">${esc(r.k)}: <strong>${Math.round(r.rate * 100)} %</strong> <span style="color:var(--subtext);">(${r.h}/${r.t})</span></div>`).join('');
     }
 
     function renderTrainer() {
-      const route = CHECKOUTS[trainerTarget] || 'kein Standard-Checkout, Doppel treffen';
-      document.getElementById('trainer-body').innerHTML = `
-        <div style="text-align:center;">
+      const tabs = `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;">
+          <button class="icon-btn${trainerMode === 'checkout' ? ' active-music' : ''}" onclick="setTrainerMode('checkout')">Restpunkte</button>
+          <button class="icon-btn${trainerMode === 'field' ? ' active-music' : ''}" onclick="setTrainerMode('field')">Feld-Training</button>
+        </div>`;
+      let body;
+      if (trainerMode === 'field') {
+        const ft = loadFieldTraining()[trainerTarget] || [0, 0];
+        body = `
+          <div style="font-size:0.7rem;color:var(--subtext);">ZIEL</div>
+          <div style="font-size:3rem;font-weight:800;color:var(--accent);">${trainerTarget}</div>
+          <div style="font-size:0.75rem;color:var(--subtext);margin-bottom:6px;">Dieses Feld: ${ft[0]} / ${ft[1]} getroffen</div>
+          <div style="font-size:0.7rem;color:var(--subtext);margin-top:10px;">SCHWÄCHEN (ALLE SPIELE)</div>
+          ${weaknessLines()}`;
+      } else {
+        const route = CHECKOUTS[trainerTarget] || 'kein Standard-Checkout, Doppel treffen';
+        body = `
           <div style="font-size:0.7rem;color:var(--subtext);">RESTPUNKTE</div>
           <div style="font-size:3rem;font-weight:800;color:var(--accent);">${trainerTarget}</div>
           <div style="font-size:0.9rem;margin:6px 0;">${route}</div>
-          <div style="font-size:0.75rem;color:var(--subtext);margin-bottom:12px;">Treffer: ${trainerOk} / ${trainerTries}</div>
-          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <div style="font-size:0.75rem;color:var(--subtext);margin-bottom:12px;">Treffer: ${trainerOk} / ${trainerTries}</div>`;
+      }
+      document.getElementById('trainer-body').innerHTML = `
+        <div style="text-align:center;">${tabs}${body}
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
             <button class="icon-btn" onclick="trainerResult(true)">✔ Getroffen</button>
             <button class="icon-btn" onclick="trainerResult(false)">✖ Verfehlt</button>
             <button class="icon-btn" onclick="nextTrainer()">Nächster</button>
@@ -997,8 +1161,15 @@
     }
 
     function trainerResult(ok) {
-      trainerTries++;
-      if (ok) trainerOk++;
+      if (trainerMode === 'field') {
+        const ft = loadFieldTraining();
+        const [h, t] = ft[trainerTarget] || [0, 0];
+        ft[trainerTarget] = [h + (ok ? 1 : 0), t + 1];
+        try { localStorage.setItem('neural_field_training', JSON.stringify(ft)); } catch (e) {}
+      } else {
+        trainerTries++;
+        if (ok) trainerOk++;
+      }
       nextTrainer();
     }
 
@@ -1121,10 +1292,14 @@
       resetMatch();
     }
 
+    function startScoreFor(name) {
+      const base = gameMode === '301' ? 301 : 501;
+      return base + (Number(loadProfiles()[name]?.handicap) || 0);
+    }
+
     function resetLegScores() {
-      const startScore = gameMode === '301' ? 301 : 501;
       players.forEach(p => {
-        p.score = startScore;
+        p.score = startScoreFor(p.name);
         p.points = 0;
         p.cricket = crickBlank();
         p.atcTarget = 1;
@@ -1222,19 +1397,25 @@
       el.className = 'scan-status' + (cls ? ' ' + cls : '');
     }
 
-    function fileToResizedBase64(file, maxSide = 768) {
+    const SCAN_PROMPT_DARTS = 'This photo shows a dartboard with darts stuck in it. For every dart stuck in the board, give the point where the dart enters the board, ' +
+      'normalized to 0-1000 (0,0 = top-left corner, 1000,1000 = bottom-right corner of the photo). ' +
+      'Answer ONLY with JSON: {"darts":[{"x":0,"y":0}]}';
+
+    function loadPhoto(file) {
       return new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => {
-          const k = Math.min(1, maxSide / Math.max(img.width, img.height));
-          const c = document.createElement('canvas');
-          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          resolve(c.toDataURL('image/jpeg', 0.5).split(',')[1]);
-        };
+        img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = URL.createObjectURL(file);
       });
+    }
+
+    function photoCanvas(img, maxSide = 768) {
+      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      return c;
     }
 
     // Returns { darts:[{score,label}], safe:boolean } or null when the geometry is not usable.
@@ -1273,41 +1454,178 @@
       return { darts: out, safe };
     }
 
+    let scan = null;
+    let previewRows = [];
+    let previewSafe = true;
+
+    // Both axes in one frame where the longer photo side is 1000, so rings stay round
+    function uniformFromPixels(px, py) {
+      const S = Math.max(scan.canvas.width, scan.canvas.height);
+      return { x: px / S * 1000, y: py / S * 1000 };
+    }
+
+    function uniformFromNorm(x, y) {
+      return uniformFromPixels(x / 1000 * scan.canvas.width, y / 1000 * scan.canvas.height);
+    }
+
     async function scanDartsPhoto(input) {
       const file = input.files && input.files[0];
       input.value = '';
-      if (!file) return;
+      if (!file || players[activePlayer]?.bot) return;
+      try {
+        scan = { canvas: photoCanvas(await loadPhoto(file)), bull: null, outer: null };
+      } catch (e) {
+        setScanStatus('❌ Foto konnte nicht geladen werden.', 'bad');
+        return;
+      }
+      drawCalib();
+      document.getElementById('calib-modal').classList.add('active');
+    }
+
+    function drawCalib() {
+      const cv = document.getElementById('calib-canvas');
+      cv.width = scan.canvas.width;
+      cv.height = scan.canvas.height;
+      const g = cv.getContext('2d');
+      g.drawImage(scan.canvas, 0, 0);
+      const mark = (pt, label, color) => {
+        if (!pt) return;
+        g.beginPath(); g.arc(pt.x, pt.y, 8, 0, Math.PI * 2); g.fillStyle = color; g.fill();
+        g.font = 'bold 22px sans-serif'; g.fillText(label, pt.x + 12, pt.y - 10);
+      };
+      mark(scan.bull, 'Bull', '#f87171');
+      mark(scan.outer, 'Segment 20', '#67e8f9');
+      document.getElementById('calib-hint').textContent =
+        !scan.bull ? '1. Tippe auf die Mitte der Scheibe (Bull)' :
+        !scan.outer ? '2. Tippe auf die Außenkante von Segment 20 (oben)' :
+        'Bereit. Jetzt scannen oder neu antippen.';
+      document.getElementById('calib-go').disabled = !(scan.bull && scan.outer);
+    }
+
+    function calibTap(e) {
+      if (!scan) return;
+      const cv = document.getElementById('calib-canvas');
+      const r = cv.getBoundingClientRect();
+      const pt = { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height };
+      if (!scan.bull) scan.bull = pt;
+      else if (!scan.outer) scan.outer = pt;
+      else { scan.bull = pt; scan.outer = null; }
+      drawCalib();
+    }
+
+    async function runScan(useCalib) {
+      closeModals();
       setScanStatus('📷 Foto wird analysiert …');
       try {
-        const b64 = await fileToResizedBase64(file);
+        const b64 = scan.canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
         const res = await fetch(SCAN_PROXY + '/gemini/models/' + SCAN_MODEL + '/generateContent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [ { text: SCAN_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: b64 } } ] }],
+            contents: [{ parts: [ { text: useCalib ? SCAN_PROMPT_DARTS : SCAN_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: b64 } } ] }],
             generationConfig: { responseMimeType: 'application/json', temperature: 0 }
           })
         });
         if (!res.ok) throw new Error('Proxy HTTP ' + res.status);
         const data = await res.json();
-        const text = data.candidates[0].content.parts.map(p => p.text || '').join('');
-        const parsed = JSON.parse(text);
+        const parsed = JSON.parse(data.candidates[0].content.parts.map(p => p.text || '').join(''));
         if (!parsed.darts || parsed.darts.length === 0) { setScanStatus('Keine Pfeile erkannt. Foto näher ranhalten.', 'warn'); return; }
-        const r = scoreFromPoints(parsed.bull, parsed.twenty_outer, parsed.darts);
-        if (!r) { setScanStatus('⚠️ Scheibe nicht sicher erkannt, bitte manuell eingeben.', 'bad'); return; }
-        turnDarts = r.darts.map(d => ({ score: d.score, label: d.label, pos: d.pos }));
-        updateTurnUI();
-        const total = turnDarts.reduce((a, b) => a + b.score, 0);
-        const names = turnDarts.map(d => d.label).join(' · ');
-        if (r.safe) {
-          setScanStatus('✅ ' + names + ' = ' + total + ' eingetragen (UNDO zum Zurücknehmen)');
-          confirmTurn();
-        } else {
-          setScanStatus('🤔 Knapp am Rand: ' + names + ' = ' + total + '. Prüfen und NEXT PLAYER drücken.', 'warn');
-        }
+        const bullU = useCalib ? uniformFromPixels(scan.bull.x, scan.bull.y) : uniformFromNorm(parsed.bull.x, parsed.bull.y);
+        const outerU = useCalib ? uniformFromPixels(scan.outer.x, scan.outer.y) : uniformFromNorm(parsed.twenty_outer.x, parsed.twenty_outer.y);
+        const dartsU = parsed.darts.slice(0, 3).map(d => uniformFromNorm(d.x, d.y));
+        const r = scoreFromPoints(bullU, outerU, dartsU);
+        if (!r) { setScanStatus('⚠️ Scheibe nicht sicher erkannt. Bitte kalibrieren.', 'bad'); return; }
+        previewRows = r.darts.map((d, i) => ({ label: d.label, pos: d.pos, pt: dartsU[i], bullU, outerU }));
+        previewSafe = r.safe;
+        renderPreview();
+        document.getElementById('preview-modal').classList.add('active');
+        setScanStatus('');
       } catch (e) {
         console.log('scan failed', e);
         setScanStatus('❌ Scan fehlgeschlagen. Bitte manuell eingeben.', 'bad');
+      }
+    }
+
+    function parseLabel(raw) {
+      const s = String(raw).trim().toUpperCase().replace(/\s+/g, '');
+      if (s === 'BULL') return { score: 25, label: 'BULL' };
+      if (s === 'D-BULL' || s === 'DBULL') return { score: 50, label: 'D-BULL' };
+      if (s === 'MISS' || s === '0') return { score: 0, label: 'MISS' };
+      const m = s.match(/^([TDS]?)(\d{1,2})$/);
+      if (!m) return null;
+      const n = Number(m[2]);
+      if (n < 1 || n > 20) return null;
+      const mult = m[1] === 'T' ? 3 : m[1] === 'D' ? 2 : 1;
+      return { score: n * mult, label: (m[1] === 'S' ? '' : m[1]) + n };
+    }
+
+    function drawPreviewCanvas() {
+      const base = scan.canvas;
+      const cv = document.getElementById('preview-canvas');
+      cv.width = base.width;
+      cv.height = base.height;
+      const g = cv.getContext('2d');
+      g.drawImage(base, 0, 0);
+      const k = Math.max(base.width, base.height) / 1000;
+      const mark = (pt, text, color) => {
+        g.beginPath(); g.arc(pt.x * k, pt.y * k, 9, 0, Math.PI * 2); g.lineWidth = 3; g.strokeStyle = color; g.stroke();
+        g.font = 'bold 24px sans-serif'; g.fillStyle = color; g.fillText(text, pt.x * k + 12, pt.y * k - 10);
+      };
+      if (previewRows.length) {
+        mark(previewRows[0].bullU, 'Bull', '#f87171');
+        mark(previewRows[0].outerU, '20', '#67e8f9');
+      }
+      previewRows.forEach((row, i) => { if (row.pt) mark(row.pt, (i + 1) + ': ' + row.label, '#fbbf24'); });
+    }
+
+    function refreshPreviewTotals() {
+      const valid = previewRows.every(r => r.parsed);
+      const total = previewRows.reduce((a, r) => a + (r.parsed ? r.parsed.score : 0), 0);
+      document.getElementById('preview-total').textContent = valid ? 'Summe: ' + total : '⚠️ Ungültiges Feld, bitte korrigieren';
+      document.getElementById('preview-apply').disabled = !valid;
+      document.getElementById('preview-commit').disabled = !valid;
+    }
+
+    function renderPreview() {
+      previewRows.forEach(r => { r.parsed = parseLabel(r.label); });
+      document.getElementById('preview-status').textContent = previewSafe
+        ? 'Alle Pfeile klar erkannt. Korrigiere bei Bedarf das Feld.'
+        : '⚠️ Mindestens ein Pfeil liegt knapp an einer Linie. Bitte prüfen.';
+      document.getElementById('preview-list').innerHTML = previewRows.map((r, i) => `
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:0.85rem;">
+          <span style="width:20px;">${i + 1}.</span>
+          <input data-pi="${i}" value="${esc(r.label)}" style="width:110px;">
+        </div>`).join('');
+      document.querySelectorAll('#preview-list input').forEach(inp => inp.addEventListener('input', () => {
+        const row = previewRows[Number(inp.dataset.pi)];
+        row.label = inp.value;
+        row.parsed = parseLabel(inp.value);
+        inp.style.borderColor = row.parsed ? '' : '#f87171';
+        drawPreviewCanvas();
+        refreshPreviewTotals();
+      }));
+      drawPreviewCanvas();
+      refreshPreviewTotals();
+    }
+
+    function rescanFromPreview() {
+      closeModals();
+      drawCalib();
+      document.getElementById('calib-modal').classList.add('active');
+    }
+
+    function applyPreview(commit) {
+      if (previewRows.some(r => !r.parsed)) return;
+      turnDarts = previewRows.map(r => ({ score: r.parsed.score, label: r.parsed.label, pos: r.pos }));
+      closeModals();
+      updateTurnUI();
+      const names = turnDarts.map(d => d.label).join(' · ');
+      const total = turnDarts.reduce((a, d) => a + d.score, 0);
+      if (commit) {
+        confirmTurn();
+        setScanStatus('✅ ' + names + ' = ' + total + ' eingetragen (UNDO zum Zurücknehmen)');
+      } else {
+        setScanStatus('📋 ' + names + ' = ' + total + ' übernommen. NEXT PLAYER drücken.');
       }
     }
 
@@ -1444,6 +1762,7 @@
         if (winner.sets >= targetSets) {
           playAudioAnnounce("Game, Shot, and Match!");
           saveMatchHistory(winner);
+          if (activeTournamentMatch !== null) finishTournamentMatch(winner.name);
           alert(`🏆 ${winner.name} GEWINNT DAS MATCH! (${winner.sets} Sets / ${winner.legs} Legs)`);
           resetMatch();
           return;
@@ -1633,7 +1952,11 @@
         winner: winner.name,
         players: players.map((p, idx) => {
           const s = playerStats(idx);
-          return { name: p.name, bot: !!p.bot, sets: p.sets, legs: p.legs, avg: avgOf(p), t180: s.t180, t140: s.t140, t100: s.t100, busts: s.busts, nums: s.nums };
+          const throws = matchLog.filter(e => e.p === idx).flatMap(e => e.labels.map((l, i) => {
+            const q = e.pos && e.pos[i];
+            return [l, q ? +q.x.toFixed(3) : null, q ? +q.y.toFixed(3) : null];
+          }));
+          return { name: p.name, bot: !!p.bot, sets: p.sets, legs: p.legs, avg: avgOf(p), t180: s.t180, t140: s.t140, t100: s.t100, busts: s.busts, nums: s.nums, throws };
         })
       });
       try { localStorage.setItem('neural_match_history', JSON.stringify(hist.slice(0, 30))); } catch (e) {}
@@ -1678,10 +2001,11 @@
           <div style="margin:12px 0 6px;font-size:0.75rem;color:var(--accent);font-weight:700;">${title}</div>${body}`;
       const profileRows = players.map((p, idx) => {
         const pr = loadProfiles()[p.name] || {};
-        return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:0.8rem;">
-            <span style="flex:1;">${esc(p.name)}</span>
+        return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:0.8rem;flex-wrap:wrap;">
+            <span style="flex:1;min-width:80px;">${esc(p.name)}</span>
             <input data-prof="${esc(p.name)}" data-field="emoji" maxlength="2" value="${esc(pr.emoji || '')}" placeholder="Emoji" style="width:52px;">
             <input data-prof="${esc(p.name)}" data-field="color" type="color" value="${pr.color || PALETTE[idx % PALETTE.length]}">
+            <input data-prof="${esc(p.name)}" data-field="handicap" type="number" step="10" value="${Number(pr.handicap) || 0}" title="Handicap: Startpunkte-Bonus" style="width:70px;">
           </div>`;
       }).join('');
       const elo = loadElo();
@@ -1708,7 +2032,12 @@
             <button class="icon-btn" onclick="exportCsv()">⬇ CSV</button>
           </div>
           ${cards}
-          ${section('TREFFERVERTEILUNG', heatmapSvg())}
+          ${section('TREFFERVERTEILUNG (DIESES MATCH)', heatmapSvg(currentMatchDots()))}
+          ${section('HEATMAP PRO SPIELER (ALLE SPIELE)', `
+            <select id="heat-player" class="setting-select" style="width:100%;margin-bottom:6px;">${names.map(n => `<option>${esc(n)}</option>`).join('')}</select>
+            <div id="heat-out">${names.length ? heatmapSvg(playerDots(names[0])) : ''}</div>`)}
+          ${section('FORMKURVE', formSvg())}
+          ${section('SCHWÄCHEN', (names.length ? names.map(n => `<div style="margin-bottom:6px;"><strong>${esc(n)}</strong>${playerWeakness(n)}</div>`).join('') : '') + `<div style="font-size:0.7rem;color:var(--subtext);margin-top:6px;">FELD-TRAINING (TRAINER)</div>${weaknessLines()}`)}
           ${section('PROFILE BEARBEITEN', profileRows)}
           ${section('ELO-RANGLISTE', eloRows)}
           ${section('HEAD-TO-HEAD', h2hBlock)}
@@ -1717,7 +2046,13 @@
           ${section('HISTORIE', rows)}`;
 
       content.querySelectorAll('[data-prof]').forEach(el =>
-        el.addEventListener('change', () => saveProfile(el.dataset.prof, { [el.dataset.field]: el.value })));
+        el.addEventListener('change', () => saveProfile(el.dataset.prof, {
+          [el.dataset.field]: el.dataset.field === 'handicap' ? (Number(el.value) || 0) : el.value
+        })));
+      const heatSel = content.querySelector('#heat-player');
+      if (heatSel) heatSel.addEventListener('change', () => {
+        content.querySelector('#heat-out').innerHTML = heatmapSvg(playerDots(heatSel.value));
+      });
       const a = content.querySelector('#h2h-a'), b = content.querySelector('#h2h-b');
       if (a && b) {
         const update = () => {
@@ -1729,6 +2064,185 @@
         update();
       }
       document.getElementById('stats-modal').classList.add('active');
+    }
+
+    const TOUR_KEY = 'neural_tournament';
+    let activeTournamentMatch = null;
+    let tournamentBackup = null;
+
+    function tournamentLoad() {
+      try { return JSON.parse(localStorage.getItem(TOUR_KEY)) || null; } catch (e) { return null; }
+    }
+
+    function tournamentSave(t) {
+      try { localStorage.setItem(TOUR_KEY, JSON.stringify(t)); } catch (e) {}
+    }
+
+    function shuffled(a) {
+      const r = [...a];
+      for (let i = r.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [r[i], r[j]] = [r[j], r[i]];
+      }
+      return r;
+    }
+
+    function createTournament(size, format, names) {
+      const list = shuffled(names).slice(0, size);
+      const t = { size, format, matches: [], nextId: 1, groups: [] };
+      const add = m => t.matches.push({ ...m, id: t.nextId++, winner: null });
+      if (format === 'group') {
+        for (let g = 0; g < size / 4; g++) {
+          const members = list.slice(g * 4, g * 4 + 4);
+          t.groups.push(members);
+          for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) add({ stage: 'group', group: g, round: 0, a: members[i], b: members[j] });
+        }
+      } else {
+        for (let i = 0; i < size; i += 2) add({ stage: 'ko', round: 0, a: list[i], b: list[i + 1] });
+      }
+      tournamentSave(t);
+      return t;
+    }
+
+    function groupStandings(t, g) {
+      const members = t.groups[g];
+      const wins = Object.fromEntries(members.map(n => [n, 0]));
+      const played = Object.fromEntries(members.map(n => [n, 0]));
+      t.matches.filter(m => m.stage === 'group' && m.group === g && m.winner).forEach(m => {
+        wins[m.winner]++;
+        played[m.a]++;
+        played[m.b]++;
+      });
+      const order = members.slice().sort((x, y) => wins[y] - wins[x] || x.localeCompare(y));
+      return order.map(n => ({ name: n, wins: wins[n], played: played[n] }));
+    }
+
+    function advanceTournament(t) {
+      const groupMatches = t.matches.filter(m => m.stage === 'group');
+      if (t.format === 'group' && groupMatches.length && groupMatches.every(m => m.winner) && !t.matches.some(m => m.stage === 'ko')) {
+        const tops = t.groups.map((_, g) => groupStandings(t, g).slice(0, 2).map(s => s.name));
+        tops.forEach((top, g) => {
+          const other = tops[(g + 1) % tops.length];
+          t.matches.push({ id: t.nextId++, stage: 'ko', round: 0, a: top[0], b: other[1], winner: null });
+        });
+      }
+      for (let r = 0; ; r++) {
+        const round = t.matches.filter(m => m.stage === 'ko' && m.round === r);
+        if (!round.length || !round.every(m => m.winner) || round.length === 1) break;
+        if (t.matches.some(m => m.stage === 'ko' && m.round === r + 1)) continue;
+        const winners = round.map(m => m.winner);
+        for (let i = 0; i < winners.length; i += 2) {
+          t.matches.push({ id: t.nextId++, stage: 'ko', round: r + 1, a: winners[i], b: winners[i + 1], winner: null });
+        }
+      }
+      tournamentSave(t);
+    }
+
+    function tournamentRecord(winnerName) {
+      const t = tournamentLoad();
+      if (!t) return;
+      const m = t.matches.find(x => x.id === activeTournamentMatch);
+      if (!m || m.winner) return;
+      m.winner = winnerName;
+      advanceTournament(t);
+    }
+
+    function startTournamentMatch(id) {
+      const t = tournamentLoad();
+      const m = t && t.matches.find(x => x.id === id);
+      if (!m || m.winner || activeTournamentMatch !== null) return;
+      activeTournamentMatch = id;
+      tournamentBackup = { names: tempPlayerNames, bot: botOn };
+      tempPlayerNames = [m.a, m.b];
+      botOn = false;
+      closeModals();
+      resetMatch();
+      setScanStatus('🏆 Turnierspiel: ' + m.a + ' vs ' + m.b);
+    }
+
+    function finishTournamentMatch(winnerName) {
+      tournamentRecord(winnerName);
+      tempPlayerNames = tournamentBackup.names;
+      botOn = tournamentBackup.bot;
+      activeTournamentMatch = null;
+      tournamentBackup = null;
+    }
+
+    function roundTitle(count) {
+      if (count === 1) return 'Finale';
+      if (count === 2) return 'Halbfinale';
+      if (count === 4) return 'Viertelfinale';
+      return count * 2 + 'er-Runde';
+    }
+
+    function openTournament() {
+      renderTournament();
+      document.getElementById('tournament-modal').classList.add('active');
+    }
+
+    function renderTournament() {
+      const body = document.getElementById('tournament-body');
+      const t = tournamentLoad();
+      if (!t) {
+        const names = [...new Set([...tempPlayerNames, ...Object.keys(loadProfiles())])];
+        body.innerHTML = `
+          <div class="setting-label">NEUES TURNIER</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="tour-size" class="setting-select" style="flex:1;"><option value="4">4 Spieler</option><option value="8" selected>8 Spieler</option><option value="16">16 Spieler</option></select>
+            <select id="tour-format" class="setting-select" style="flex:1;"><option value="ko">K.O.-Baum</option><option value="group">Gruppen + K.O.</option></select>
+          </div>
+          <textarea id="tour-names" rows="8" style="width:100%;" placeholder="Ein Name pro Zeile">${esc(names.join('\n'))}</textarea>
+          <div style="font-size:0.6rem;color:var(--subtext);margin:4px 0 8px;">Fehlen Namen, werden sie als „Spieler n“ ergänzt. Gruppen gibt es nur bei 8 oder 16.</div>
+          <button class="icon-btn" onclick="startNewTournament()">Auslosen &amp; starten</button>`;
+        return;
+      }
+      const ko = t.matches.filter(m => m.stage === 'ko');
+      const last = ko.length ? Math.max(...ko.map(m => m.round)) : 0;
+      const final = ko.filter(m => m.round === last);
+      const champ = final.length === 1 && final[0].winner ? final[0].winner : null;
+      const row = m => `
+        <div style="font-size:0.8rem;padding:6px 0;border-bottom:1px solid var(--border-color);">
+          <span style="${m.winner === m.a ? 'color:var(--accent);font-weight:700;' : ''}">${esc(m.a)}</span> vs
+          <span style="${m.winner === m.b ? 'color:var(--accent);font-weight:700;' : ''}">${esc(m.b)}</span>
+          ${m.winner ? '' : `<button class="icon-btn" style="float:right;" ${activeTournamentMatch !== null ? 'disabled' : ''} onclick="startTournamentMatch(${m.id})">▶ Spielen</button>`}
+        </div>`;
+      let html = champ ? `<div style="font-size:1.1rem;color:var(--accent);margin-bottom:8px;">🏆 Sieger: ${esc(champ)}</div>` : '';
+      if (activeTournamentMatch !== null) html += '<div style="font-size:0.75rem;margin-bottom:6px;">Ein Spiel läuft gerade.</div>';
+      if (t.format === 'group') {
+        t.groups.forEach((_, g) => {
+          html += `<div style="margin:10px 0 4px;font-size:0.75rem;color:var(--accent);font-weight:700;">GRUPPE ${g + 1}</div>`;
+          html += groupStandings(t, g).map(s => `<div style="font-size:0.8rem;">${esc(s.name)} — ${s.wins} Siege · ${s.played} Spiele</div>`).join('');
+          html += t.matches.filter(m => m.stage === 'group' && m.group === g).map(row).join('');
+        });
+      }
+      for (let r = 0; r <= last; r++) {
+        const round = ko.filter(m => m.round === r);
+        if (!round.length) continue;
+        html += `<div style="margin:12px 0 4px;font-size:0.75rem;color:var(--accent);font-weight:700;">${roundTitle(round.length)}</div>`;
+        html += round.map(row).join('');
+      }
+      html += `<div style="margin-top:12px;"><button class="icon-btn" onclick="resetTournament()">Turnier löschen</button></div>`;
+      body.innerHTML = html;
+    }
+
+    function startNewTournament() {
+      const size = Number(document.getElementById('tour-size').value);
+      const format = document.getElementById('tour-format').value;
+      if (format === 'group' && size === 4) { alert('Gruppen gibt es nur bei 8 oder 16 Spielern.'); return; }
+      const typed = document.getElementById('tour-names').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const names = [...new Set(typed)];
+      for (let i = names.length; i < size; i++) names.push('Spieler ' + (i + 1));
+      if (names.length > size) names.length = size;
+      if (new Set(names).size !== names.length) { alert('Namen müssen eindeutig sein.'); return; }
+      createTournament(size, format, names);
+      renderTournament();
+    }
+
+    function resetTournament() {
+      if (activeTournamentMatch !== null) { alert('Erst das laufende Spiel beenden.'); return; }
+      if (!confirm('Turnier wirklich löschen?')) return;
+      localStorage.removeItem(TOUR_KEY);
+      renderTournament();
     }
 
     function closeModals() {
