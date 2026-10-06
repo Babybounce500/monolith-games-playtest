@@ -453,6 +453,10 @@
     .scan-status { font-size: 0.7rem; color: var(--subtext); min-height: 1.1em; text-align: center; margin: 2px 0 4px; font-family: 'Share Tech Mono', monospace; }
     .scan-status.warn { color: #f59e0b; }
     .scan-status.bad { color: var(--red-peg); }
+    @media (max-width: 480px) {
+      .header-controls { gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
+      .header-controls .icon-btn { padding: 6px 7px; font-size: 0.65rem; }
+    }
   </style>
 </head>
 <body>
@@ -776,15 +780,31 @@
       }, 900);
     }
 
+    function botAim(p, cfg) {
+      if (gameMode === 'atc') return ATC_ORDER[p.atcTarget - 1];
+      if (gameMode === 'cricket') {
+        const open = CRICKET_NUMS.filter(n => p.cricket[n] < 3);
+        if (open.length) return open[Math.floor(Math.random() * open.length)];
+        return CRICKET_NUMS[Math.floor(Math.random() * CRICKET_NUMS.length)];
+      }
+      if (cfg.aimAny) return 1 + Math.floor(Math.random() * 20);
+      return Math.random() < 0.75 ? 20 : 19;
+    }
+
     function botThrow() {
       const cfg = BOT_SKILL[botSkill] || BOT_SKILL.mittel;
+      const p = players[activePlayer];
       turnDarts = [];
       for (let i = 0; i < 3; i++) {
         if (Math.random() > cfg.hit) { turnDarts.push({ score: 0, label: 'MISS' }); continue; }
-        const n = cfg.aimAny ? 1 + Math.floor(Math.random() * 20) : (Math.random() < 0.75 ? 20 : 19);
+        const n = botAim(p, cfg);
         const r = Math.random();
-        const mult = r < cfg.treble ? 3 : (r < cfg.treble + 0.15 ? 2 : 1);
-        turnDarts.push({ score: n * mult, label: (mult === 3 ? 'T' : mult === 2 ? 'D' : '') + n });
+        const mult = (n === 25) ? (r < 0.5 ? 2 : 1) : (r < cfg.treble ? 3 : (r < cfg.treble + 0.15 ? 2 : 1));
+        if (n === 25) {
+          turnDarts.push(mult === 2 ? { score: 50, label: 'D-BULL' } : { score: 25, label: 'BULL' });
+        } else {
+          turnDarts.push({ score: n * mult, label: (mult === 3 ? 'T' : mult === 2 ? 'D' : '') + n });
+        }
       }
       updateTurnUI();
       confirmTurn();
@@ -922,10 +942,24 @@
       c.toBlob(b => downloadBlob('darts-match.png', b));
     }
 
+    function labelPos(label) {
+      if (label === 'BULL' || label === 'D-BULL') return { x: 0, y: 0 };
+      const m = label.match(/^([TD]?)(\d+)$/);
+      if (!m) return null;
+      const idx = SCAN_ORDER.indexOf(Number(m[2]));
+      if (idx < 0) return null;
+      const r = m[1] === 'T' ? 0.6055 : m[1] === 'D' ? 0.976 : 0.34;
+      const phi = idx * Math.PI / 10 - Math.PI / 2;
+      return { x: r * Math.cos(phi), y: r * Math.sin(phi) };
+    }
+
     function heatmapSvg() {
       const dots = [];
-      matchLog.forEach(e => (e.pos || []).forEach(q => { if (q) dots.push({ x: q.x, y: q.y, c: playerColor(e.p) }); }));
-      if (!dots.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Foto-Scans in diesem Match</div>';
+      matchLog.forEach(e => e.labels.forEach((l, i) => {
+        const q = (e.pos && e.pos[i]) || labelPos(l);
+        if (q) dots.push({ x: q.x, y: q.y, c: playerColor(e.p) });
+      }));
+      if (!dots.length) return '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine Würfe in diesem Match</div>';
       return `<svg viewBox="-110 -110 220 220" width="220" height="220" style="display:block;margin:0 auto;">
         <circle r="100" fill="#1a1a2e" stroke="#555"/>
         <circle r="95.3" fill="none" stroke="#555"/><circle r="58.2" fill="none" stroke="#555"/>
@@ -1674,7 +1708,7 @@
             <button class="icon-btn" onclick="exportCsv()">⬇ CSV</button>
           </div>
           ${cards}
-          ${section('HEATMAP (FOTO-SCANS)', heatmapSvg())}
+          ${section('TREFFERVERTEILUNG', heatmapSvg())}
           ${section('PROFILE BEARBEITEN', profileRows)}
           ${section('ELO-RANGLISTE', eloRows)}
           ${section('HEAD-TO-HEAD', h2hBlock)}
