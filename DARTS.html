@@ -462,6 +462,7 @@
       <div class="header-controls">
         <button class="icon-btn" onclick="openStatsModal()">📊 STATS</button>
         <button class="icon-btn" onclick="openPlayerModal()">⚙️ MATCH</button>
+        <button class="icon-btn" onclick="openVoiceSettings()" title="Sprache und Stimme">🗣</button>
         <button class="icon-btn" id="sound-btn" onclick="toggleSound()">🔊</button>
         <button class="icon-btn" id="keynote-btn" onclick="toggleKeynoteTrack()">🎵</button>
         <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
@@ -591,6 +592,8 @@
     let multiplier = 'S';
     let turnDarts = [];
     let turnHistory = [];
+    let matchLog = [];
+    let legNo = 1;
 
     let targetLegs = 3;
     let targetSets = 1;
@@ -740,7 +743,11 @@
     function loadVoiceLanguages() {
       if (!('speechSynthesis' in window)) return;
       const voices = speechSynthesis.getVoices();
-      if (!voices.length) return;
+      if (!voices.length) {
+        document.getElementById('voice-lang').replaceChildren(new Option('keine Stimmen gefunden', ''));
+        document.getElementById('voice-name').replaceChildren(new Option('–', ''));
+        return;
+      }
       const langs = [...new Set(voices.map(v => v.lang))].sort();
       const names = new Intl.DisplayNames([navigator.language], { type: 'language' });
       const sel = document.getElementById('voice-lang');
@@ -793,6 +800,8 @@
       startingPlayerOfLeg = 0;
       turnDarts = [];
       turnHistory = [];
+      matchLog = [];
+      legNo = 1;
       multiplier = 'S';
       buildPlayersArray();
       renderScoreboard();
@@ -987,6 +996,8 @@
         p.sets = lastTurn.previousSets;
         p.dartsThrown = lastTurn.previousDarts;
         p.totalScored = lastTurn.previousTotal;
+        matchLog.length = lastTurn.logLen;
+        legNo = lastTurn.legNo;
         turnDarts = [...lastTurn.darts];
         renderScoreboard();
         updateTurnUI();
@@ -1022,7 +1033,11 @@
     function confirmTurn() {
       if (players.length === 0) return;
       const p = players[activePlayer];
-      let turnTotal = turnDarts.reduce((a, b) => a + b.score, 0);
+      const startScore = p.score;
+      const turnTotal = turnDarts.reduce((a, b) => a + b.score, 0);
+      const isPro = turnDarts.length === 1 && turnDarts[0].label.startsWith('PRO:');
+      const count = isPro ? 3 : turnDarts.length;
+      const labels = turnDarts.map(d => d.label);
 
       turnHistory.push({
         playerIdx: activePlayer,
@@ -1031,19 +1046,23 @@
         previousSets: p.sets,
         previousDarts: p.dartsThrown,
         previousTotal: p.totalScored,
-        darts: [...turnDarts]
+        darts: [...turnDarts],
+        logLen: matchLog.length,
+        legNo: legNo
       });
 
       if (gameMode === '501' || gameMode === '301') {
-        if (p.score - turnTotal === 0) {
+        if (startScore - turnTotal === 0) {
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, won: true, bust: false });
           p.score = 0;
           handleLegWin(p);
           return;
-        } else if (p.score - turnTotal < 2) {
+        } else if (startScore - turnTotal < 2) {
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: 0, count, labels, won: false, bust: true });
           playAudioAnnounce("Bust!", 'bust');
         } else {
+          matchLog.push({ p: activePlayer, leg: legNo, start: startScore, pts: turnTotal, count, labels, won: false, bust: false });
           p.score -= turnTotal;
-          const count = turnDarts.length === 1 && turnDarts[0].label.startsWith('PRO:') ? 3 : turnDarts.length;
           p.dartsThrown += count;
           p.totalScored += turnTotal;
           if (turnTotal > p.highestTurn) p.highestTurn = turnTotal;
@@ -1062,14 +1081,16 @@
 
     function handleLegWin(winner) {
       winner.legs++;
+      legNo++;
       playAudioAnnounce("Game and Leg!");
 
       if (winner.legs >= targetLegs) {
         winner.sets++;
         playAudioAnnounce("Game and Set!");
-        
+
         if (winner.sets >= targetSets) {
           playAudioAnnounce("Game, Shot, and Match!");
+          saveMatchHistory(winner);
           alert(`🏆 ${winner.name} GEWINNT DAS MATCH! (${winner.sets} Sets / ${winner.legs} Legs)`);
           resetMatch();
           return;
@@ -1111,7 +1132,13 @@
 
     function openPlayerModal() {
       renderPlayerInputs();
+      loadVoiceLanguages();
       document.getElementById('player-modal').classList.add('active');
+    }
+
+    function openVoiceSettings() {
+      openPlayerModal();
+      document.getElementById('voice-lang').closest('.setting-group').scrollIntoView({ block: 'center' });
     }
 
     function renderPlayerInputs() {
@@ -1168,20 +1195,124 @@
       closeModals();
     }
 
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function avgOf(p) {
+      return p.dartsThrown > 0 ? ((p.totalScored / p.dartsThrown) * 3).toFixed(1) : '0.0';
+    }
+
+    function playerStats(idx) {
+      const entries = matchLog.filter(e => e.p === idx);
+      const scoring = entries.filter(e => !e.bust);
+      const wins = entries.filter(e => e.won);
+      const first3 = scoring.slice(0, 3);
+      const checkAttempts = entries.filter(e => e.start <= 170).length;
+      let singles = 0, doubles = 0, triples = 0, misses = 0, known = 0;
+      const nums = {};
+      for (const e of entries) {
+        for (const l of e.labels) {
+          if (l.startsWith('PRO:')) continue;
+          known++;
+          if (l === 'MISS') { misses++; continue; }
+          if (l.startsWith('T')) triples++;
+          else if (l.startsWith('D')) doubles++;
+          else singles++;
+          const n = (l === 'BULL' || l === 'D-BULL') ? 25 : Number(l.replace(/^[TD]/, ''));
+          if (n) nums[n] = (nums[n] || 0) + 1;
+        }
+      }
+      const pct = x => known ? Math.round(x / known * 100) + '%' : '–';
+      const legDarts = wins.map(w => entries.filter(e => e.leg === w.leg).reduce((a, e) => a + e.count, 0));
+      return {
+        first9: first3.length ? (first3.reduce((a, e) => a + e.pts, 0) / first3.length).toFixed(1) : '–',
+        t100: scoring.filter(e => e.pts >= 100).length,
+        t140: scoring.filter(e => e.pts >= 140).length,
+        t180: scoring.filter(e => e.pts === 180).length,
+        busts: entries.filter(e => e.bust).length,
+        checkPct: checkAttempts ? Math.round(wins.length / checkAttempts * 100) + '%' : '–',
+        best: wins.length ? Math.max(...wins.map(e => e.pts)) : '–',
+        dpl: legDarts.length ? (legDarts.reduce((a, b) => a + b, 0) / legDarts.length).toFixed(1) : '–',
+        doublePct: pct(doubles),
+        triplePct: pct(triples),
+        nums,
+        spark: scoring.map(e => e.pts).slice(-30)
+      };
+    }
+
+    function statBox(label, value) {
+      return `<div style="background:var(--card-bg);border:1px solid var(--border-color);border-radius:6px;padding:6px;"><div style="font-size:0.6rem;color:var(--subtext);">${label}</div><div style="font-weight:700;">${value}</div></div>`;
+    }
+
+    function numberBars(nums) {
+      const keys = [...Array.from({ length: 20 }, (_, i) => i + 1), 25];
+      const max = Math.max(1, ...keys.map(k => nums[k] || 0));
+      return keys.map(k => {
+        const c = nums[k] || 0;
+        const h = Math.round(c / max * 40);
+        return `<div style="flex:1 0 16px;text-align:center;font-size:0.55rem;"><div style="height:44px;display:flex;align-items:flex-end;"><div style="width:100%;height:${h}px;background:var(--accent);border-radius:2px 2px 0 0;"></div></div>${k === 25 ? 'B' : k}<br><span style="color:var(--subtext);">${c}</span></div>`;
+      }).join('');
+    }
+
+    function sparkline(vals) {
+      if (vals.length < 2) return '<div style="font-size:0.7rem;color:var(--subtext);">Zu wenig Würfe für den Verlauf</div>';
+      const w = 280, h = 50, max = Math.max(180, ...vals);
+      const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (v / max) * (h - 4) - 2}`).join(' ');
+      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`;
+    }
+
+    function loadMatchHistory() {
+      try { return JSON.parse(localStorage.getItem('neural_match_history')) || []; } catch (e) { return []; }
+    }
+
+    function saveMatchHistory(winner) {
+      const hist = loadMatchHistory();
+      hist.unshift({
+        date: new Date().toLocaleDateString('de-DE'),
+        mode: gameMode,
+        winner: winner.name,
+        players: players.map(p => ({ name: p.name, sets: p.sets, legs: p.legs, avg: avgOf(p) }))
+      });
+      try { localStorage.setItem('neural_match_history', JSON.stringify(hist.slice(0, 30))); } catch (e) {}
+    }
+
     function openStatsModal() {
       const content = document.getElementById('stats-content');
-      content.innerHTML = players.map(p => {
-        const avg = p.dartsThrown > 0 ? ((p.totalScored / p.dartsThrown) * 3).toFixed(1) : "0.0";
+      const cards = players.map((p, idx) => {
+        const s = playerStats(idx);
+        const top = Object.entries(s.nums).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([k, c]) => `${k == 25 ? 'Bull' : k} × ${c}`).join(' · ') || '–';
         return `
-          <div style="background:var(--card-bg); padding:8px; border-radius:6px; border:1px solid var(--border-color);">
-            <strong style="color:var(--accent);">${p.name}</strong><br>
-            • Sets: <strong>${p.sets}</strong> | Legs: <strong>${p.legs}</strong><br>
-            • 3-Dart Average: <strong>${avg}</strong><br>
-            • Geworfene Darts: <strong>${p.dartsThrown}</strong><br>
-            • Höchster Turn: <strong>${p.highestTurn} Pts</strong>
-          </div>
-        `;
+          <div style="background:var(--card-bg);padding:10px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:10px;">
+            <strong style="color:var(--accent);">${esc(p.name)}</strong>
+            <span style="font-size:0.7rem;color:var(--subtext);">Sets ${p.sets} · Legs ${p.legs}</span>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0;">
+              ${statBox('3-Dart Avg', avgOf(p))}${statBox('First-9 Avg', s.first9)}${statBox('Höchster Turn', p.highestTurn)}
+              ${statBox('100+', s.t100)}${statBox('140+', s.t140)}${statBox('180', s.t180)}
+              ${statBox('Busts', s.busts)}${statBox('Checkout', s.checkPct)}${statBox('Bester CO', s.best)}
+              ${statBox('Darts/Leg', s.dpl)}${statBox('Doppel-Quote', s.doublePct)}${statBox('Triple-Quote', s.triplePct)}
+            </div>
+            <div style="font-size:0.7rem;color:var(--subtext);margin-bottom:4px;">Meistgetroffene Zahlen</div>
+            <div style="font-size:0.8rem;margin-bottom:6px;">${top}</div>
+            <div style="display:flex;overflow-x:auto;">${numberBars(s.nums)}</div>
+            <div style="font-size:0.7rem;color:var(--subtext);margin:8px 0 2px;">Verlauf (Pkt pro Turn)</div>
+            ${sparkline(s.spark)}
+          </div>`;
       }).join('');
+
+      const hist = loadMatchHistory();
+      const wins = {};
+      hist.forEach(h => wins[h.winner] = (wins[h.winner] || 0) + 1);
+      const winLine = Object.entries(wins).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${esc(n)}: ${c}`).join(' · ') || '–';
+      const rows = hist.slice(0, 10).map(h => `
+          <div style="font-size:0.75rem;padding:4px 0;border-bottom:1px solid var(--border-color);">
+            ${h.date} · ${esc(h.mode)} · <strong>${esc(h.winner)}</strong> · ${h.players.map(p => `${esc(p.name)} ${p.sets}:${p.legs} (${p.avg})`).join(' · ')}
+          </div>`).join('') || '<div style="font-size:0.75rem;color:var(--subtext);">Noch keine abgeschlossenen Matches</div>';
+
+      content.innerHTML = cards + `
+          <div style="font-size:0.8rem;margin:6px 0;"><strong style="color:var(--accent);">Gespeicherte Siege:</strong> ${winLine}</div>
+          ${rows}`;
       document.getElementById('stats-modal').classList.add('active');
     }
 
