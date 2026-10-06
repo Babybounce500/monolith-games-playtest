@@ -508,6 +508,7 @@
         <span class="dart-badge">-</span>
         <span class="dart-badge">-</span>
       </div>
+      <button class="icon-btn" onclick="repeatLastRound()" title="Wie letzte Runde (R)">↻ WIE LETZTE</button>
       <button class="icon-btn" style="color:var(--red-peg);" onclick="smartUndo()">↩ UNDO</button>
     </div>
 
@@ -636,6 +637,15 @@
           <div style="font-size:0.6rem; color:var(--subtext); margin-top:4px;">Gilt ab dem nächsten Match (MATCH STARTEN)</div>
         </div>
 
+        <div class="setting-group">
+          <div class="setting-label">SCHNELL-EINGABE</div>
+          <label style="font-size:0.75rem; display:block; margin-bottom:6px;"><input type="checkbox" id="autonext-on" onchange="setAutoNext(this.checked)"> Nach 3 Pfeilen automatisch weiter</label>
+          <div style="font-size:0.65rem; color:var(--subtext); line-height:1.6;">
+            Tasten: <strong>1–20</strong> Feld · <strong>B</strong> Bull · <strong>M</strong> Miss · <strong>S/D/T</strong> Single/Double/Triple<br>
+            <strong>Enter</strong> Nächster Spieler · <strong>Rücktaste</strong> Pfeil zurück · <strong>R</strong> wie letzte Runde · <strong>Strg+Z</strong> Undo
+          </div>
+        </div>
+
         <div class="setting-label">SPIELER VERWALTUNG</div>
         <div id="player-inputs-container" style="display:flex; flex-direction:column; gap:6px;"></div>
 
@@ -690,6 +700,7 @@
       });
       document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeModals(); }));
       document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModals(); });
+      document.addEventListener('keydown', handleSpeedKeys);
 
       document.getElementById('pro-score-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') submitProScore();
@@ -1369,6 +1380,60 @@
       grid.appendChild(miss);
     }
 
+    let autoNext = localStorage.getItem('neural_autonext') === '1';
+    let digitBuf = '', digitTimer = null;
+
+    function setAutoNext(v) {
+      autoNext = v;
+      localStorage.setItem('neural_autonext', v ? '1' : '0');
+    }
+
+    function repeatLastRound() {
+      if (turnDarts.length || players[activePlayer]?.bot) return;
+      const last = [...matchLog].reverse().find(e => e.p === activePlayer && !e.won);
+      if (!last) return;
+      turnDarts = last.labels.map(l => {
+        const pl = parseLabel(l);
+        return pl ? { score: pl.score, label: pl.label } : null;
+      }).filter(Boolean);
+      updateTurnUI();
+    }
+
+    function flushDigits() {
+      const n = Number(digitBuf);
+      digitBuf = '';
+      digitTimer = null;
+      if (n >= 1 && n <= 20) throwDart(n);
+    }
+
+    function typeDigit(k) {
+      clearTimeout(digitTimer);
+      const two = Number(digitBuf + k);
+      if (digitBuf && two >= 10 && two <= 20) { digitBuf = ''; throwDart(two); return; }
+      if (digitBuf) flushDigits();
+      if (k === '0') return;
+      if (Number(k) >= 3) { throwDart(Number(k)); return; }
+      digitBuf = k;
+      digitTimer = setTimeout(flushDigits, 350);
+    }
+
+    function handleSpeedKeys(e) {
+      if (e.target.matches('input, textarea, select') || document.querySelector('.modal-overlay.active')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); smartUndo(); }
+        return;
+      }
+      if (players.length === 0 || players[activePlayer]?.bot) return;
+      const k = e.key.toLowerCase();
+      if (/^[0-9]$/.test(k)) { typeDigit(k); }
+      else if (k === 'b') throwDart(25);
+      else if (k === 'm') throwDart(0);
+      else if (k === 's' || k === 'd' || k === 't') setMultiplier(k.toUpperCase());
+      else if (k === 'enter') { e.preventDefault(); if (turnDarts.length) confirmTurn(); }
+      else if (k === 'backspace' || k === 'delete') { e.preventDefault(); smartUndo(); }
+      else if (k === 'r') repeatLastRound();
+    }
+
     function throwDart(val) {
       if (turnDarts.length >= 3 || players[activePlayer]?.bot) return;
       let score = val;
@@ -1390,6 +1455,7 @@
       turnDarts.push({ score, label });
       setMultiplier('S');
       updateTurnUI();
+      if (autoNext && turnDarts.length === 3) setTimeout(() => { if (turnDarts.length === 3) confirmTurn(); }, 350);
     }
 
     // SCAN-AI: photo of the board -> Gemini Flash-Lite via the proxy -> darts of this turn.
@@ -1828,6 +1894,7 @@
       loadVoiceLanguages();
       document.getElementById('bot-on').checked = botOn;
       document.getElementById('bot-skill').value = botSkill;
+      document.getElementById('autonext-on').checked = autoNext;
       document.getElementById('player-modal').classList.add('active');
     }
 
