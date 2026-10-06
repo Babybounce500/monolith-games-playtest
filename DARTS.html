@@ -674,6 +674,18 @@
       if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = loadVoiceLanguages;
       loadVoiceLanguages();
 
+      document.querySelectorAll('.modal-card').forEach(card => {
+        const x = document.createElement('button');
+        x.textContent = '✕';
+        x.setAttribute('aria-label', 'Schließen');
+        x.style.cssText = 'position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text);font-size:1.2rem;cursor:pointer;z-index:2;';
+        x.onclick = closeModals;
+        card.style.position = 'relative';
+        card.prepend(x);
+      });
+      document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeModals(); }));
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModals(); });
+
       document.getElementById('pro-score-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') submitProScore();
       });
